@@ -56,6 +56,7 @@ const DIMENSION_AR: Record<string, string> = {
 };
 
 const AMENITY_AR: Record<string, string> = {
+  // stays & halls
   generator: "مولّد كهرباء",
   water_tank: "خزان مياه",
   pool: "مسبح",
@@ -63,6 +64,28 @@ const AMENITY_AR: Record<string, string> = {
   prayer_space: "مصلّى",
   parking: "موقف سيارات",
   kosha: "كوشة",
+  // services
+  tasting: "تذوق قبل التعاقد",
+  delivery_setup: "توصيل وتجهيز",
+  service_staff: "طاقم خدمة",
+  menu_fixed: "قائمة وأسعار مكتوبة",
+  photo_video: "تصوير فوتو وفيديو",
+  female_staff: "طاقم نسائي",
+  printed_album: "ألبوم مطبوع",
+  delivery_time: "مدة التسليم",
+  trial: "تجربة قبل الموعد",
+  home_visit: "خدمة في البيت",
+  original_products: "منتجات أصلية",
+  female_only: "نسائي بالكامل",
+  bridal: "تسريحات عرايس",
+  appointment: "بالموعد فقط",
+  privacy: "خصوصية تامة",
+  female_hours: "أوقات نسائية",
+  female_trainer: "مدربة سيدة",
+  equipment: "أجهزة حديثة",
+  membership: "اشتراكات",
+  tiered_cake: "كيك متعدد الطوابق",
+  custom_design: "تصميم حسب الطلب",
 };
 
 export default async function ListingPage({
@@ -167,16 +190,19 @@ export default async function ListingPage({
             <div className="card p-4 border-2 border-sea/15">
               <h2 className="font-bold text-sea mb-2">✓ ماذا يعني «موثّق من تشاو»؟</h2>
               <p className="text-sm text-sea/80">
-                فريق تشاو زار هذا المكان بنفسه، تحقق من المالك ومن كل المرافق،
-                والتقط الصور بنفسه — لا يُنشر أي مكان قبل أن نعتمده شخصيًا.
-                والتوثيق يُجدَّد سنويًا. تفاصيل الفحص كاملة في جدول الحقائق.
+                {l.type === "service"
+                  ? "فريق تشاو قابل هذا المزوّد شخصيًا، تحقق من نشاطه ومن أعماله السابقة، واعتمده — لا يُنشر أي مزوّد قبل أن نعتمده بأنفسنا. والتوثيق يُجدَّد سنويًا."
+                  : "فريق تشاو زار هذا المكان بنفسه، تحقق من المالك ومن كل المرافق، والتقط الصور بنفسه — لا يُنشر أي مكان قبل أن نعتمده شخصيًا. والتوثيق يُجدَّد سنويًا. تفاصيل الفحص كاملة في جدول الحقائق."}
               </p>
             </div>
           ) : null}
 
           {/* Amenity truth-table (§8.5): present/absent/condition — not free text */}
+          {l.amenities.length > 0 || l.privacy ? (
           <div className="card p-4">
-            <h2 className="font-bold text-sea mb-3">جدول الحقائق</h2>
+            <h2 className="font-bold text-sea mb-3">
+              {l.type === "service" ? "ماذا تشمل الخدمة" : "جدول الحقائق"}
+            </h2>
             <ul className="divide-y divide-sand">
               {[...l.amenities]
                 .sort((a, b) => Number(b.present) - Number(a.present))
@@ -207,6 +233,7 @@ export default async function ListingPage({
               ) : null}
             </ul>
           </div>
+          ) : null}
 
           {/* Hall packages — standardised comparable rows (§6.2) */}
           {l.type === "hall" && l.packages?.length ? (
@@ -241,19 +268,28 @@ export default async function ListingPage({
             <div className="grid sm:grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="font-bold mb-1">🗓 سياسة الإلغاء</p>
-                <p className="text-sea/80">{tierAr}</p>
+                <p className="text-sea/80">
+                  {l.type === "service"
+                    ? "تُحدَّد مع المزوّد في عرض السعر قبل الدفع — بلا شروط مخفية."
+                    : tierAr}
+                </p>
               </div>
               <div>
-                <p className="font-bold mb-1">🔑 قواعد البيت</p>
+                <p className="font-bold mb-1">
+                  {l.type === "service" ? "🔑 كيف تتم الخدمة" : "🔑 قواعد البيت"}
+                </p>
                 <p className="text-sea/80">
-                  {l.houseRulesAr ?? "يحددها المضيف عند التأكيد — اسأله في المحادثة."}
+                  {l.type === "service"
+                    ? "تتفق مع المزوّد على التفاصيل عبر فريق تشاو، ويُثبَّت السعر كتابيًا قبل أي دفع."
+                    : (l.houseRulesAr ?? "يحددها المضيف عند التأكيد — اسأله في المحادثة.")}
                 </p>
               </div>
               <div>
                 <p className="font-bold mb-1">📍 الموقع والخصوصية</p>
                 <p className="text-sea/80">
-                  المنطقة: {l.area ?? l.city} — العنوان الدقيق ورقم المضيف يظهران فور
-                  دفع العربون. هذا يحمي الطرفين.
+                  {l.type === "service"
+                    ? `المنطقة: ${l.area ?? l.city} — بيانات التواصل مع المزوّد تصلك بعد تأكيد الطلب عبر فريق تشاو.`
+                    : `المنطقة: ${l.area ?? l.city} — العنوان الدقيق ورقم المضيف يظهران فور دفع العربون. هذا يحمي الطرفين.`}
                 </p>
               </div>
             </div>
@@ -321,7 +357,7 @@ export default async function ListingPage({
           {/* أماكن مشابهة قريبة — Airbnb "More nearby" */}
           {l.similar?.length ? (
             <div>
-              <h2 className="font-bold text-sea text-lg mb-3">أماكن مشابهة قريبة</h2>
+              <h2 className="font-bold text-sea text-lg mb-3">{l.type === "service" ? "مزوّدون مشابهون" : "أماكن مشابهة قريبة"}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {l.similar.map((sim) => {
                   const cover = sim.media.find((m) => m.kind === "photo");

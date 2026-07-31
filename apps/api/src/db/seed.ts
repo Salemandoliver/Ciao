@@ -26,6 +26,35 @@ const MEDIA: Record<string, { url: string; kind: string; order: number }[]> = {
     { url: "/media/andalus-hall-tripoli/3.webp", kind: "photo", order: 3 },
     { url: "/media/andalus-hall-tripoli/4.webp", kind: "photo", order: 4 },
   ],
+  // Services vertical
+  "kaakat-cakes-tripoli": [
+    { url: "/media/kaakat-cakes-tripoli/1.webp", kind: "photo", order: 1 },
+    { url: "/media/kaakat-cakes-tripoli/2.webp", kind: "photo", order: 2 },
+    { url: "/media/kaakat-cakes-tripoli/3.webp", kind: "photo", order: 3 },
+    { url: "/media/kaakat-cakes-tripoli/4.webp", kind: "photo", order: 4 },
+  ],
+  "diwan-catering-tripoli": [
+    { url: "/media/diwan-catering-tripoli/1.webp", kind: "photo", order: 1 },
+    { url: "/media/diwan-catering-tripoli/2.webp", kind: "photo", order: 2 },
+    { url: "/media/diwan-catering-tripoli/3.webp", kind: "photo", order: 3 },
+    { url: "/media/diwan-catering-tripoli/4.webp", kind: "photo", order: 4 },
+  ],
+  "adasa-photography-tripoli": [
+    { url: "/media/adasa-photography-tripoli/1.webp", kind: "photo", order: 1 },
+    { url: "/media/adasa-photography-tripoli/2.webp", kind: "photo", order: 2 },
+  ],
+  "lamsa-makeup-tripoli": [
+    { url: "/media/lamsa-makeup-tripoli/1.webp", kind: "photo", order: 1 },
+    { url: "/media/lamsa-makeup-tripoli/2.webp", kind: "photo", order: 2 },
+  ],
+  "noon-hair-tripoli": [
+    { url: "/media/noon-hair-tripoli/1.webp", kind: "photo", order: 1 },
+    { url: "/media/noon-hair-tripoli/2.webp", kind: "photo", order: 2 },
+  ],
+  "sahha-gym-tripoli": [
+    { url: "/media/sahha-gym-tripoli/1.webp", kind: "photo", order: 1 },
+    { url: "/media/sahha-gym-tripoli/2.webp", kind: "photo", order: 2 },
+  ],
 };
 
 /** Softer trust voice: we personally vet and approve every site (no spec-boasting). */
@@ -46,6 +75,13 @@ const COORDS: Record<string, { lat: string; lng: string }> = {
   "tajoura-golden-sands": { lat: "32.8815", lng: "13.3510" },
   "ain-zara-palms": { lat: "32.7910", lng: "13.2330" },
   "andalus-hall-tripoli": { lat: "32.7520", lng: "13.1560" },
+  // services — approximate business locations across Tripoli
+  "diwan-catering-tripoli": { lat: "32.7640", lng: "13.1720" },
+  "adasa-photography-tripoli": { lat: "32.8180", lng: "13.0290" },
+  "lamsa-makeup-tripoli": { lat: "32.8020", lng: "13.2410" },
+  "noon-hair-tripoli": { lat: "32.8390", lng: "13.0450" },
+  "sahha-gym-tripoli": { lat: "32.7860", lng: "13.2185" },
+  "kaakat-cakes-tripoli": { lat: "32.8730", lng: "13.3390" },
 };
 
 /** Always keep listing media + copy in sync with the shipped files (idempotent). */
@@ -119,6 +155,26 @@ const SERVICES: {
     area: "ain_zara",
   },
   {
+    slug: "noon-hair-tripoli",
+    category: "hair",
+    nameAr: "صالون نون",
+    titleAr: "صالون نون — تسريحات عرايس ومناسبات (نسائي)",
+    descriptionAr: "صالون نسائي خاص بالكامل — تسريحات عرايس ومناسبات بمواعيد محجوزة مسبقًا وخصوصية تامة. معتمد من فريق تشاو.",
+    hostPhone: "+218914000005",
+    hostName: "صالون نون",
+    area: "janzour",
+  },
+  {
+    slug: "sahha-gym-tripoli",
+    category: "gym",
+    nameAr: "صحّة — نادي لياقة",
+    titleAr: "صحّة — نادي لياقة بأوقات نسائية مخصصة",
+    descriptionAr: "نادي لياقة بأجهزة حديثة وأوقات نسائية مخصصة بالكامل — اشتراكات شهرية وحصص خاصة. زاره فريق تشاو واعتمده.",
+    hostPhone: "+218914000006",
+    hostName: "نادي صحّة",
+    area: "ain_zara",
+  },
+  {
     slug: "kaakat-cakes-tripoli",
     category: "cakes",
     nameAr: "كعكات",
@@ -129,6 +185,65 @@ const SERVICES: {
     area: "tajoura",
   },
 ];
+
+/** Service truth-table rows — same present/absent shape as venue amenities. */
+const SERVICE_FACTS: Record<string, { key: string; present: boolean; detail?: string }[]> = {
+  catering: [
+    { key: "tasting", present: true, detail: "تذوق مجاني قبل التعاقد" },
+    { key: "delivery_setup", present: true, detail: "توصيل وتجهيز داخل طرابلس" },
+    { key: "service_staff", present: true, detail: "طاقم خدمة بالزي الموحّد" },
+    { key: "menu_fixed", present: true, detail: "قائمة وأسعار مكتوبة قبل الدفع" },
+  ],
+  photography: [
+    { key: "photo_video", present: true, detail: "تصوير فوتو وفيديو" },
+    { key: "female_staff", present: true, detail: "مصوّرة سيدة متاحة للقسم النسائي" },
+    { key: "printed_album", present: true, detail: "ألبوم مطبوع ضمن الباقة" },
+    { key: "delivery_time", present: true, detail: "التسليم خلال ٣ أسابيع" },
+  ],
+  makeup: [
+    { key: "trial", present: true, detail: "تجربة قبل يوم المناسبة" },
+    { key: "home_visit", present: true, detail: "الخدمة في بيتك أو في الصالون" },
+    { key: "female_staff", present: true, detail: "سيدات فقط" },
+    { key: "original_products", present: true, detail: "منتجات أصلية معاينة من فريقنا" },
+  ],
+  hair: [
+    { key: "female_only", present: true, detail: "صالون نسائي مغلق بالكامل" },
+    { key: "bridal", present: true, detail: "تسريحات عرايس ومناسبات" },
+    { key: "appointment", present: true, detail: "بالموعد فقط — لا انتظار" },
+    { key: "privacy", present: true, detail: "خصوصية تامة، ممنوع التصوير" },
+  ],
+  gym: [
+    { key: "female_hours", present: true, detail: "أوقات نسائية مخصصة يوميًا" },
+    { key: "female_trainer", present: true, detail: "مدربة سيدة للحصص النسائية" },
+    { key: "equipment", present: true, detail: "أجهزة كارديو ومقاومة حديثة" },
+    { key: "membership", present: true, detail: "اشتراك شهري أو حصص مفردة" },
+  ],
+  cakes: [
+    { key: "tiered_cake", present: true, detail: "كيك أعراس متعدد الطوابق" },
+    { key: "tasting", present: true, detail: "تذوق قبل تأكيد الطلب" },
+    { key: "delivery_setup", present: true, detail: "توصيل وتركيب في القاعة" },
+    { key: "custom_design", present: true, detail: "تصميم حسب طلبك" },
+  ],
+};
+
+/** Keep service facts in sync on every seed run (idempotent). */
+async function syncServiceFacts() {
+  for (const svc of SERVICES) {
+    const facts = SERVICE_FACTS[svc.category];
+    if (!facts) continue;
+    const [row] = await db
+      .select({ venueId: schema.listings.venueId })
+      .from(schema.listings)
+      .where(eq(schema.listings.slug, svc.slug))
+      .limit(1);
+    if (!row) continue;
+    await db
+      .update(schema.venues)
+      .set({ amenities: facts, updatedAt: new Date() })
+      .where(eq(schema.venues.id, row.venueId));
+  }
+  console.log("Service facts synced.");
+}
 
 async function syncServices() {
   for (const svc of SERVICES) {
@@ -186,9 +301,10 @@ async function main() {
     .where(eq(schema.listings.slug, "janzour-marina-villa"))
     .limit(1);
   if (existing) {
-    console.log("Seed data already present — syncing media + services only.");
-    await syncMedia();
+    console.log("Seed data already present — syncing services + media only.");
     await syncServices();
+    await syncServiceFacts();
+    await syncMedia();
     await pool.end();
     return;
   }
@@ -435,8 +551,9 @@ async function main() {
       .onConflictDoNothing();
   }
 
-  await syncMedia();
   await syncServices();
+  await syncServiceFacts();
+  await syncMedia();
   console.log("Seeded 3 coast venues + 1 wedding hall with packages. تشاو!");
   await pool.end();
 }
