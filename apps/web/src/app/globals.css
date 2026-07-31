@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sea: #1b4f72;
+  --sand: #f5efe3;
+  --amber: #e8a33d;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--sand);
+  color: #1a2a36;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* High-contrast for sunlight readability on cheap screens (§3.3) */
+.btn-primary {
+  @apply bg-sea text-white font-bold rounded-bubble px-6 py-3 text-lg active:bg-sea-dark disabled:opacity-50 transition-colors;
+}
+.btn-amber {
+  @apply bg-amber text-sea-dark font-bold rounded-bubble px-6 py-3 text-lg active:bg-amber-dark disabled:opacity-50 transition-colors;
+}
+.card {
+  @apply bg-white rounded-bubble shadow-sm overflow-hidden;
+}
+.chip {
+  @apply inline-flex items-center gap-1 rounded-full bg-sand px-3 py-1 text-sm text-sea;
+}
+.input {
+  @apply w-full rounded-xl border border-sea/20 bg-white px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-sea/40;
+}
+
+/* Offline indicator */
+.offline-banner {
+  @apply fixed top-0 inset-x-0 z-50 bg-amber text-sea-dark text-center text-sm py-1 font-bold;
+}
+
+/* LQIP blur-up (§12.3) */
+.img-blur {
+  filter: blur(12px);
+  transform: scale(1.05);
+  transition: filter 0.4s ease, transform 0.4s ease;
+}
+.img-loaded {
+  filter: blur(0);
+  transform: scale(1);
+}

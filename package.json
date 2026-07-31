@@ -1,0 +1,20 @@
+{
+  "name": "ciao",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Ciao (ciao.ly) — booking marketplace for Libya's beach resorts, chalets, and wedding halls",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @ciao/api --filter @ciao/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @ciao/api db:generate",
+    "db:migrate": "pnpm --filter @ciao/api db:migrate",
+    "db:seed": "pnpm --filter @ciao/api db:seed"
+  }
+}

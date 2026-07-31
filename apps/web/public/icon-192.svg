@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Ciao app icon (§3.3): the Greeting Bubble containing only the sun -->
+  <rect x="32" y="32" width="448" height="416" rx="112" fill="#1B4F72"/>
+  <path d="M120 448 L120 496 L192 448 Z" fill="#1B4F72"/>
+  <circle cx="256" cy="240" r="104" fill="#E8A33D"/>
+</svg>
