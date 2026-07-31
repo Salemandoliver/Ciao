@@ -5,6 +5,7 @@ import { db, schema } from "../../db/client.js";
 import { CiaoError } from "../../lib/errors.js";
 import { authenticate } from "../../lib/guards.js";
 import { issueCredit } from "../bookings/service.js";
+import { track } from "../intelligence/events.js";
 
 /**
  * Reviews — §8.8: double-blind, verified-stay-only, 14-day window.
@@ -88,6 +89,7 @@ export async function reviewRoutes(app: FastifyInstance) {
       });
     }
 
+    track("booking.reviewed", { bookingId: b.id, scores: body.scores }, { userId: claims.sub });
     return reply.status(201).send({ ok: true, published: Boolean(other) });
   });
 

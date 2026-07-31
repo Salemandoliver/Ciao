@@ -13,6 +13,7 @@ import {
 import { authenticate } from "../../lib/guards.js";
 import { config } from "../../config.js";
 import { notify } from "../messaging/service.js";
+import { track } from "../intelligence/events.js";
 
 import { isValidPhoneInput, normalizePhone } from "@ciao/shared";
 
@@ -45,6 +46,7 @@ export async function authRoutes(app: FastifyInstance) {
         toPhone: body.phone,
         vars: { code },
       });
+      track("auth.otp_requested", {}, { source: "api" });
       return reply.send({
         ok: true,
         ttlSeconds: config.otp.ttlSeconds,
@@ -119,6 +121,7 @@ export async function authRoutes(app: FastifyInstance) {
       }
       if (user!.disabled) throw new CiaoError("AUTH_FORBIDDEN");
 
+      track("auth.verified", { isNewUser: !user!.displayName }, { userId: user!.id });
       const accessToken = await signAccessToken({
         sub: user!.id,
         role: user!.role as never,

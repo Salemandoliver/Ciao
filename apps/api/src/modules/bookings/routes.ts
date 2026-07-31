@@ -8,6 +8,7 @@ import { consumeActionToken } from "../../lib/auth.js";
 import { withIdempotency } from "../../lib/idempotency.js";
 import { maskContacts } from "../../lib/masking.js";
 import * as svc from "./service.js";
+import { track } from "../intelligence/events.js";
 
 export async function bookingRoutes(app: FastifyInstance) {
   // Create a stay booking request + deposit intent (§6.1 steps 3–4).
@@ -196,6 +197,7 @@ export async function bookingRoutes(app: FastifyInstance) {
     const isHost = b.hostId === claims.sub;
     if (!isHost) requireRole(claims, "ops");
     const r = await svc.checkIn(id, isHost ? "host" : "ops", claims.sub);
+    if (r.applied) track("booking.checked_in", { bookingId: id }, { userId: b.guestId });
     return reply.send({ ok: true, state: r.booking.state });
   });
 

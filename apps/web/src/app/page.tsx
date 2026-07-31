@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LogoWithTail } from "@/components/logo";
 import { ListingCard } from "@/components/listing-card";
 import { HeroSearch } from "@/components/hero-search";
+import { RecsStrip } from "@/components/recs";
 import { API_URL } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
 
@@ -81,6 +82,8 @@ export default async function HomePage() {
           </div>
         ))}
       </section>
+
+      <RecsStrip />
 
       <Section title="شاليهات واستراحات الساحل" href="/search?type=coast" items={coast} />
       <Section title="قاعات الأفراح" href="/search?type=hall" items={halls} />

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { ListingCard } from "@/components/listing-card";
 import { HeroSearch } from "@/components/hero-search";
+import { TrackEvent } from "@/components/track";
 import { API_URL } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
 
@@ -60,6 +61,19 @@ export default async function SearchPage({
         </h1>
       </header>
 
+      <TrackEvent
+        name="search.performed"
+        props={{
+          vertical: type,
+          city: params.city,
+          area: params.area,
+          checkIn: params.checkIn,
+          checkOut: params.checkOut,
+          guests: params.maxGuests ? Number(params.maxGuests) : undefined,
+          filters: ["minPrivacy", "generator", "familyOnly", "minBedrooms", "womensCapacity"].filter((k) => params[k]),
+          resultCount: items.length,
+        }}
+      />
       <div className="mb-4">
         <HeroSearch
           compact

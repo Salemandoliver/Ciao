@@ -5,6 +5,8 @@ import { db, schema } from "../../db/client.js";
 import { CiaoError } from "../../lib/errors.js";
 import * as calendar from "../calendar/service.js";
 import { quoteStay } from "@ciao/shared";
+import { track } from "../intelligence/events.js";
+import { verifyAccessToken } from "../../lib/auth.js";
 
 /**
  * Public listing/search endpoints.
@@ -202,6 +204,28 @@ export async function listingRoutes(app: FastifyInstance) {
       new Date(`${q.checkOut}T00:00:00Z`),
       { foundingHost: venue?.foundingHost },
     );
+    // Intelligence: quote views are the strongest pre-money intent signal.
+    let quoteUserId: string | undefined;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      try { quoteUserId = (await verifyAccessToken(authHeader.slice(7))).sub; } catch { /* anon */ }
+    }
+    track("quote.viewed", {
+      listingId: listing.id,
+      vertical: venue?.type,
+      city: venue?.city,
+      area: venue?.area,
+      checkIn: q.checkIn,
+      nights: quote.nights.length,
+      total: quote.total,
+      deposit: quote.deposit,
+      leadDays: Math.max(0, Math.round((new Date(`${q.checkIn}T00:00:00Z`).getTime() - Date.now()) / 86400000)),
+    }, {
+      userId: quoteUserId,
+      anonId: typeof req.headers["x-ciao-anon"] === "string" ? req.headers["x-ciao-anon"] : undefined,
+      source: "web",
+    });
+
     // Guest-facing quote: never expose commission split (§9.1 — invisible fee).
     return reply.send({
       nights: quote.nights,

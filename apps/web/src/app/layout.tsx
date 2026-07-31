@@ -3,6 +3,7 @@ import { Almarai, Baloo_Bhaijaan_2, Inter } from "next/font/google";
 import "./globals.css";
 import { SwRegister } from "@/components/sw-register";
 import { OfflineBanner } from "@/components/offline-banner";
+import { PageViews } from "@/components/track";
 
 /**
  * Brand typography — §3.3: Almarai 400/700 on the critical path,
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="font-almarai min-h-dvh">
         <OfflineBanner />
+        <PageViews />
         {children}
         <SwRegister />
       </body>

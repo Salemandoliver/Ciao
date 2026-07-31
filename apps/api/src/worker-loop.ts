@@ -12,17 +12,37 @@ import { transition } from "./modules/bookings/machine.js";
 import * as calendar from "./modules/calendar/service.js";
 import { notify } from "./modules/messaging/service.js";
 import { lyd } from "@ciao/shared";
+import { foldAllDirty } from "./modules/intelligence/profile.js";
 
 type Job = typeof schema.scheduledJobs.$inferSelect;
 type Logger = { info: (o: unknown, msg?: string) => void; error: (o: unknown, msg?: string) => void };
 
 const MAX_ATTEMPTS = 5;
 
+/** Ensure the recurring intelligence jobs exist (idempotent, called on boot). */
+export async function ensureRecurringJobs(): Promise<void> {
+  for (const kind of ["profile_fold", "events_prune"]) {
+    const [pending] = await db
+      .select({ id: schema.scheduledJobs.id })
+      .from(schema.scheduledJobs)
+      .where(and(eq(schema.scheduledJobs.kind, kind), isNull(schema.scheduledJobs.completedAt)))
+      .limit(1);
+    if (!pending) {
+      await db.insert(schema.scheduledJobs).values({
+        kind,
+        refId: null,
+        runAt: new Date(Date.now() + 60 * 1000),
+      });
+    }
+  }
+}
+
 export function startWorkerLoop(log: Logger): NodeJS.Timeout {
   const timer = setInterval(() => {
     tick(log).catch((e) => log.error(e, "worker tick failed"));
   }, config.worker.pollIntervalMs);
   timer.unref();
+  ensureRecurringJobs().catch((e) => log.error(e, "ensureRecurringJobs failed"));
   log.info({}, `worker loop started (${config.worker.pollIntervalMs}ms)`);
   return timer;
 }
@@ -178,6 +198,28 @@ async function handle(job: Job): Promise<void> {
     }
     case "payout_release": {
       // Swept generically below via releasePayouts; kept for explicit scheduling.
+      break;
+    }
+    case "profile_fold": {
+      // Intelligence: fold fresh events into user profiles, then re-arm.
+      const folded = await foldAllDirty();
+      if (folded > 0) console.log(`intelligence: folded ${folded} profiles`);
+      await db.insert(schema.scheduledJobs).values({
+        kind: "profile_fold",
+        refId: null,
+        runAt: new Date(Date.now() + 6 * 3600 * 1000),
+      }).onConflictDoNothing();
+      break;
+    }
+    case "events_prune": {
+      // Data minimization: raw events beyond 18 months are deleted; profiles
+      // (derived aggregates) are what we keep long-term.
+      await db.execute(sql`delete from events where ts < now() - interval '18 months'`);
+      await db.insert(schema.scheduledJobs).values({
+        kind: "events_prune",
+        refId: null,
+        runAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      }).onConflictDoNothing();
       break;
     }
     case "requeue_notification": {

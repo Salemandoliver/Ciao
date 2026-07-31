@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { api, ensureSession, fmtLyd, ApiError } from "@/lib/api";
+import { InsightsPanels } from "./insights";
 
 interface OpsBooking {
   id: string;
@@ -106,6 +107,8 @@ export default function OpsPage() {
           💳 Pay-by-link (أرسله واتساب): {payLink}
         </p>
       ) : null}
+
+      <InsightsPanels />
 
       {/* Rail health (§10.8) */}
       <section className="mb-6">

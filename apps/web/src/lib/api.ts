@@ -62,6 +62,9 @@ export async function api<T>(
       headers: {
         "Content-Type": "application/json",
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(typeof window !== "undefined" && localStorage.getItem("ciao_anon")
+          ? { "x-ciao-anon": localStorage.getItem("ciao_anon")! }
+          : {}),
         ...(opts.headers ?? {}),
       },
     });

@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { api, ensureSession, fmtLyd, setTokens, ApiError } from "@/lib/api";
 import type { PublicListing, Quote } from "@/lib/types";
 import { localPhone, normalizePhone } from "@ciao/shared";
+import { trackClient } from "@/lib/tracker";
 
 type Step = "dates" | "phone" | "otp" | "rail" | "sadad_otp" | "done";
 
@@ -298,7 +299,10 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
                 type="radio"
                 name="rail"
                 checked={rail === r}
-                onChange={() => setRail(r)}
+                onChange={() => {
+                  setRail(r);
+                  trackClient("rail.selected", { rail: r });
+                }}
               />
               <span className="text-sm font-bold">{RAIL_AR[r] ?? r}</span>
             </label>

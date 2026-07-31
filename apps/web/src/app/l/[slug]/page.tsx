@@ -5,6 +5,7 @@ import { Stars, VerifiedBadge } from "@/components/listing-card";
 import { API_URL, fmtLyd } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
 import { BookingWidget } from "./booking-widget";
+import { TrackEvent } from "@/components/track";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,16 @@ export default async function ListingPage({
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-24">
+      <TrackEvent
+        name="listing.viewed"
+        props={{
+          listingId: l.id,
+          vertical: l.type,
+          city: l.city,
+          area: l.area,
+          priceNightly: l.baseNightly,
+        }}
+      />
       <header className="flex items-center justify-between py-4">
         <Link href="/">
           <Logo size={36} />

@@ -21,6 +21,7 @@ import * as ledger from "../payments/ledger.js";
 import { getProvider, railIsHealthy } from "../payments/registry.js";
 import { notify } from "../messaging/service.js";
 import type { PaymentRail } from "@ciao/shared";
+import { track } from "../intelligence/events.js";
 
 // ------------------------------------------------------------------ request
 export interface CreateStayRequestInput {
@@ -102,6 +103,24 @@ export async function createStayRequest(input: CreateStayRequestInput) {
     idempotencyKey: `request:${booking.id}`,
   });
 
+  track("booking.requested", {
+    bookingId: booking.id,
+    listingId: listing.id,
+    vertical: venue.type,
+    city: venue.city,
+    area: venue.area,
+    nights: quote.nights.length,
+    total: quote.total,
+    deposit: quote.deposit,
+    guests: input.guestCount,
+    rail: input.rail,
+    checkIn: input.checkIn,
+    leadDays: Math.max(0, Math.round(
+      (new Date(`${input.checkIn}T00:00:00Z`).getTime() - Date.now()) / 86400000,
+    )),
+    concierge: input.concierge ?? false,
+  }, { userId: input.guestId });
+
   // Payment intent
   const intent = await createDepositIntent(booking, input.rail, input.sadad);
   return { booking: { ...booking, state: "payment_pending" }, quote, intent };
@@ -172,6 +191,7 @@ export async function createDepositIntent(
       .update(schema.paymentIntents)
       .set({ providerRef: init.providerRef, status: "pending", updatedAt: new Date() })
       .where(eq(schema.paymentIntents.id, intent!.id));
+    track("payment.initiated", { bookingId: booking.id, rail, amount: booking.depositAmount }, { userId: booking.guestId });
     return { intentId: intent!.id, invoiceNo: inv, ...init };
   } catch {
     await db
@@ -252,6 +272,7 @@ export async function onDepositCaptured(intentId: string): Promise<void> {
   });
   if (!applied) return;
 
+  track("payment.captured", { bookingId: booking.id, rail: intent.rail, amount: intent.amount }, { userId: booking.guestId });
   await pingHost(booking, windowMinutes);
 }
 
@@ -359,6 +380,16 @@ export async function hostConfirm(bookingId: string, actorId?: string) {
     },
   });
 
+  track("booking.confirmed", {
+    bookingId: booking.id,
+    listingId: booking.listingId,
+    total: booking.totalAmount,
+    minutesToConfirm: booking.confirmationDeadline
+      ? Math.max(0, Math.round((booking.confirmationDeadline.getTime() - Date.now()) / 60000))
+      : null,
+  }, { userId: booking.guestId });
+  track("host.response", { bookingId: booking.id, decision: "confirm" }, { userId: booking.hostId ?? undefined });
+
   const [guest] = await db
     .select()
     .from(schema.users)
@@ -400,7 +431,11 @@ export async function hostDecline(bookingId: string, actorId?: string, reason?: 
       await calendar.settleDays(tx, b.id, "open");
     },
   });
-  if (applied) await refundDeposit(booking, "host_declined", 1);
+  if (applied) {
+    track("booking.declined", { bookingId }, { userId: booking.guestId });
+    track("host.response", { bookingId, decision: "decline" }, { userId: booking.hostId ?? undefined });
+    await refundDeposit(booking, "host_declined", 1);
+  }
   return booking;
 }
 
@@ -419,6 +454,7 @@ export async function hostTimeout(bookingId: string) {
   });
   if (!applied) return; // host already answered — normal race, not an error
 
+  track("booking.timeout", { bookingId }, { userId: booking.guestId });
   await refundDeposit(booking, "host_timeout", 1);
   // 5% next-deposit credit (§6.4) — goodwill funded by platform.
   const credit = Math.round((booking.depositAmount * 500) / 10000);
@@ -471,6 +507,14 @@ export async function guestCancel(bookingId: string, guestId: string) {
       await reverseAllocationIfNeeded(tx, bk);
     },
   });
+  if (applied) {
+    track("booking.cancelled", {
+      bookingId,
+      by: "guest",
+      refundFraction: fraction,
+      daysBeforeCheckIn: Math.round(hoursBefore / 24),
+    }, { userId: guestId });
+  }
   if (applied && wasPaid(b.state)) {
     if (fraction > 0) await refundDeposit(booking, "guest_cancel", fraction);
     if (fraction < 1) {
@@ -511,6 +555,7 @@ export async function hostCancel(bookingId: string, actorId?: string, reason?: s
     },
   });
   if (applied) {
+    track("booking.cancelled", { bookingId, by: "host" }, { userId: booking.guestId });
     // Full refund + credit + reliability strike (§9.7).
     await refundDeposit(booking, "host_cancel", 1);
     const credit = Math.round((booking.depositAmount * 500) / 10000);
@@ -554,6 +599,7 @@ export async function markNoShow(bookingId: string, actorId?: string) {
     },
   });
   if (applied) {
+    track("booking.no_show", { bookingId }, { userId: booking.guestId });
     // deposit already allocated at confirmation; nothing further to move —
     // host payout stands (that IS the no-show bond, §6.4).
     const [guest] = await db
@@ -588,6 +634,7 @@ export async function completeStay(bookingId: string) {
     },
   });
   if (!applied) return;
+  track("booking.completed", { bookingId, total: booking.totalAmount }, { userId: booking.guestId });
   const [guest] = await db
     .select()
     .from(schema.users)

@@ -13,6 +13,7 @@ import { reviewRoutes } from "./modules/reviews/routes.js";
 import { verificationRoutes } from "./modules/verification/routes.js";
 import { opsRoutes } from "./modules/ops/routes.js";
 import { hostRoutes } from "./modules/host/routes.js";
+import { intelligenceRoutes } from "./modules/intelligence/routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -91,6 +92,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(verificationRoutes);
   await app.register(opsRoutes);
   await app.register(hostRoutes);
+  await app.register(intelligenceRoutes);
 
   return app;
 }

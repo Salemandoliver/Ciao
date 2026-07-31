@@ -571,6 +571,46 @@ export const idempotencyKeys = pgTable(
   },
 );
 
+// ---------------------------------------------------------------- intelligence
+/**
+ * Event spine — append-only, first-party behavioral events.
+ * Every row: WHO (userId and/or anonId) did WHAT (name, dot-namespaced)
+ * WHEN (ts) with WHAT DETAILS (props). Never stores free-text PII or phone
+ * numbers in props. Client and server both emit; server events are canonical
+ * for money/funnel truth.
+ */
+export const events = pgTable(
+  "events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ts: ts("ts").notNull().defaultNow(),
+    name: varchar("name", { length: 48 }).notNull(), // e.g. "search.performed"
+    userId: uuid("user_id"),
+    anonId: varchar("anon_id", { length: 40 }), // client-generated, pre-login
+    sessionId: varchar("session_id", { length: 40 }),
+    source: varchar("source", { length: 8 }).notNull().default("api"), // web|api|worker|ops
+    props: jsonb("props").notNull().default(sql`'{}'::jsonb`),
+    context: jsonb("context"), // {locale, ua, viewport, referrer} — set at ingest
+  },
+  (t) => [
+    index("events_name_ts_idx").on(t.name, t.ts),
+    index("events_user_ts_idx").on(t.userId, t.ts),
+    index("events_anon_ts_idx").on(t.anonId, t.ts),
+  ],
+);
+
+/**
+ * Folded user profiles — derived, rebuildable from events + bookings.
+ * traits is versioned JSON; folding is incremental (lastEventTs cursor).
+ */
+export const userProfiles = pgTable("user_profiles", {
+  userId: uuid("user_id").primaryKey().references(() => users.id),
+  traits: jsonb("traits").notNull().default(sql`'{}'::jsonb`),
+  lastEventTs: ts("last_event_ts"),
+  foldVersion: integer("fold_version").notNull().default(1),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
 /** Ops audit log (§13.8). */
 export const auditLog = pgTable(
   "audit_log",
