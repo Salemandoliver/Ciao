@@ -47,8 +47,12 @@ export const config = {
   },
 
   otp: {
-    // In dev, OTP codes are logged to console; in prod they go via messaging ladder.
-    devEcho: process.env.OTP_DEV_ECHO !== "false" && !isProd,
+    // Demo/dev: echo OTP codes in the API response so they show on the login
+    // screen. OTP_DEV_ECHO=true enables this even in production (demo phase —
+    // MUST be removed before real users); defaults on outside production.
+    devEcho:
+      process.env.OTP_DEV_ECHO === "true" ||
+      (process.env.OTP_DEV_ECHO !== "false" && !isProd),
     ttlSeconds: 300,
     maxAttempts: 5,
   },

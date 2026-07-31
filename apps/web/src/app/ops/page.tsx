@@ -154,7 +154,7 @@ export default function OpsPage() {
           <input dir="ltr" className="input !py-2 text-sm" placeholder="Listing ID"
             value={concierge.listingId}
             onChange={(e) => setConcierge((c) => ({ ...c, listingId: e.target.value }))} />
-          <input dir="ltr" className="input !py-2 text-sm" placeholder="+2189XXXXXXXX"
+          <input dir="ltr" className="input !py-2 text-sm" placeholder="091 2345678"
             value={concierge.guestPhone}
             onChange={(e) => setConcierge((c) => ({ ...c, guestPhone: e.target.value }))} />
           <input className="input !py-2 text-sm" placeholder="اسم الضيف"

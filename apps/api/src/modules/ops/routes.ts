@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { BOOKING_STATES, type BookingState } from "@ciao/shared";
+import { BOOKING_STATES, normalizePhone, type BookingState } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
 import { authenticate, requireRole } from "../../lib/guards.js";
 import { CiaoError } from "../../lib/errors.js";
@@ -52,7 +52,7 @@ export async function opsRoutes(app: FastifyInstance) {
       .parse(req.body);
 
     // Find-or-create host user by phone.
-    const phone = body.hostPhone.startsWith("+") ? body.hostPhone : `+${body.hostPhone}`;
+    const phone = normalizePhone(body.hostPhone);
     let [host] = await db
       .select()
       .from(schema.users)
@@ -162,7 +162,7 @@ export async function opsRoutes(app: FastifyInstance) {
         rail: z.enum(["sadad", "adfali", "local_card", "tlync", "mpgs"]).default("local_card"),
       })
       .parse(req.body);
-    const phone = body.guestPhone.startsWith("+") ? body.guestPhone : `+${body.guestPhone}`;
+    const phone = normalizePhone(body.guestPhone);
     let [guest] = await db
       .select()
       .from(schema.users)

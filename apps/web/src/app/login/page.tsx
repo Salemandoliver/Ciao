@@ -58,11 +58,11 @@ function LoginForm() {
           <input
             dir="ltr"
             className="input text-center"
-            placeholder="+2189XXXXXXXX"
+            placeholder="091 2345678"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
-          <button className="btn-primary w-full" onClick={request} disabled={busy || phone.length < 10}>
+          <button className="btn-primary w-full" onClick={request} disabled={busy || phone.replace(/\D/g, "").length < 9}>
             أرسل رمز التحقق
           </button>
         </>
@@ -76,7 +76,7 @@ function LoginForm() {
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />
-          {devCode ? <p className="text-xs text-amber-dark">وضع التطوير — الرمز: {devCode}</p> : null}
+          {devCode ? <p className="text-xs text-amber-dark">وضع العرض التجريبي — رمزك: {devCode}</p> : null}
           <button className="btn-primary w-full" onClick={verify} disabled={busy || code.length !== 6}>
             دخول
           </button>

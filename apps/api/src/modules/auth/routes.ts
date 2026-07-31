@@ -14,10 +14,12 @@ import { authenticate } from "../../lib/guards.js";
 import { config } from "../../config.js";
 import { notify } from "../messaging/service.js";
 
+import { isValidPhoneInput, normalizePhone } from "@ciao/shared";
+
 const phoneSchema = z
   .string()
-  .regex(/^\+?[0-9]{9,15}$/)
-  .transform((p) => (p.startsWith("+") ? p : `+${p}`));
+  .refine(isValidPhoneInput, "invalid phone")
+  .transform(normalizePhone);
 
 function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");

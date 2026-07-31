@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ensureSession, fmtLyd, setTokens, ApiError } from "@/lib/api";
 import type { PublicListing, Quote } from "@/lib/types";
+import { localPhone, normalizePhone } from "@ciao/shared";
 
 type Step = "dates" | "phone" | "otp" | "rail" | "sadad_otp" | "done";
 
@@ -126,7 +127,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
           checkOut,
           rail,
           ...(rail === "sadad"
-            ? { sadad: { mobile: phone.replace("+218", "0"), birthYear: sadadBirthYear } }
+            ? { sadad: { mobile: localPhone(normalizePhone(phone)), birthYear: sadadBirthYear } }
             : {}),
         }),
       });
@@ -250,12 +251,12 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
             <input
               dir="ltr"
               className="input mt-1 text-center"
-              placeholder="+2189XXXXXXXX"
+              placeholder="091 2345678"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
           </label>
-          <button className="btn-primary w-full" onClick={requestOtp} disabled={busy || phone.length < 10}>
+          <button className="btn-primary w-full" onClick={requestOtp} disabled={busy || phone.replace(/\D/g, "").length < 9}>
             أرسل الرمز
           </button>
         </div>
@@ -275,7 +276,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
             />
           </label>
           {devCode ? (
-            <p className="text-xs text-amber-dark">وضع التطوير — الرمز: {devCode}</p>
+            <p className="text-xs text-amber-dark">وضع العرض التجريبي — رمزك: {devCode}</p>
           ) : null}
           <button className="btn-primary w-full" onClick={verifyOtp} disabled={busy || otp.length !== 6}>
             تأكيد

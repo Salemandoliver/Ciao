@@ -174,3 +174,18 @@ describe("contact masking (§8.7)", () => {
     expect(r.masked).toBe("هل المولد شغال؟ وكم عمق المسبح؟");
   });
 });
+
+describe("phone normalization (local 09… format)", () => {
+  it("converts local Libyan mobile formats to E.164", async () => {
+    const { normalizePhone, localPhone } = await import("@ciao/shared");
+    expect(normalizePhone("0911111111")).toBe("+218911111111");
+    expect(normalizePhone("091 111 1111")).toBe("+218911111111");
+    expect(normalizePhone("911111111")).toBe("+218911111111");
+    expect(normalizePhone("218911111111")).toBe("+218911111111");
+    expect(normalizePhone("+218911111111")).toBe("+218911111111");
+    expect(normalizePhone("00447700900123")).toBe("+447700900123"); // diaspora
+    expect(normalizePhone("+447700900123")).toBe("+447700900123");
+    expect(localPhone("+218911111111")).toBe("0911111111");
+    expect(localPhone("+447700900123")).toBe("+447700900123");
+  });
+});
