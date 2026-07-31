@@ -25,6 +25,8 @@ export async function listingRoutes(app: FastifyInstance) {
         maxGuests: z.coerce.number().optional(),
         womensCapacity: z.coerce.number().optional(),
         maxNightly: z.coerce.number().optional(), // dirhams
+        checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         limit: z.coerce.number().max(50).default(20),
         offset: z.coerce.number().default(0),
       })
@@ -51,6 +53,17 @@ export async function listingRoutes(app: FastifyInstance) {
       conditions.push(
         sql`exists (select 1 from jsonb_array_elements(${schema.venues.amenities}) a
              where a ->> 'key' = 'generator' and (a ->> 'present')::boolean)`,
+      );
+    // Date availability: exclude listings with any blocked/booked/live-held day
+    // in the requested range (missing calendar rows = open).
+    if (q.checkIn && q.checkOut && q.checkOut > q.checkIn)
+      conditions.push(
+        sql`not exists (select 1 from calendar_days cd
+             where cd.listing_id = ${schema.listings.id}
+               and cd.session = 'night'
+               and cd.day >= ${q.checkIn}::date and cd.day < ${q.checkOut}::date
+               and (cd.state in ('booked','blocked')
+                    or (cd.state = 'held' and cd.hold_expires_at > now())))`,
       );
 
     const rows = await db

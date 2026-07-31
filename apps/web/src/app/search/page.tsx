@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { ListingCard } from "@/components/listing-card";
+import { HeroSearch } from "@/components/hero-search";
 import { API_URL } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
 
@@ -15,7 +16,18 @@ export default async function SearchPage({
   const params = await searchParams;
   const type = params.type === "hall" ? "hall" : "coast";
   const qs = new URLSearchParams({ type, limit: "30" });
-  for (const key of ["city", "area", "minPrivacy", "generator", "familyOnly", "minBedrooms", "womensCapacity"]) {
+  for (const key of [
+    "city",
+    "area",
+    "minPrivacy",
+    "generator",
+    "familyOnly",
+    "minBedrooms",
+    "womensCapacity",
+    "maxGuests",
+    "checkIn",
+    "checkOut",
+  ]) {
     if (params[key]) qs.set(key, params[key]!);
   }
 
@@ -43,21 +55,24 @@ export default async function SearchPage({
         <Link href="/">
           <Logo size={36} />
         </Link>
-        <div className="flex gap-2">
-          <Link
-            href={filterLink({ type: "coast" })}
-            className={`chip ${type === "coast" ? "!bg-sea !text-white" : ""}`}
-          >
-            🏖 الساحل
-          </Link>
-          <Link
-            href={filterLink({ type: "hall" })}
-            className={`chip ${type === "hall" ? "!bg-sea !text-white" : ""}`}
-          >
-            💍 مناسبات
-          </Link>
-        </div>
+        <h1 className="font-bold text-sea">
+          {type === "coast" ? "شاليهات واستراحات الساحل" : "قاعات الأفراح"}
+        </h1>
       </header>
+
+      <div className="mb-4">
+        <HeroSearch
+          compact
+          initial={{
+            type,
+            city: params.city,
+            area: params.area,
+            checkIn: params.checkIn,
+            checkOut: params.checkOut,
+            guests: params.maxGuests ?? params.womensCapacity,
+          }}
+        />
+      </div>
 
       {/* Cultural filters (§8.4): satar, generator, family-only, women's capacity */}
       <div className="flex flex-wrap gap-2 mb-4">

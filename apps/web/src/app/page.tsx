@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { LogoWithTail } from "@/components/logo";
 import { ListingCard } from "@/components/listing-card";
+import { HeroSearch } from "@/components/hero-search";
 import { API_URL } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
+
+const HERO_LQIP =
+  "data:image/webp;base64,UklGRl4AAABXRUJQVlA4IFIAAADwAwCdASoYAA4APu1iqU2ppaQiMAgBMB2JaACdMoRwIswAYJ/CjQnsAIHnzDPwqJPtzcUwUqPA5NluP4X5PnLdcbYjdrhJbqaf/J3/38gPgAAA";
 
 export const revalidate = 300; // listing content is CDN-cacheable (§12.3)
 
@@ -31,23 +35,36 @@ export default async function HomePage() {
         </nav>
       </header>
 
-      {/* Hero — the «قول تشاو» device (§3.2) */}
-      <section className="card bg-sea text-white p-6 sm:p-10 relative overflow-hidden">
-        <div className="absolute -top-10 -start-10 w-40 h-40 rounded-full bg-amber/20" aria-hidden />
-        <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight relative">
-          قول <span className="text-amber">تشاو</span> للحجز بالمكالمات
-        </h1>
-        <p className="mt-3 text-white/85 text-lg max-w-xl relative">
-          شاليهات الساحل وقاعات الأفراح — موثّقة ميدانيًا، صورناها بأنفسنا، والمولّد مجرَّب.
-          احجز بعربون بسيط والباقي نقدًا عند الوصول.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3 relative">
-          <Link href="/search?type=coast" className="btn-amber">
-            🏖 تشاو الساحل
-          </Link>
-          <Link href="/search?type=hall" className="btn-primary ring-1 ring-white/40">
-            💍 تشاو مناسبات
-          </Link>
+      {/* Hero — the «قول تشاو» device (§3.2) over the Tripoli sunset */}
+      <section className="card relative overflow-hidden text-white">
+        <img
+          src="/hero-800.webp"
+          srcSet="/hero-800.webp 800w, /hero-1600.webp 1600w"
+          sizes="(max-width: 640px) 100vw, 1024px"
+          alt="غروب الشمس على مدينة ليبية"
+          fetchPriority="high"
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{
+            backgroundImage: `url(${HERO_LQIP})`,
+            backgroundSize: "cover",
+          }}
+        />
+        {/* Sea-blue gradient keeps text sunlight-readable (§3.3) */}
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-sea/90 via-sea/45 to-sea/25"
+          aria-hidden
+        />
+        <div className="relative p-6 sm:p-10 pb-4 sm:pb-6">
+          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight drop-shadow">
+            قول <span className="text-amber">تشاو</span> للحجز بالمكالمات
+          </h1>
+          <p className="mt-3 text-white/95 text-lg max-w-xl drop-shadow">
+            شاليهات الساحل وقاعات الأفراح — موثّقة ميدانيًا، صورناها بأنفسنا،
+            والمولّد مجرَّب. احجز بعربون بسيط والباقي نقدًا عند الوصول.
+          </p>
+        </div>
+        <div className="relative px-3 sm:px-10 pb-4 sm:pb-8">
+          <HeroSearch />
         </div>
       </section>
 
