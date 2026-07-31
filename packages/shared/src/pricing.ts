@@ -1,5 +1,5 @@
-import { FEES } from "./domain.js";
-import { priceBand } from "./domain.js";
+import { FEES } from "./domain";
+import { priceBand } from "./domain";
 
 /** Pricing engine — §9.6. All amounts in integer dirhams. */
 
