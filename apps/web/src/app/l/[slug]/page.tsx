@@ -90,15 +90,40 @@ export default async function ListingPage({
         </Link>
       </header>
 
-      {/* Photo carousel placeholder — production serves our watermarked shots (§8.5) */}
-      <div className="card relative aspect-[16/9] bg-gradient-to-b from-sea-light/40 to-sea/70">
-        <div className="absolute bottom-3 start-3 flex gap-2">
-          {l.verified ? <VerifiedBadge verifiedAt={l.verifiedAt} /> : null}
-        </div>
-        <div className="absolute top-3 end-3 chip bg-white/90">
-          📷 {l.media.filter((m) => m.kind === "photo").length} صور · تصويرنا
-        </div>
-      </div>
+      {/* Photo carousel — our shots (§8.5); horizontal snap-scroll, lazy after first */}
+      {(() => {
+        const photos = l.media
+          .filter((m) => m.kind === "photo")
+          .sort((a, b) => a.order - b.order);
+        return (
+          <div className="card relative">
+            <div className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth aspect-[16/9] bg-gradient-to-b from-sea-light/40 to-sea/70">
+              {photos.length > 0 ? (
+                photos.map((m, i) => (
+                  <img
+                    key={m.url}
+                    src={m.url}
+                    alt={`${l.titleAr} — صورة ${i + 1}`}
+                    loading={i === 0 ? "eager" : "lazy"}
+                    fetchPriority={i === 0 ? "high" : undefined}
+                    className="h-full w-full flex-shrink-0 snap-center object-cover"
+                  />
+                ))
+              ) : (
+                <div className="h-full w-full" />
+              )}
+            </div>
+            <div className="absolute bottom-3 start-3 flex gap-2">
+              {l.verified ? <VerifiedBadge verifiedAt={l.verifiedAt} /> : null}
+            </div>
+            {photos.length > 0 ? (
+              <div className="absolute top-3 end-3 chip bg-white/90">
+                📷 {photos.length} صور · تصويرنا — اسحب للمزيد
+              </div>
+            ) : null}
+          </div>
+        );
+      })()}
 
       <div className="grid lg:grid-cols-3 gap-6 mt-6">
         <div className="lg:col-span-2 space-y-6">

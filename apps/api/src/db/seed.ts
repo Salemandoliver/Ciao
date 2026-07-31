@@ -6,6 +6,33 @@
 import { eq } from "drizzle-orm";
 import { db, pool, schema } from "./client.js";
 
+/** Real listing photos (served from the web app's /public/media). */
+const MEDIA: Record<string, { url: string; kind: string; order: number }[]> = {
+  "janzour-marina-villa": [
+    { url: "/media/janzour-marina-villa/1.webp", kind: "photo", order: 1 },
+    { url: "/media/janzour-marina-villa/2.webp", kind: "photo", order: 2 },
+  ],
+  "tajoura-golden-sands": [
+    { url: "/media/tajoura-golden-sands/1.webp", kind: "photo", order: 1 },
+    { url: "/media/tajoura-golden-sands/2.webp", kind: "photo", order: 2 },
+  ],
+  "ain-zara-palms": [
+    { url: "/media/ain-zara-palms/1.webp", kind: "photo", order: 1 },
+    { url: "/media/ain-zara-palms/2.webp", kind: "photo", order: 2 },
+  ],
+};
+
+/** Always keep listing media in sync with the shipped files (idempotent). */
+async function syncMedia() {
+  for (const [slug, media] of Object.entries(MEDIA)) {
+    await db
+      .update(schema.listings)
+      .set({ media, updatedAt: new Date() })
+      .where(eq(schema.listings.slug, slug));
+  }
+  console.log("Listing media synced.");
+}
+
 async function main() {
   const [existing] = await db
     .select({ id: schema.listings.id })
@@ -13,7 +40,8 @@ async function main() {
     .where(eq(schema.listings.slug, "janzour-marina-villa"))
     .limit(1);
   if (existing) {
-    console.log("Seed data already present — skipping.");
+    console.log("Seed data already present — syncing media only.");
+    await syncMedia();
     await pool.end();
     return;
   }
@@ -115,11 +143,7 @@ async function main() {
         cancellationTier: v.tier ?? "moderate",
         familyOnly: v.familyOnly ?? false,
         bookingTypes: v.type === "hall" ? ["event_date", "visit"] : v.dayUse ? ["stay", "day_use"] : ["stay"],
-        media: [
-          { url: `/media/${v.slug}/1.webp`, kind: "photo", order: 1 },
-          { url: `/media/${v.slug}/2.webp`, kind: "photo", order: 2 },
-          { url: `/media/${v.slug}/tour.mp4`, kind: "video", order: 3 },
-        ],
+        media: MEDIA[v.slug] ?? [],
         houseRulesAr: "عائلات فقط أيام الجمعة والسبت. ممنوع إزعاج الجيران بعد منتصف الليل.",
       })
       .returning();
@@ -265,6 +289,7 @@ async function main() {
       .onConflictDoNothing();
   }
 
+  await syncMedia();
   console.log("Seeded 3 coast venues + 1 wedding hall with packages. تشاو!");
   await pool.end();
 }

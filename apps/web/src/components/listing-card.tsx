@@ -35,12 +35,13 @@ export function ListingCard({ l }: { l: PublicListing }) {
   const cover = l.media.find((m) => m.kind === "photo");
   return (
     <Link href={`/l/${l.slug}`} className="card block hover:shadow-md transition-shadow">
-      <div className="relative aspect-[4/3] bg-sea/10">
+      <div className="relative aspect-[4/3] bg-gradient-to-b from-sea-light/30 to-sea/60">
         {cover ? (
-          // Real deployment serves CDN WebP; placeholder gradient keeps dev honest.
-          <div
-            className="absolute inset-0 bg-gradient-to-b from-sea-light/30 to-sea/60 flex items-end justify-start p-2"
-            aria-label={l.titleAr}
+          <img
+            src={cover.url}
+            alt={l.titleAr}
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover"
           />
         ) : null}
         <div className="absolute top-2 start-2 flex flex-col gap-1 items-start">
