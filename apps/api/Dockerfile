@@ -23,4 +23,5 @@ COPY --from=build /app/apps/api/dist apps/api/dist
 COPY --from=build /app/apps/api/drizzle apps/api/drizzle
 WORKDIR /app/apps/api
 # Migrations run on boot, then the server (worker runs in-process by default).
-CMD ["sh", "-c", "node dist/db/migrate.js && node dist/server.js"]
+# SEED_ON_BOOT=true additionally runs the idempotent demo seed (one-off, then unset).
+CMD ["sh", "-c", "node dist/db/migrate.js && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then node dist/db/seed.js; fi && node dist/server.js"]
