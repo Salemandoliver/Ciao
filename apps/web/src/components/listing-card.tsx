@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { PublicListing } from "@/lib/types";
 import { fmtLyd } from "@/lib/api";
+import { Heart } from "./heart";
 
 const AREA_AR: Record<string, string> = {
   janzour: "جنزور",
@@ -73,6 +74,12 @@ export function ListingCard({ l }: { l: PublicListing }) {
         <div className="absolute top-2 start-2 flex flex-col gap-1 items-start">
           {l.verified ? <VerifiedBadge /> : null}
           {l.familyOnly ? <span className="chip bg-white/90">عائلات فقط</span> : null}
+        </div>
+        <div className="absolute top-2 end-2">
+          <Heart
+            listingId={l.id}
+            meta={{ vertical: l.type, city: l.city, area: l.area, priceNightly: l.baseNightly }}
+          />
         </div>
       </div>
       <div className="p-3 space-y-1.5">

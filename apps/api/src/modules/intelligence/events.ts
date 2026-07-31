@@ -41,10 +41,13 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   // host behavior (server)
   "host.response": "bookingId, decision, minutes",
   "host.calendar_blocked": "listingId, dayCount",
-  // engagement (client)
+  // engagement (client + server)
   "rail.selected": "rail",
   "share.clicked": "listingId, channel",
   "filter.toggled": "key, value, vertical",
+  "listing.saved": "listingId, vertical, city, area, priceNightly",
+  "listing.unsaved": "listingId",
+  "map.opened": "vertical, city, resultCount",
 };
 
 export interface EmitOptions {

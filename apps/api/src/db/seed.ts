@@ -40,6 +40,14 @@ const DESCRIPTIONS: Record<string, string> = {
     "قاعة أفراح معتمدة من تشاو — الباقات موحّدة للمقارنة، والسعة مؤكدة من فريقنا.",
 };
 
+/** Approximate coordinates per listing (privacy: ~500m fuzz, §7.1) for map search. */
+const COORDS: Record<string, { lat: string; lng: string }> = {
+  "janzour-marina-villa": { lat: "32.8305", lng: "13.0110" },
+  "tajoura-golden-sands": { lat: "32.8815", lng: "13.3510" },
+  "ain-zara-palms": { lat: "32.7910", lng: "13.2330" },
+  "andalus-hall-tripoli": { lat: "32.7520", lng: "13.1560" },
+};
+
 /** Always keep listing media + copy in sync with the shipped files (idempotent). */
 async function syncMedia() {
   for (const [slug, media] of Object.entries(MEDIA)) {
@@ -51,6 +59,20 @@ async function syncMedia() {
         updatedAt: new Date(),
       })
       .where(eq(schema.listings.slug, slug));
+    const c = COORDS[slug];
+    if (c) {
+      const [row] = await db
+        .select({ venueId: schema.listings.venueId })
+        .from(schema.listings)
+        .where(eq(schema.listings.slug, slug))
+        .limit(1);
+      if (row) {
+        await db
+          .update(schema.venues)
+          .set({ approxLat: c.lat, approxLng: c.lng, updatedAt: new Date() })
+          .where(eq(schema.venues.id, row.venueId));
+      }
+    }
   }
   console.log("Listing media synced.");
 }

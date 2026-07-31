@@ -6,6 +6,7 @@ import { API_URL, fmtLyd } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
 import { BookingWidget } from "./booking-widget";
 import { TrackEvent } from "@/components/track";
+import { Heart } from "@/components/heart";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,13 @@ export default async function ListingPage({
             </div>
             <div className="absolute bottom-3 start-3 flex gap-2">
               {l.verified ? <VerifiedBadge verifiedAt={l.verifiedAt} /> : null}
+            </div>
+            <div className="absolute bottom-3 end-3">
+              <Heart
+                listingId={l.id}
+                size={40}
+                meta={{ vertical: l.type, city: l.city, area: l.area, priceNightly: l.baseNightly }}
+              />
             </div>
             {photos.length > 0 ? (
               <div className="absolute top-3 end-3 chip bg-white/90">

@@ -599,6 +599,17 @@ export const events = pgTable(
   ],
 );
 
+/** Wishlist hearts — strong intent signal, feeds profile folding. */
+export const wishlists = pgTable(
+  "wishlists",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id),
+    listingId: uuid("listing_id").notNull().references(() => listings.id),
+    createdAt: now(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.listingId] })],
+);
+
 /**
  * Folded user profiles — derived, rebuildable from events + bookings.
  * traits is versioned JSON; folding is incremental (lastEventTs cursor).

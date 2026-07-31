@@ -15,6 +15,13 @@
       "when": 1785522210538,
       "tag": "0001_yielding_dark_phoenix",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785524666099,
+      "tag": "0002_fearless_quentin_quire",
+      "breakpoints": true
     }
   ]
 }

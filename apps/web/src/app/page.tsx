@@ -30,7 +30,8 @@ export default async function HomePage() {
     <main className="mx-auto max-w-5xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
         <LogoWithTail size={44} />
-        <nav className="flex gap-3 text-sm font-bold text-sea">
+        <nav className="flex items-center gap-3 text-sm font-bold text-sea">
+          <Link href="/wishlist" aria-label="المفضلة">🤍</Link>
           <Link href="/host">للمضيفين</Link>
           <Link href="/login">دخول</Link>
         </nav>
@@ -60,7 +61,7 @@ export default async function HomePage() {
             قول <span className="text-amber">تشاو</span> للحجز بالمكالمات
           </h1>
           <p className="mt-3 text-white/95 text-lg max-w-xl drop-shadow">
-            شاليهات الساحل وقاعات الأفراح — موثّقة ميدانيًا، صورناها بأنفسنا،
+            الشاليهات والاستراحات وقاعات الأفراح — موثّقة ميدانيًا، صورناها بأنفسنا،
             والمولّد مجرَّب. احجز بعربون بسيط والباقي نقدًا عند الوصول.
           </p>
         </div>
@@ -85,7 +86,7 @@ export default async function HomePage() {
 
       <RecsStrip />
 
-      <Section title="شاليهات واستراحات الساحل" href="/search?type=coast" items={coast} />
+      <Section title="شاليهات واستراحات" href="/search?type=coast" items={coast} />
       <Section title="قاعات الأفراح" href="/search?type=hall" items={halls} />
 
       <footer className="mt-12 text-center text-sm text-sea/60 space-y-1">

@@ -62,6 +62,7 @@ const WEIGHTS: Record<string, number> = {
   "search.performed": 1,
   "listing.viewed": 2,
   "quote.viewed": 3,
+  "listing.saved": 4, // a heart is deliberate — stronger than a view
   "booking.requested": 5,
   "booking.confirmed": 10,
   "booking.completed": 12,
@@ -97,7 +98,8 @@ export function foldEvent(t: Traits, e: EventRow): Traits {
       }
       break;
     }
-    case "listing.viewed": {
+    case "listing.viewed":
+    case "listing.saved": {
       const price = num("priceNightly");
       if (Number.isFinite(price) && price > 0) {
         t.priceSum += price;

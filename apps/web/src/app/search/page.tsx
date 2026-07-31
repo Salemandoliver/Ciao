@@ -3,6 +3,7 @@ import { Logo } from "@/components/logo";
 import { ListingCard } from "@/components/listing-card";
 import { HeroSearch } from "@/components/hero-search";
 import { TrackEvent } from "@/components/track";
+import { MapSection } from "./map-section";
 import { API_URL } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
 
@@ -57,7 +58,7 @@ export default async function SearchPage({
           <Logo size={36} />
         </Link>
         <h1 className="font-bold text-sea">
-          {type === "coast" ? "شاليهات واستراحات الساحل" : "قاعات الأفراح"}
+          {type === "coast" ? "شاليهات واستراحات" : "قاعات الأفراح"}
         </h1>
       </header>
 
@@ -134,6 +135,8 @@ export default async function SearchPage({
           </>
         )}
       </div>
+
+      <MapSection items={items} vertical={type} />
 
       {items.length === 0 ? (
         <div className="card p-8 text-center text-sea/70">
