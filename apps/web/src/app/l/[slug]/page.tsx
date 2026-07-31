@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { VerifiedBadge } from "@/components/listing-card";
+import { Stars, VerifiedBadge } from "@/components/listing-card";
 import { API_URL, fmtLyd } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
 import { BookingWidget } from "./booking-widget";
@@ -129,16 +129,20 @@ export default async function ListingPage({
         <div className="lg:col-span-2 space-y-6">
           <div>
             <h1 className="font-bold text-2xl text-sea">{l.titleAr}</h1>
+            <div className="mt-1">
+              <Stars rating={l.rating} source={l.ratingSource} size="text-base" />
+            </div>
             <p className="text-sea/70 mt-1">{l.descriptionAr}</p>
           </div>
 
-          {/* Verification block (§8.5) */}
+          {/* Verification block (§8.5) — personal vetting, not spec-boasting */}
           {l.verified ? (
             <div className="card p-4 border-2 border-sea/15">
               <h2 className="font-bold text-sea mb-2">✓ ماذا يعني «موثّق من تشاو»؟</h2>
               <p className="text-sm text-sea/80">
-                وكيلنا الميداني زار المكان شخصيًا، تحقق من هوية المالك، شغّل المولّد
-                بنفسه، فحص المياه والخصوصية، والتقط الصور بنفسه. التوثيق يُجدَّد سنويًا.
+                فريق تشاو زار هذا المكان بنفسه، تحقق من المالك ومن كل المرافق،
+                والتقط الصور بنفسه — لا يُنشر أي مكان قبل أن نعتمده شخصيًا.
+                والتوثيق يُجدَّد سنويًا. تفاصيل الفحص كاملة في جدول الحقائق.
               </p>
             </div>
           ) : null}

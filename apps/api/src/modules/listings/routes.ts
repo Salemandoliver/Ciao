@@ -139,8 +139,14 @@ export async function listingRoutes(app: FastifyInstance) {
           )
         : null;
 
+    const base = publicListing(row.listing, row.venue, null);
+    // Guest aggregate replaces the Ciao rating once real (§8.8: ≥3 reviews).
+    if (aggregate != null) {
+      base.rating = aggregate;
+      base.ratingSource = "guests";
+    }
     return reply.send({
-      ...publicListing(row.listing, row.venue, null),
+      ...base,
       packages,
       reviews: reviews.map((r) => ({
         scores: r.scores,
@@ -206,6 +212,30 @@ export async function listingRoutes(app: FastifyInstance) {
   });
 }
 
+/**
+ * Ciao rating — a star score from our own field inspection (verification,
+ * satar, amenities, host reliability). Shown on every listing so guests see
+ * a familiar quality signal before the review corpus matures (§8.4: no pure
+ * review-star sort at launch). Replaced by the guest aggregate at ≥3 reviews.
+ */
+function ciaoRating(
+  listing: typeof schema.listings.$inferSelect,
+  venue: typeof schema.venues.$inferSelect,
+  reliability: number | null,
+): number {
+  let r = 3.6;
+  if (venue.verifiedAt && !venue.badgeRevoked) r += 0.6;
+  const privacy = (venue.privacy as { score?: number } | null)?.score ?? 0;
+  if (privacy >= 80) r += 0.3;
+  else if (privacy >= 50) r += 0.15;
+  const amenities = venue.amenities as { key: string; present: boolean }[];
+  if (amenities.some((a) => a.present && a.key === "generator")) r += 0.2;
+  const rel = reliability ?? 50;
+  if (rel >= 70) r += 0.3;
+  else if (rel >= 50) r += 0.1;
+  return Math.min(5, Math.round(r * 10) / 10);
+}
+
 function publicListing(
   listing: typeof schema.listings.$inferSelect,
   venue: typeof schema.venues.$inferSelect,
@@ -241,5 +271,7 @@ function publicListing(
     media: listing.media,
     bookingTypes: listing.bookingTypes,
     hostReliability: reliability,
+    rating: ciaoRating(listing, venue, reliability),
+    ratingSource: "ciao" as "ciao" | "guests",
   };
 }

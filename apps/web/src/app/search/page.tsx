@@ -88,7 +88,7 @@ export default async function SearchPage({
               href={filterLink({ generator: params.generator ? null : "true" })}
               className={`chip ${params.generator ? "!bg-sea !text-white" : ""}`}
             >
-              ⚡ مولّد مجرَّب
+              ⚡ مولّد
             </Link>
             <Link
               href={filterLink({ familyOnly: params.familyOnly ? null : "true" })}

@@ -28,6 +28,8 @@ export interface PublicListing {
   media: { url: string; kind: string; order: number }[];
   bookingTypes: string[];
   hostReliability?: number | null;
+  rating?: number;
+  ratingSource?: "ciao" | "guests";
   packages?: HallPackage[];
   reviews?: { scores: Record<string, number>; text?: string; hostReply?: string }[];
   aggregateScore?: number | null;

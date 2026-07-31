@@ -14,6 +14,32 @@ const CITY_AR: Record<string, string> = {
   benghazi: "بنغازي",
 };
 
+/** Star rating — guest aggregate when real, otherwise the Ciao inspection rating. */
+export function Stars({
+  rating,
+  source,
+  size = "text-sm",
+}: {
+  rating?: number;
+  source?: "ciao" | "guests";
+  size?: string;
+}) {
+  if (!rating) return null;
+  const full = Math.min(5, Math.floor(rating + 0.25)); // conservative fill
+  return (
+    <span className={`inline-flex items-center gap-1 ${size}`}>
+      <span className="text-amber-dark tracking-tight" dir="ltr" aria-hidden>
+        {"★".repeat(full)}
+        <span className="opacity-25">{"★".repeat(5 - full)}</span>
+      </span>
+      <span className="font-bold text-sea">{rating.toFixed(1)}</span>
+      <span className="text-sea/50 text-xs">
+        {source === "guests" ? "تقييم الضيوف" : "تقييم تشاو"}
+      </span>
+    </span>
+  );
+}
+
 export function VerifiedBadge({ verifiedAt }: { verifiedAt?: string }) {
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-sea text-white px-2.5 py-0.5 text-xs font-bold">
@@ -51,12 +77,13 @@ export function ListingCard({ l }: { l: PublicListing }) {
       </div>
       <div className="p-3 space-y-1.5">
         <h3 className="font-bold text-base leading-snug">{l.titleAr}</h3>
+        <Stars rating={l.rating} source={l.ratingSource} />
         <p className="text-sm text-sea/70">
           {AREA_AR[l.area ?? ""] ?? l.area} · {CITY_AR[l.city] ?? l.city}
         </p>
         <div className="flex flex-wrap gap-1.5 text-xs">
           {l.privacy && l.privacy.score >= 80 ? <span className="chip">🔒 ستر عالي</span> : null}
-          {generator ? <span className="chip">⚡ {generator.detail ?? "مولّد"}</span> : null}
+          {generator ? <span className="chip">⚡ مولّد</span> : null}
           {l.bedrooms ? <span className="chip">🛏 {l.bedrooms} غرف</span> : null}
           {l.capacityWomens ? <span className="chip">👥 {l.capacityWomens} ضيفة</span> : null}
         </div>

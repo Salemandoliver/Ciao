@@ -20,14 +20,36 @@ const MEDIA: Record<string, { url: string; kind: string; order: number }[]> = {
     { url: "/media/ain-zara-palms/1.webp", kind: "photo", order: 1 },
     { url: "/media/ain-zara-palms/2.webp", kind: "photo", order: 2 },
   ],
+  "andalus-hall-tripoli": [
+    { url: "/media/andalus-hall-tripoli/1.webp", kind: "photo", order: 1 },
+    { url: "/media/andalus-hall-tripoli/2.webp", kind: "photo", order: 2 },
+    { url: "/media/andalus-hall-tripoli/3.webp", kind: "photo", order: 3 },
+    { url: "/media/andalus-hall-tripoli/4.webp", kind: "photo", order: 4 },
+  ],
 };
 
-/** Always keep listing media in sync with the shipped files (idempotent). */
+/** Softer trust voice: we personally vet and approve every site (no spec-boasting). */
+const DESCRIPTIONS: Record<string, string> = {
+  "janzour-marina-villa":
+    "فيلا مطلة على البحر بمسبح خاص — زارها فريق تشاو بنفسه، فحصها واعتمدها، والصور من تصويرنا.",
+  "tajoura-golden-sands":
+    "شاليه عائلي على البحر مباشرة — معتمد من فريق تشاو بعد زيارة ميدانية كاملة.",
+  "ain-zara-palms":
+    "استراحة يوم كامل بمسبح — زارها فريق تشاو واعتمدها، وما تشوفه في الصور هو الموجود.",
+  "andalus-hall-tripoli":
+    "قاعة أفراح معتمدة من تشاو — الباقات موحّدة للمقارنة، والسعة مؤكدة من فريقنا.",
+};
+
+/** Always keep listing media + copy in sync with the shipped files (idempotent). */
 async function syncMedia() {
   for (const [slug, media] of Object.entries(MEDIA)) {
     await db
       .update(schema.listings)
-      .set({ media, updatedAt: new Date() })
+      .set({
+        media,
+        ...(DESCRIPTIONS[slug] ? { descriptionAr: DESCRIPTIONS[slug] } : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(schema.listings.slug, slug));
   }
   console.log("Listing media synced.");
@@ -133,9 +155,8 @@ async function main() {
         titleAr: v.titleAr,
         titleEn: v.titleEn,
         descriptionAr:
-          v.type === "coast"
-            ? "فيلا مطلة على البحر، مصورة ومفحوصة من فريق تشاو — الصور حقيقية والمولّد مجرَّب."
-            : "قاعة أفراح مفحوصة، الباقات موحّدة للمقارنة، والسعة مؤكدة من فريقنا.",
+          DESCRIPTIONS[v.slug] ??
+          "معتمد من فريق تشاو بعد زيارة ميدانية — ما تشوفه في الصور هو الموجود.",
         baseNightly: v.baseNightly,
         dayUsePrice: v.dayUse,
         maxGuests: v.maxGuests,
