@@ -137,6 +137,8 @@ export const listings = pgTable(
     descriptionAr: text("description_ar"),
     descriptionEn: text("description_en"),
     bookingTypes: jsonb("booking_types").notNull().default(sql`'["stay"]'::jsonb`),
+    // Services vertical (§ Airbnb-style): catering|photography|makeup|hair|cakes|gym
+    serviceCategory: varchar("service_category", { length: 20 }),
     // pricing config (§9.6) — dirhams + bps multipliers
     baseNightly: money("base_nightly").notNull().default(0),
     weekendMultiplierBps: integer("weekend_multiplier_bps").notNull().default(12500),

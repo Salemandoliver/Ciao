@@ -17,7 +17,8 @@ export async function listingRoutes(app: FastifyInstance) {
   app.get("/v1/listings", async (req, reply) => {
     const q = z
       .object({
-        type: z.enum(["coast", "hall"]).default("coast"),
+        type: z.enum(["coast", "hall", "service"]).default("coast"),
+        serviceCategory: z.string().max(20).optional(),
         city: z.string().optional(),
         area: z.string().optional(),
         minPrivacy: z.coerce.number().optional(), // satar score 0–100
@@ -39,6 +40,8 @@ export async function listingRoutes(app: FastifyInstance) {
       eq(schema.venues.type, q.type),
     ];
     if (q.city) conditions.push(eq(schema.venues.city, q.city));
+    if (q.serviceCategory)
+      conditions.push(eq(schema.listings.serviceCategory, q.serviceCategory));
     if (q.area) conditions.push(eq(schema.venues.area, q.area));
     if (q.familyOnly) conditions.push(eq(schema.listings.familyOnly, true));
     if (q.minBedrooms) conditions.push(gte(schema.listings.bedrooms, q.minBedrooms));
@@ -141,6 +144,46 @@ export async function listingRoutes(app: FastifyInstance) {
           )
         : null;
 
+    // Ratings breakdown (Airbnb-style): per-dimension averages + histogram,
+    // only once the aggregate is real (>=3 reviews, §8.8).
+    let dimensionAverages: Record<string, number> | null = null;
+    let ratingHistogram: Record<string, number> | null = null;
+    if (reviews.length >= 3) {
+      const sums: Record<string, { s: number; n: number }> = {};
+      ratingHistogram = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+      for (const r of reviews) {
+        const scores = r.scores as Record<string, number>;
+        const vals = Object.values(scores);
+        const overall = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+        ratingHistogram[String(Math.min(5, Math.max(1, overall)))]!++;
+        for (const [k, v] of Object.entries(scores)) {
+          sums[k] = { s: (sums[k]?.s ?? 0) + v, n: (sums[k]?.n ?? 0) + 1 };
+        }
+      }
+      dimensionAverages = Object.fromEntries(
+        Object.entries(sums).map(([k, { s: sum, n }]) => [k, Number((sum / n).toFixed(1))]),
+      );
+    }
+
+    // "More nearby" strip: same vertical + city, verified-first.
+    const similarRows = await db
+      .select({ listing: schema.listings, venue: schema.venues })
+      .from(schema.listings)
+      .innerJoin(schema.venues, eq(schema.listings.venueId, schema.venues.id))
+      .where(
+        and(
+          eq(schema.listings.status, "live"),
+          eq(schema.venues.type, row.venue.type),
+          eq(schema.venues.city, row.venue.city),
+          sql`${schema.listings.id} <> ${row.listing.id}`,
+        ),
+      )
+      .orderBy(
+        sql`case when ${schema.venues.verifiedAt} is not null then 0 else 1 end`,
+        desc(schema.listings.updatedAt),
+      )
+      .limit(4);
+
     const base = publicListing(row.listing, row.venue, null);
     // Guest aggregate replaces the Ciao rating once real (§8.8: ≥3 reviews).
     if (aggregate != null) {
@@ -158,6 +201,18 @@ export async function listingRoutes(app: FastifyInstance) {
       })),
       aggregateScore: aggregate,
       reviewCount: reviews.length,
+      dimensionAverages,
+      ratingHistogram,
+      similar: similarRows.map(({ listing: sl, venue: sv }) => ({
+        id: sl.id,
+        slug: sl.slug,
+        titleAr: sl.titleAr,
+        area: sv.area,
+        baseNightly: sl.baseNightly,
+        media: sl.media,
+        verified: Boolean(sv.verifiedAt) && !sv.badgeRevoked,
+        serviceCategory: sl.serviceCategory,
+      })),
     });
   });
 
@@ -294,6 +349,8 @@ function publicListing(
     cancellationTier: listing.cancellationTier,
     media: listing.media,
     bookingTypes: listing.bookingTypes,
+    serviceCategory: listing.serviceCategory,
+    houseRulesAr: listing.houseRulesAr,
     hostReliability: reliability,
     rating: ciaoRating(listing, venue, reliability),
     ratingSource: "ciao" as "ciao" | "guests",

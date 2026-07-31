@@ -47,6 +47,14 @@ export async function generateMetadata({
   };
 }
 
+const DIMENSION_AR: Record<string, string> = {
+  cleanliness: "النظافة",
+  accuracy: "المطابقة",
+  privacy: "الخصوصية والستر",
+  communication: "التواصل",
+  value: "القيمة",
+};
+
 const AMENITY_AR: Record<string, string> = {
   generator: "مولّد كهرباء",
   water_tank: "خزان مياه",
@@ -170,17 +178,23 @@ export default async function ListingPage({
           <div className="card p-4">
             <h2 className="font-bold text-sea mb-3">جدول الحقائق</h2>
             <ul className="divide-y divide-sand">
-              {l.amenities.map((a) => (
-                <li key={a.key} className="py-2 flex items-start justify-between gap-3">
-                  <span className="font-bold">
-                    {a.present ? "✅" : "❌"} {AMENITY_AR[a.key] ?? a.key}
-                  </span>
-                  <span className="text-sm text-sea/70 text-start">
-                    {a.detail}
-                    {a.verifiedAt ? ` · تحقق ${a.verifiedAt}` : ""}
-                  </span>
-                </li>
-              ))}
+              {[...l.amenities]
+                .sort((a, b) => Number(b.present) - Number(a.present))
+                .map((a) => (
+                  <li key={a.key} className="py-2 flex items-start justify-between gap-3">
+                    <span
+                      className={
+                        a.present ? "font-bold" : "font-bold text-sea/40 line-through"
+                      }
+                    >
+                      {a.present ? "✅" : "🚫"} {AMENITY_AR[a.key] ?? a.key}
+                    </span>
+                    <span className="text-sm text-sea/70 text-start">
+                      {a.present ? a.detail : null}
+                      {a.present && a.verifiedAt ? ` · تحقق ${a.verifiedAt}` : ""}
+                    </span>
+                  </li>
+                ))}
               {l.privacy ? (
                 <li className="py-2 flex justify-between">
                   <span className="font-bold">🔒 درجة الستر</span>
@@ -221,20 +235,64 @@ export default async function ListingPage({
             </div>
           ) : null}
 
-          {/* Policy in plain Arabic (§8.5) */}
+          {/* أشياء تعرفها — Airbnb "Things to know" (3 columns) */}
           <div className="card p-4">
-            <h2 className="font-bold text-sea mb-1">سياسة الإلغاء</h2>
-            <p className="text-sm text-sea/80">{tierAr}</p>
+            <h2 className="font-bold text-sea mb-3">أشياء تعرفها</h2>
+            <div className="grid sm:grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="font-bold mb-1">🗓 سياسة الإلغاء</p>
+                <p className="text-sea/80">{tierAr}</p>
+              </div>
+              <div>
+                <p className="font-bold mb-1">🔑 قواعد البيت</p>
+                <p className="text-sea/80">
+                  {l.houseRulesAr ?? "يحددها المضيف عند التأكيد — اسأله في المحادثة."}
+                </p>
+              </div>
+              <div>
+                <p className="font-bold mb-1">📍 الموقع والخصوصية</p>
+                <p className="text-sea/80">
+                  المنطقة: {l.area ?? l.city} — العنوان الدقيق ورقم المضيف يظهران فور
+                  دفع العربون. هذا يحمي الطرفين.
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Approximate location (§7.1) */}
-          <div className="card p-4">
-            <h2 className="font-bold text-sea mb-1">الموقع</h2>
-            <p className="text-sm text-sea/80">
-              📍 المنطقة: {l.area ?? l.city} — الموقع الدقيق ورقم المضيف يظهران فور دفع
-              العربون. هذا يحمي المضيف والضيف معًا.
-            </p>
-          </div>
+          {/* Ratings breakdown — only when the guest aggregate is real (≥3) */}
+          {l.dimensionAverages && l.ratingHistogram ? (
+            <div className="card p-4">
+              <h2 className="font-bold text-sea mb-3">
+                تقييم الضيوف {l.aggregateScore ? `— ${l.aggregateScore} ★` : ""}
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div className="col-span-2 sm:col-span-1">
+                  <p className="text-xs text-sea/60 mb-1">التوزيع</p>
+                  {[5, 4, 3, 2, 1].map((n) => {
+                    const counts = l.ratingHistogram!;
+                    const max = Math.max(1, ...Object.values(counts));
+                    return (
+                      <div key={n} className="flex items-center gap-1.5 text-xs">
+                        <span className="w-3 text-sea/60">{n}</span>
+                        <div className="flex-1 h-1.5 bg-sand rounded-sm overflow-hidden">
+                          <div
+                            className="h-full bg-sea"
+                            style={{ width: `${((counts[String(n)] ?? 0) / max) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {Object.entries(l.dimensionAverages).map(([k, v]) => (
+                  <div key={k}>
+                    <p className="text-xs text-sea/60">{DIMENSION_AR[k] ?? k}</p>
+                    <p className="font-extrabold text-sea text-lg" dir="ltr">{v.toFixed(1)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {/* Reviews (§8.8) */}
           {l.reviews?.length ? (
@@ -259,6 +317,41 @@ export default async function ListingPage({
               التقييمات تُقبل فقط من ضيوف أكملوا إقامة مدفوعة العربون — لا تقييمات مزيفة.
             </p>
           )}
+
+          {/* أماكن مشابهة قريبة — Airbnb "More nearby" */}
+          {l.similar?.length ? (
+            <div>
+              <h2 className="font-bold text-sea text-lg mb-3">أماكن مشابهة قريبة</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {l.similar.map((sim) => {
+                  const cover = sim.media.find((m) => m.kind === "photo");
+                  return (
+                    <Link key={sim.id} href={`/l/${sim.slug}`} className="card block hover:shadow-md">
+                      <div className="relative aspect-[4/3] bg-gradient-to-b from-sea-light/30 to-sea/60">
+                        {cover ? (
+                          <img
+                            src={cover.url}
+                            alt={sim.titleAr}
+                            loading="lazy"
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
+                        ) : null}
+                      </div>
+                      <div className="p-2">
+                        <p className="font-bold text-xs leading-snug">{sim.titleAr}</p>
+                        <p className="text-[11px] text-sea/60 mt-0.5">
+                          {sim.verified ? "✓ موثّق" : ""}
+                          {sim.baseNightly > 0
+                            ? ` · ${fmtLyd(sim.baseNightly)}/ليلة`
+                            : ""}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Booking widget */}

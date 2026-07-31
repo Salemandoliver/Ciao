@@ -77,6 +77,108 @@ async function syncMedia() {
   console.log("Listing media synced.");
 }
 
+/** Services vertical (Airbnb-style خدمات) — idempotent create-if-missing. */
+const SERVICES: {
+  slug: string;
+  category: string;
+  nameAr: string;
+  titleAr: string;
+  descriptionAr: string;
+  hostPhone: string;
+  hostName: string;
+  area: string;
+}[] = [
+  {
+    slug: "diwan-catering-tripoli",
+    category: "catering",
+    nameAr: "ضيافة الديوان",
+    titleAr: "ضيافة الديوان — بوفيهات أعراس ومناسبات",
+    descriptionAr: "بوفيهات كاملة للأعراس والمناسبات — قوائم موحّدة للمقارنة، وتذوق قبل التعاقد. معتمدة من فريق تشاو.",
+    hostPhone: "+218914000001",
+    hostName: "ضيافة الديوان",
+    area: "airport_road",
+  },
+  {
+    slug: "adasa-photography-tripoli",
+    category: "photography",
+    nameAr: "استوديو عدسة",
+    titleAr: "استوديو عدسة — تصوير أعراس ومناسبات",
+    descriptionAr: "تصوير فوتو وفيديو للأعراس — باقات واضحة تشمل الألبوم المطبوع. أعمال سابقة معاينة من فريقنا.",
+    hostPhone: "+218914000002",
+    hostName: "استوديو عدسة",
+    area: "janzour",
+  },
+  {
+    slug: "lamsa-makeup-tripoli",
+    category: "makeup",
+    nameAr: "لمسة — ميكب آرتيست",
+    titleAr: "لمسة — ميكب عرايس في بيتك أو الصالون",
+    descriptionAr: "ميكب عرايس ومناسبات، تجربة قبل الموعد — أسعار معلنة بلا مفاجآت.",
+    hostPhone: "+218914000003",
+    hostName: "لمسة بيوتي",
+    area: "ain_zara",
+  },
+  {
+    slug: "kaakat-cakes-tripoli",
+    category: "cakes",
+    nameAr: "كعكات",
+    titleAr: "كعكات — كيك أعراس وحفلات حسب الطلب",
+    descriptionAr: "كيك أعراس متعدد الطوابق وحلويات مناسبات — صور أعمال حقيقية ومواعيد تسليم ملتزمة.",
+    hostPhone: "+218914000004",
+    hostName: "كعكات",
+    area: "tajoura",
+  },
+];
+
+async function syncServices() {
+  for (const svc of SERVICES) {
+    const [exists] = await db
+      .select({ id: schema.listings.id })
+      .from(schema.listings)
+      .where(eq(schema.listings.slug, svc.slug))
+      .limit(1);
+    if (exists) continue;
+    let [host] = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.phone, svc.hostPhone))
+      .limit(1);
+    if (!host) {
+      [host] = await db
+        .insert(schema.users)
+        .values({ phone: svc.hostPhone, role: "host", displayName: svc.hostName })
+        .returning();
+    }
+    const [venue] = await db
+      .insert(schema.venues)
+      .values({
+        type: "service",
+        nameAr: svc.nameAr,
+        city: "tripoli",
+        area: svc.area,
+        hostId: host!.id,
+        verificationGrade: "local_attestation",
+        verifiedAt: new Date(),
+        verificationExpiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+        amenities: [],
+      })
+      .returning();
+    await db.insert(schema.listings).values({
+      venueId: venue!.id,
+      slug: svc.slug,
+      status: "live",
+      titleAr: svc.titleAr,
+      descriptionAr: svc.descriptionAr,
+      serviceCategory: svc.category,
+      bookingTypes: ["visit"],
+      baseNightly: 0,
+      cancellationTier: "moderate",
+      media: [],
+    });
+  }
+  console.log("Services synced.");
+}
+
 async function main() {
   const [existing] = await db
     .select({ id: schema.listings.id })
@@ -84,8 +186,9 @@ async function main() {
     .where(eq(schema.listings.slug, "janzour-marina-villa"))
     .limit(1);
   if (existing) {
-    console.log("Seed data already present — syncing media only.");
+    console.log("Seed data already present — syncing media + services only.");
     await syncMedia();
+    await syncServices();
     await pool.end();
     return;
   }
@@ -333,6 +436,7 @@ async function main() {
   }
 
   await syncMedia();
+  await syncServices();
   console.log("Seeded 3 coast venues + 1 wedding hall with packages. تشاو!");
   await pool.end();
 }

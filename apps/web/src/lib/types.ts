@@ -4,7 +4,7 @@ export interface PublicListing {
   titleAr: string;
   titleEn?: string;
   descriptionAr?: string;
-  type: "coast" | "hall";
+  type: "coast" | "hall" | "service";
   city: string;
   area?: string;
   approxLocation: { lat: string; lng: string; radiusM: number } | null;
@@ -30,6 +30,20 @@ export interface PublicListing {
   hostReliability?: number | null;
   rating?: number;
   ratingSource?: "ciao" | "guests";
+  serviceCategory?: string | null;
+  houseRulesAr?: string | null;
+  dimensionAverages?: Record<string, number> | null;
+  ratingHistogram?: Record<string, number> | null;
+  similar?: {
+    id: string;
+    slug: string;
+    titleAr: string;
+    area?: string;
+    baseNightly: number;
+    media: { url: string; kind: string; order?: number }[];
+    verified?: boolean;
+    serviceCategory?: string | null;
+  }[];
   packages?: HallPackage[];
   reviews?: { scores: Record<string, number>; text?: string; hostReply?: string }[];
   aggregateScore?: number | null;

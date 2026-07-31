@@ -1,0 +1,1 @@
+ALTER TABLE "listings" ADD COLUMN "service_category" varchar(20);

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { PublicListing } from "@/lib/types";
 import { fmtLyd } from "@/lib/api";
 import { Heart } from "./heart";
+import { SERVICE_AR } from "@/lib/services";
 
 const AREA_AR: Record<string, string> = {
   janzour: "جنزور",
@@ -93,9 +94,14 @@ export function ListingCard({ l }: { l: PublicListing }) {
           {generator ? <span className="chip">⚡ مولّد</span> : null}
           {l.bedrooms ? <span className="chip">🛏 {l.bedrooms} غرف</span> : null}
           {l.capacityWomens ? <span className="chip">👥 {l.capacityWomens} ضيفة</span> : null}
+          {l.serviceCategory ? (
+            <span className="chip">{SERVICE_AR[l.serviceCategory] ?? l.serviceCategory}</span>
+          ) : null}
         </div>
         <p className="pt-1 font-bold text-sea text-lg">
-          {l.type === "hall" && l.packages?.length
+          {l.type === "service"
+            ? "الأسعار حسب الطلب — اطلب عرض سعر"
+            : l.type === "hall" && l.packages?.length
             ? `باقات من ${fmtLyd(Math.min(...l.packages.map((p) => p.totalPrice)))}`
             : l.baseNightly > 0
               ? `${fmtLyd(l.baseNightly)} / ليلة`

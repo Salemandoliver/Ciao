@@ -5,6 +5,7 @@ import { HeroSearch } from "@/components/hero-search";
 import { TrackEvent } from "@/components/track";
 import { MapSection } from "./map-section";
 import { API_URL } from "@/lib/api";
+import { SERVICE_CATEGORIES } from "@/lib/services";
 import type { PublicListing } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export default async function SearchPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  const type = params.type === "hall" ? "hall" : "coast";
+  const type = params.type === "hall" ? "hall" : params.type === "service" ? "service" : "coast";
   const qs = new URLSearchParams({ type, limit: "30" });
   for (const key of [
     "city",
@@ -29,6 +30,7 @@ export default async function SearchPage({
     "maxGuests",
     "checkIn",
     "checkOut",
+    "serviceCategory",
   ]) {
     if (params[key]) qs.set(key, params[key]!);
   }
@@ -58,7 +60,7 @@ export default async function SearchPage({
           <Logo size={36} />
         </Link>
         <h1 className="font-bold text-sea">
-          {type === "coast" ? "شاليهات واستراحات" : "قاعات الأفراح"}
+          {type === "coast" ? "شاليهات واستراحات" : type === "service" ? "خدمات المناسبات" : "قاعات الأفراح"}
         </h1>
       </header>
 
@@ -85,6 +87,7 @@ export default async function SearchPage({
             checkIn: params.checkIn,
             checkOut: params.checkOut,
             guests: params.maxGuests ?? params.womensCapacity,
+            serviceCategory: params.serviceCategory,
           }}
         />
       </div>
@@ -117,6 +120,18 @@ export default async function SearchPage({
             >
               🛏 +3 غرف
             </Link>
+          </>
+        ) : type === "service" ? (
+          <>
+            {SERVICE_CATEGORIES.map(([key, emoji, label]) => (
+              <Link
+                key={key}
+                href={filterLink({ serviceCategory: params.serviceCategory === key ? null : key })}
+                className={`chip ${params.serviceCategory === key ? "!bg-sea !text-white" : ""}`}
+              >
+                {emoji} {label}
+              </Link>
+            ))}
           </>
         ) : (
           <>

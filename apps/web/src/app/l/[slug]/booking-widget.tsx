@@ -164,6 +164,29 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
     }
   }
 
+  if (listing.type === "service") {
+    return (
+      <div className="card p-4 sticky top-4">
+        <h2 className="font-bold text-sea text-lg">اطلب عرض سعر</h2>
+        <p className="text-sm text-sea/70 mt-1">
+          الخدمات تُسعَّر حسب مناسبتك — أرسل تاريخك وعدد الضيوف ويرد عليك المزوّد
+          بعرض واضح عبر فريق تشاو.
+        </p>
+        <a
+          className="btn-primary block text-center mt-4"
+          href={`https://wa.me/218910000001?text=${encodeURIComponent(
+            `أريد عرض سعر من ${listing.titleAr} (${listing.slug})`,
+          )}`}
+        >
+          💬 اطلب عرض سعر (واتساب)
+        </a>
+        <p className="text-xs text-sea/50 mt-2 text-center">
+          الحجز والدفع عبر تشاو قادم للخدمات — حاليًا فريقنا يوصلك بالمزوّد المعتمد.
+        </p>
+      </div>
+    );
+  }
+
   if (listing.type === "hall") {
     return (
       <div className="card p-4 sticky top-4">

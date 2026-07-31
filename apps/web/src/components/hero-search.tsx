@@ -5,6 +5,7 @@
  */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SERVICE_CATEGORIES } from "@/lib/services";
 
 const CITIES: [string, string][] = [
   ["tripoli", "طرابلس"],
@@ -34,11 +35,16 @@ export function HeroSearch({
   initial,
   compact = false,
 }: {
-  initial?: Partial<Record<"type" | "city" | "area" | "checkIn" | "checkOut" | "guests", string>>;
+  initial?: Partial<
+    Record<"type" | "city" | "area" | "checkIn" | "checkOut" | "guests" | "serviceCategory", string>
+  >;
   compact?: boolean;
 }) {
   const router = useRouter();
-  const [type, setType] = useState(initial?.type === "hall" ? "hall" : "coast");
+  const [type, setType] = useState(
+    initial?.type === "hall" ? "hall" : initial?.type === "service" ? "service" : "coast",
+  );
+  const [category, setCategory] = useState(initial?.serviceCategory ?? "");
   const [city, setCity] = useState(initial?.city ?? "tripoli");
   const [area, setArea] = useState(initial?.area ?? "");
   const [checkIn, setCheckIn] = useState(initial?.checkIn ?? "");
@@ -50,6 +56,7 @@ export function HeroSearch({
   function submit() {
     const q = new URLSearchParams({ type, city });
     if (area) q.set("area", area);
+    if (type === "service" && category) q.set("serviceCategory", category);
     if (type === "coast" && checkIn && checkOut && checkOut > checkIn) {
       q.set("checkIn", checkIn);
       q.set("checkOut", checkOut);
@@ -72,6 +79,7 @@ export function HeroSearch({
           [
             ["coast", "🏖", "شاليهات واستراحات"],
             ["hall", "💍", "قاعات أفراح"],
+            ["service", "🛎", "خدمات"],
           ] as const
         ).map(([t, emoji, label]) => (
           <button
@@ -105,10 +113,14 @@ export function HeroSearch({
           onClick={() => setOpen((o) => !o)}
         >
           <span className="block text-[10px] font-bold text-sea/60">
-            {type === "hall" ? "الضيفات؟" : "متى؟"}
+            {type === "hall" ? "الضيفات؟" : type === "service" ? "الخدمة؟" : "متى؟"}
           </span>
-          <span className="block font-bold text-sea truncate" dir={checkIn ? "ltr" : undefined}>
-            {type === "hall" ? whoLabel : whenLabel}
+          <span className="block font-bold text-sea truncate" dir={type === "coast" && checkIn ? "ltr" : undefined}>
+            {type === "hall"
+              ? whoLabel
+              : type === "service"
+                ? (SERVICE_CATEGORIES.find(([k]) => k === category)?.[2] ?? "كل الخدمات")
+                : whenLabel}
           </span>
         </button>
         {type === "coast" ? (
@@ -198,6 +210,20 @@ export function HeroSearch({
                   />
                 </label>
               </>
+            ) : type === "service" ? (
+              <label className="block text-xs font-bold text-sea/70 col-span-2">
+                نوع الخدمة
+                <select
+                  className="input !py-2 mt-1"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  <option value="">كل الخدمات</option>
+                  {SERVICE_CATEGORIES.map(([k, e2, l]) => (
+                    <option key={k} value={k}>{e2} {l}</option>
+                  ))}
+                </select>
+              </label>
             ) : (
               <label className="block text-xs font-bold text-sea/70 col-span-2">
                 عدد الضيفات (القاعة النسائية)

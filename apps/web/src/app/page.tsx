@@ -3,6 +3,7 @@ import { LogoWithTail } from "@/components/logo";
 import { ListingCard } from "@/components/listing-card";
 import { HeroSearch } from "@/components/hero-search";
 import { RecsStrip } from "@/components/recs";
+import { ServiceTiles } from "@/components/service-tiles";
 import { API_URL } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
 
@@ -88,6 +89,8 @@ export default async function HomePage() {
 
       <Section title="شاليهات واستراحات" href="/search?type=coast" items={coast} />
       <Section title="قاعات الأفراح" href="/search?type=hall" items={halls} />
+
+      <ServiceTiles />
 
       <footer className="mt-12 text-center text-sm text-sea/60 space-y-1">
         <p>تشاو — ciao.ly · طرابلس، ليبيا</p>
