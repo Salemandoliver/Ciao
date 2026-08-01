@@ -34,7 +34,9 @@ export default {
       fontFamily: {
         almarai: ["var(--font-almarai)", "Tahoma", "Arial", "sans-serif"],
         baloo: ["var(--font-baloo)", "var(--font-almarai)", "sans-serif"],
-        inter: ["var(--font-inter)", "sans-serif"],
+        // Almarai stays in the English stack: untranslated listing titles are
+        // Arabic, and Inter's Arabic fallback is whatever the phone has.
+        inter: ["var(--font-inter)", "var(--font-almarai)", "Tahoma", "sans-serif"],
       },
       borderRadius: {
         bubble: "1.25rem",

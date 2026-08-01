@@ -5,6 +5,23 @@ export const API_URL =
 
 let accessToken: string | null = null;
 
+/**
+ * The language the API should answer in.
+ *
+ * The error catalogue is bilingual server-side, so this is what decides
+ * whether a failed booking says "هذه التواريخ لم تعد متاحة" or "These dates
+ * are no longer available". Without it an English user gets an English
+ * interface that reports its errors in Arabic — which is exactly the moment
+ * they most need to understand what happened.
+ */
+let apiLocale = "ar";
+export function setApiLocale(locale: string) {
+  apiLocale = locale;
+}
+export function apiAcceptLanguage(): string {
+  return apiLocale === "en" ? "en-GB,en;q=0.9" : "ar-LY,ar;q=0.9";
+}
+
 export function setTokens(access: string, refresh?: string) {
   accessToken = access;
   if (typeof window !== "undefined" && refresh) {
@@ -82,6 +99,7 @@ export async function api<T>(
       ...opts,
       headers: {
         "Content-Type": "application/json",
+        "Accept-Language": apiAcceptLanguage(),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...(typeof window !== "undefined" && localStorage.getItem("ciao_anon")
           ? { "x-ciao-anon": localStorage.getItem("ciao_anon")! }
@@ -101,7 +119,7 @@ export async function api<T>(
     throw new ApiError(
       res.status,
       body.error?.code ?? "CIAO-5000",
-      body.error?.message ?? "حدث خطأ",
+      body.error?.message ?? (apiLocale === "en" ? "Something went wrong" : "حدث خطأ"),
     );
   }
   return res.json() as Promise<T>;
@@ -113,8 +131,25 @@ export async function ensureSession(): Promise<boolean> {
   return refreshSession();
 }
 
-export function fmtLyd(dirhams: number): string {
-  return `${(dirhams / 1000).toLocaleString("ar-LY", { maximumFractionDigits: 0 })} د.ل`;
+/**
+ * Money.
+ *
+ * The currency is the Libyan dinar in both languages — an English-reading user
+ * booking a chalet in Janzour still pays in dinars, and converting to anything
+ * else would be a guess about a rate we do not set. Only the numerals and the
+ * symbol change: `1٬250 د.ل` reading right-to-left, `1,250 LYD` reading
+ * left-to-right.
+ *
+ * Note the explicit `latn` numbering system for Arabic. `ar-LY` defaults to
+ * Western digits in most runtimes but not all, and a price that renders as
+ * ١٢٥٠ on one phone and 1250 on another makes a marketplace look unreliable in
+ * the one place it can least afford to.
+ */
+export function fmtLyd(dirhams: number, locale: string = "ar"): string {
+  const value = (dirhams / 1000).toLocaleString(locale === "en" ? "en-GB" : "ar-LY-u-nu-latn", {
+    maximumFractionDigits: 0,
+  });
+  return locale === "en" ? `${value} LYD` : `${value} د.ل`;
 }
 
 /**
@@ -123,8 +158,11 @@ export function fmtLyd(dirhams: number): string {
  * right for prices and wrong here: telling someone their 400 points are worth
  * "0 د.ل" is worse than not showing a number at all.
  */
-export function fmtLydPrecise(dirhams: number): string {
+export function fmtLydPrecise(dirhams: number, locale: string = "ar"): string {
   const lyd = dirhams / 1000;
   const digits = lyd > 0 && lyd < 10 ? 2 : 0;
-  return `${lyd.toLocaleString("ar-LY", { maximumFractionDigits: digits })} د.ل`;
+  const value = lyd.toLocaleString(locale === "en" ? "en-GB" : "ar-LY-u-nu-latn", {
+    maximumFractionDigits: digits,
+  });
+  return locale === "en" ? `${value} LYD` : `${value} د.ل`;
 }

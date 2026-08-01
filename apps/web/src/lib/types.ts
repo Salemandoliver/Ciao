@@ -4,6 +4,7 @@ export interface PublicListing {
   titleAr: string;
   titleEn?: string;
   descriptionAr?: string;
+  descriptionEn?: string;
   type: "coast" | "hall" | "service";
   city: string;
   area?: string;
@@ -38,6 +39,7 @@ export interface PublicListing {
     id: string;
     slug: string;
     titleAr: string;
+    titleEn?: string;
     area?: string;
     baseNightly: number;
     media: { url: string; kind: string; order?: number }[];
