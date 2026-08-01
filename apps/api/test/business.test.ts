@@ -367,6 +367,43 @@ describe("business console API", () => {
     expect(JSON.stringify(body)).not.toContain("CommissionBps");
   });
 
+  it("publishes proof stats with a denominator and no private detail", async () => {
+    const res = await app.inject({ method: "GET", url: "/v1/stats/public" });
+    expect(res.statusCode).toBe(200);
+    const s = res.json() as {
+      venues: { verified: number; total: number };
+      photos: number;
+      reviews: number;
+      trust: {
+        deliveredBookings: number;
+        disputesOpened: number;
+        disputesResolved: number;
+        resolvedWithinSla: number;
+      };
+    };
+    // The About page prints these next to each other, so they must be coherent
+    // or the page contradicts itself in public.
+    expect(s.venues.verified).toBeLessThanOrEqual(s.venues.total);
+    expect(s.trust.disputesOpened).toBeLessThanOrEqual(s.trust.deliveredBookings);
+    expect(s.trust.disputesResolved).toBeLessThanOrEqual(s.trust.disputesOpened);
+    expect(s.trust.resolvedWithinSla).toBeLessThanOrEqual(s.trust.disputesResolved);
+    expect(s.photos).toBeGreaterThanOrEqual(0);
+    // Same boundary as the trust surface: counts yes, statements never.
+    const raw = JSON.stringify(s);
+    expect(raw).not.toContain("statement");
+    expect(raw).not.toContain("resolution");
+    // And it is cacheable — an About page must not hit the DB per visitor.
+    expect(res.headers["cache-control"]).toContain("max-age");
+  });
+
+  it("exposes payment rails publicly but never the commission behind them", async () => {
+    const res = await app.inject({ method: "GET", url: "/v1/settings/public" });
+    const body = res.json() as { paymentRails: string[] };
+    expect(Array.isArray(body.paymentRails)).toBe(true);
+    expect(body.paymentRails.length).toBeGreaterThan(0);
+    expect(JSON.stringify(body)).not.toContain("CommissionBps");
+  });
+
   it("the audit trail shows who did what", async () => {
     const res = await app.inject({
       method: "GET",

@@ -62,6 +62,7 @@ export default async function HomePage() {
         <LogoWithTail size={44} />
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/wishlist" aria-label="المفضلة">🤍</Link>
+          <Link href="/about">من نحن</Link>
           <Link href="/host">للمضيفين</Link>
           <Link href="/login">دخول</Link>
         </nav>
@@ -112,6 +113,11 @@ export default async function HomePage() {
       <ServiceTiles />
 
       <footer className="mt-12 text-center text-sm text-sea/60 space-y-1">
+        <p>
+          <Link href="/about" className="font-bold text-sea/80 hover:text-sea">
+            من نحن وكيف نعتمد الأماكن
+          </Link>
+        </p>
         <p>تشاو — ciao.ly · طرابلس، ليبيا</p>
         <p>الأسعار كلها بالدينار الليبي. العربون فقط أونلاين والباقي عند الوصول.</p>
       </footer>

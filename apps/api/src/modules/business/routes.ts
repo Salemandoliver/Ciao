@@ -21,7 +21,7 @@
  */
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { normalizePhone } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
 import { CiaoError } from "../../lib/errors.js";
@@ -54,6 +54,20 @@ const COMMITTED_STATES = [
   "disputed",
   "resolved",
 ];
+/**
+ * Stays/services that actually happened — the denominator the public trust
+ * record is measured against. Same list as the trust surface uses (§11.6);
+ * they must never drift apart or the two pages would disagree in public.
+ */
+const DELIVERED_STATES = [
+  "checked_in",
+  "completed",
+  "reviewed",
+  "no_show",
+  "disputed",
+  "resolved",
+];
+
 /** Same list, for the raw SQL sub-selects below. */
 const COMMITTED_SQL = `array[${COMMITTED_STATES.map((s) => `'${s}'`).join(",")}]`;
 
@@ -96,6 +110,91 @@ export async function businessRoutes(app: FastifyInstance) {
   app.get("/v1/settings/public", async (_req, reply) => {
     reply.header("cache-control", "public, max-age=60, stale-while-revalidate=600");
     return reply.send(await publicSettings());
+  });
+
+  /**
+   * Public proof — the numbers behind the claims on the About page.
+   *
+   * Every marketplace's about page says "trusted" and "verified". Ours says
+   * how many places we actually walked into, how many photographs we took
+   * ourselves, how many complaints were opened against how many delivered
+   * stays, and how fast we closed them. An adjective anyone can write; a
+   * denominator has to be earned.
+   *
+   * Same boundary as the trust surface (§11.6): counts and outcomes are
+   * public, statements and identities never are.
+   */
+  app.get("/v1/stats/public", async (_req, reply) => {
+    reply.header("cache-control", "public, max-age=300, stale-while-revalidate=3600");
+
+    const [venues] = await db
+      .select({
+        total: sql<string>`count(*)`,
+        verified: sql<string>`count(*) filter (where ${schema.venues.verifiedAt} is not null and not ${schema.venues.badgeRevoked})`,
+        cities: sql<string>`count(distinct ${schema.venues.city})`,
+        areas: sql<string>`count(distinct ${schema.venues.area})`,
+        firstVerifiedAt: sql<string>`min(${schema.venues.verifiedAt})`,
+      })
+      .from(schema.venues);
+
+    // Only live listings count — a draft is not a promise we've made anyone.
+    const byVertical = await db
+      .select({
+        vertical: sql<string>`case when ${schema.listings.serviceCategory} is not null
+                                   then 'service' else ${schema.venues.type} end`,
+        n: sql<string>`count(*)`,
+        photos: sql<string>`coalesce(sum(jsonb_array_length(${schema.listings.media})), 0)`,
+      })
+      .from(schema.listings)
+      .innerJoin(schema.venues, eq(schema.listings.venueId, schema.venues.id))
+      .where(eq(schema.listings.status, "live"))
+      .groupBy(sql`1`);
+
+    const [reviews] = await db
+      .select({ n: sql<string>`count(*)` })
+      .from(schema.reviews)
+      .where(and(eq(schema.reviews.authorRole, "guest"), isNotNull(schema.reviews.publishedAt)));
+
+    const [delivered] = await db
+      .select({ n: sql<string>`count(*)` })
+      .from(schema.bookings)
+      .where(inArray(schema.bookings.state, DELIVERED_STATES));
+
+    const disputeRows = await db
+      .select({
+        status: schema.disputes.status,
+        createdAt: schema.disputes.createdAt,
+        resolvedAt: schema.disputes.resolvedAt,
+        dueAt: schema.disputes.dueAt,
+      })
+      .from(schema.disputes);
+    const resolved = disputeRows.filter((d) => d.status === "resolved" && d.resolvedAt);
+    const hours = resolved
+      .map((d) => (d.resolvedAt!.getTime() - d.createdAt.getTime()) / 3600_000)
+      .sort((a, b) => a - b);
+
+    const settings = await getAllSettings();
+
+    return reply.send({
+      venues: {
+        verified: Number(venues?.verified ?? 0),
+        total: Number(venues?.total ?? 0),
+        cities: Number(venues?.cities ?? 0),
+        areas: Number(venues?.areas ?? 0),
+        verifyingSince: venues?.firstVerifiedAt ?? null,
+      },
+      listings: Object.fromEntries(byVertical.map((r) => [r.vertical, Number(r.n)])),
+      photos: byVertical.reduce((s, r) => s + Number(r.photos ?? 0), 0),
+      reviews: Number(reviews?.n ?? 0),
+      trust: {
+        deliveredBookings: Number(delivered?.n ?? 0),
+        disputesOpened: disputeRows.length,
+        disputesResolved: resolved.length,
+        resolvedWithinSla: resolved.filter((d) => d.resolvedAt! <= d.dueAt).length,
+        medianHours: hours.length ? Math.round(hours[Math.floor(hours.length / 2)]!) : null,
+        slaHours: Number(settings["trust.disputeSlaHours"]),
+      },
+    });
   });
 
   // =============================================================== 1. overview

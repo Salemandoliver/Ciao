@@ -190,6 +190,7 @@ export async function publicSettings() {
       services: all["features.services"],
       reviews: all["features.reviews"],
     },
+    paymentRails: all["payments.enabledRails"],
     announcementAr: all["ops.announcementAr"],
     acceptingBookings: all["ops.acceptingBookings"],
     demoMode: all["ops.demoMode"],
