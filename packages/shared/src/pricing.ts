@@ -30,12 +30,29 @@ export interface StayQuote {
   hostShareOfDeposit: number;
 }
 
+/**
+ * Fee overrides. Commercial terms are operator-controlled at runtime (the
+ * business console writes them to the control plane), so every pricing call
+ * accepts the effective schedule. Omitting it uses the compiled-in defaults,
+ * which keeps the pure functions testable and keeps the app correct if the
+ * settings table is ever unreachable.
+ */
+export interface FeeSchedule {
+  coastDepositBps: number;
+  coastCommissionBps: number;
+  coastFoundingHostBps: number;
+  hallDateLockBps: number;
+  hallCommissionBps: number;
+  hallCommissionCapDirhams: number;
+}
+
 export function quoteStay(
   cfg: PricingConfig,
   checkIn: Date,
   checkOut: Date,
-  opts: { foundingHost?: boolean } = {},
+  opts: { foundingHost?: boolean; fees?: Partial<FeeSchedule> } = {},
 ): StayQuote {
+  const fees = { ...FEES, ...opts.fees };
   const nights: { date: string; price: number }[] = [];
   const d = new Date(checkIn);
   while (d < checkOut) {
@@ -46,10 +63,10 @@ export function quoteStay(
     d.setUTCDate(d.getUTCDate() + 1);
   }
   const total = nights.reduce((s, n) => s + n.price, 0);
-  const deposit = Math.round((total * FEES.coastDepositBps) / 10000);
+  const deposit = Math.round((total * fees.coastDepositBps) / 10000);
   const commissionBps = opts.foundingHost
-    ? FEES.coastFoundingHostBps
-    : FEES.coastCommissionBps;
+    ? fees.coastFoundingHostBps
+    : fees.coastCommissionBps;
   const commission = Math.round((total * commissionBps) / 10000);
   return {
     nights,
@@ -68,11 +85,15 @@ export interface HallQuote {
   hostShareOfDateLock: number;
 }
 
-export function quoteHall(packageTotal: number): HallQuote {
-  const dateLockFee = Math.round((packageTotal * FEES.hallDateLockBps) / 10000);
+export function quoteHall(
+  packageTotal: number,
+  feeOverrides: Partial<FeeSchedule> = {},
+): HallQuote {
+  const fees = { ...FEES, ...feeOverrides };
+  const dateLockFee = Math.round((packageTotal * fees.hallDateLockBps) / 10000);
   const commission = Math.min(
-    Math.round((packageTotal * FEES.hallCommissionBps) / 10000),
-    FEES.hallCommissionCapDirhams,
+    Math.round((packageTotal * fees.hallCommissionBps) / 10000),
+    fees.hallCommissionCapDirhams,
   );
   return {
     packageTotal,

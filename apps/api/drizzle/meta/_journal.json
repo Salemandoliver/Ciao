@@ -29,6 +29,13 @@
       "when": 1785525778357,
       "tag": "0003_productive_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785577962989,
+      "tag": "0004_strange_famine",
+      "breakpoints": true
     }
   ]
 }

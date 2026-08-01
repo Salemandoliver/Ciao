@@ -98,24 +98,39 @@ export function HeroSearch({
         ))}
       </div>
 
-      {/* The pill */}
-      <div className="bg-white rounded-full shadow-lg flex items-center text-sm">
+      {/*
+        The pill — one line, not two.
+        Label and value sit side by side on a single row so the bar stays
+        slim and the photography behind it keeps the frame. The background is
+        translucent with a blur: enough of the hero shows through to feel like
+        part of the picture, enough opacity behind the text to stay readable
+        in Tripoli sunlight (§3.3). On the search page (compact) it goes solid,
+        because there is no photo behind it to reveal.
+      */}
+      <div
+        className={`rounded-full shadow-lg flex items-center text-sm ${
+          compact ? "bg-white" : "bg-white/75 backdrop-blur-md ring-1 ring-white/50"
+        }`}
+      >
         <button
-          className="flex-1 min-w-0 text-start ps-5 py-2.5 rounded-full hover:bg-sand/60"
+          className="flex-1 min-w-0 flex items-baseline gap-1.5 text-start ps-4 py-1.5 rounded-full hover:bg-sand/40"
           onClick={() => setOpen((o) => !o)}
         >
-          <span className="block text-[10px] font-bold text-sea/60">أين؟</span>
-          <span className="block font-bold text-sea truncate">{whereLabel}</span>
+          <span className="text-[11px] font-bold text-sea/55 shrink-0">أين؟</span>
+          <span className="font-bold text-sea truncate">{whereLabel}</span>
         </button>
-        <span className="w-px h-6 bg-sea/10 shrink-0" aria-hidden />
+        <span className="w-px h-5 bg-sea/15 shrink-0" aria-hidden />
         <button
-          className="flex-1 min-w-0 text-start ps-4 py-2.5 hover:bg-sand/60"
+          className="flex-1 min-w-0 flex items-baseline gap-1.5 text-start ps-3 py-1.5 hover:bg-sand/40"
           onClick={() => setOpen((o) => !o)}
         >
-          <span className="block text-[10px] font-bold text-sea/60">
+          <span className="text-[11px] font-bold text-sea/55 shrink-0">
             {type === "hall" ? "الضيفات؟" : type === "service" ? "الخدمة؟" : "متى؟"}
           </span>
-          <span className="block font-bold text-sea truncate" dir={type === "coast" && checkIn ? "ltr" : undefined}>
+          <span
+            className="font-bold text-sea truncate"
+            dir={type === "coast" && checkIn ? "ltr" : undefined}
+          >
             {type === "hall"
               ? whoLabel
               : type === "service"
@@ -125,18 +140,18 @@ export function HeroSearch({
         </button>
         {type === "coast" ? (
           <>
-            <span className="w-px h-6 bg-sea/10 shrink-0 hidden sm:block" aria-hidden />
+            <span className="w-px h-5 bg-sea/15 shrink-0 hidden sm:block" aria-hidden />
             <button
-              className="flex-1 min-w-0 text-start ps-4 py-2.5 hidden sm:block hover:bg-sand/60"
+              className="flex-1 min-w-0 items-baseline gap-1.5 text-start ps-3 py-1.5 hidden sm:flex hover:bg-sand/40"
               onClick={() => setOpen((o) => !o)}
             >
-              <span className="block text-[10px] font-bold text-sea/60">من؟</span>
-              <span className="block font-bold text-sea truncate">{whoLabel}</span>
+              <span className="text-[11px] font-bold text-sea/55 shrink-0">من؟</span>
+              <span className="font-bold text-sea truncate">{whoLabel}</span>
             </button>
           </>
         ) : null}
         <button
-          className="m-1.5 shrink-0 w-9 h-9 rounded-full bg-amber text-sea-dark flex items-center justify-center text-base active:bg-amber-dark"
+          className="m-1 shrink-0 w-8 h-8 rounded-full bg-amber text-sea-dark flex items-center justify-center text-sm active:bg-amber-dark"
           onClick={() => (open ? submit() : setOpen(true))}
           aria-label="ابحث"
         >

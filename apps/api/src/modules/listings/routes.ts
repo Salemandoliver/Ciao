@@ -5,6 +5,7 @@ import { db, schema } from "../../db/client.js";
 import { CiaoError } from "../../lib/errors.js";
 import * as calendar from "../calendar/service.js";
 import { quoteStay } from "@ciao/shared";
+import { effectiveFees } from "../business/settings.js";
 import { track } from "../intelligence/events.js";
 import { verifyAccessToken } from "../../lib/auth.js";
 
@@ -273,7 +274,7 @@ export async function listingRoutes(app: FastifyInstance) {
       },
       new Date(`${q.checkIn}T00:00:00Z`),
       new Date(`${q.checkOut}T00:00:00Z`),
-      { foundingHost: venue?.foundingHost },
+      { foundingHost: venue?.foundingHost, fees: await effectiveFees() },
     );
     // Intelligence: quote views are the strongest pre-money intent signal.
     let quoteUserId: string | undefined;

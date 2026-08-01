@@ -624,6 +624,25 @@ export const userProfiles = pgTable("user_profiles", {
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
 
+/**
+ * Platform control plane — runtime settings that steer the public app.
+ *
+ * Anything an operator should be able to change without a deploy lives here:
+ * commission rates, which payment rails are offered, the home hero images,
+ * demo-mode switches, feature flags. Env vars stay for secrets and
+ * infrastructure; this table is for business decisions, because a founder in
+ * Tripoli should not need a Railway redeploy to change a commission rate.
+ *
+ * Every write goes through setSetting(), which audits. Reads are cached in
+ * process for a few seconds so the hot path (listings, quotes) stays cheap.
+ */
+export const platformSettings = pgTable("platform_settings", {
+  key: varchar("key", { length: 64 }).primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedById: uuid("updated_by_id").references(() => users.id),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
 /** Ops audit log (§13.8). */
 export const auditLog = pgTable(
   "audit_log",

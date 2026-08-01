@@ -2,13 +2,38 @@ import Link from "next/link";
 import { LogoWithTail } from "@/components/logo";
 import { ListingCard } from "@/components/listing-card";
 import { HeroSearch } from "@/components/hero-search";
+import { HeroRotator, type HeroImage } from "@/components/hero-rotator";
 import { RecsStrip } from "@/components/recs";
 import { ServiceTiles } from "@/components/service-tiles";
 import { API_URL } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
 
-const HERO_LQIP =
-  "data:image/webp;base64,UklGRl4AAABXRUJQVlA4IFIAAADwAwCdASoYAA4APu1iqU2ppaQiMAgBMB2JaACdMoRwIswAYJ/CjQnsAIHnzDPwqJPtzcUwUqPA5NluP4X5PnLdcbYjdrhJbqaf/J3/38gPgAAA";
+/** Fallback if the control plane is unreachable — the page must still render. */
+const FALLBACK_HERO: { intervalMs: number; images: HeroImage[] } = {
+  intervalMs: 6000,
+  images: [
+    { src: "/hero-marina", alt: "واجهة طرابلس البحرية والحديقة المطلة على المتوسط" },
+    { src: "/hero-castle", alt: "السرايا الحمراء في طرابلس القديمة" },
+    { src: "/hero-lake", alt: "بحيرة أبو ستة وأفق طرابلس" },
+    { src: "/hero-skyline", alt: "أبراج طرابلس الجديدة على الكورنيش" },
+    { src: "/hero", alt: "غروب الشمس على مدينة ليبية" },
+  ],
+};
+
+/** Hero imagery is operator-controlled (business console → الإعدادات). */
+async function getHero(): Promise<{ intervalMs: number; images: HeroImage[] }> {
+  try {
+    const res = await fetch(`${API_URL}/v1/settings/public`, { next: { revalidate: 60 } });
+    if (!res.ok) return FALLBACK_HERO;
+    const body = (await res.json()) as { hero?: { intervalMs?: number; images?: HeroImage[] } };
+    const images = body.hero?.images?.filter((i) => i?.src) ?? [];
+    return images.length
+      ? { intervalMs: body.hero?.intervalMs ?? 6000, images }
+      : FALLBACK_HERO;
+  } catch {
+    return FALLBACK_HERO;
+  }
+}
 
 export const revalidate = 300; // listing content is CDN-cacheable (§12.3)
 
@@ -25,7 +50,11 @@ async function getFeatured(type: "coast" | "hall"): Promise<PublicListing[]> {
 }
 
 export default async function HomePage() {
-  const [coast, halls] = await Promise.all([getFeatured("coast"), getFeatured("hall")]);
+  const [coast, halls, hero] = await Promise.all([
+    getFeatured("coast"),
+    getFeatured("hall"),
+    getHero(),
+  ]);
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16">
@@ -40,21 +69,11 @@ export default async function HomePage() {
 
       {/* Hero — the «قول تشاو» device (§3.2) over the Tripoli sunset */}
       <section className="card relative overflow-hidden text-white">
-        <img
-          src="/hero-800.webp"
-          srcSet="/hero-800.webp 800w, /hero-1600.webp 1600w"
-          sizes="(max-width: 640px) 100vw, 1024px"
-          alt="غروب الشمس على مدينة ليبية"
-          fetchPriority="high"
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{
-            backgroundImage: `url(${HERO_LQIP})`,
-            backgroundSize: "cover",
-          }}
-        />
-        {/* Sea-blue gradient keeps text sunlight-readable (§3.3) */}
+        <HeroRotator images={hero.images} intervalMs={hero.intervalMs} />
+        {/* Sea-blue gradient keeps text sunlight-readable (§3.3). Kept as
+            light as legibility allows so the photography stays the hero. */}
         <div
-          className="absolute inset-0 bg-gradient-to-t from-sea/90 via-sea/45 to-sea/25"
+          className="absolute inset-0 bg-gradient-to-t from-sea/80 via-sea/35 to-sea/15"
           aria-hidden
         />
         <div className="relative p-6 sm:p-10 pb-4 sm:pb-6">

@@ -24,6 +24,23 @@ export function hasSession(): boolean {
   );
 }
 
+/**
+ * The role claim from the current access token, for shaping the UI only.
+ * Never a security boundary — every privileged endpoint re-checks server-side,
+ * so a forged token buys a differently-shaped screen and nothing else.
+ */
+export function sessionRole(): string {
+  if (!accessToken) return "";
+  try {
+    const part = accessToken.split(".")[1];
+    if (!part) return "";
+    const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
+    return String((JSON.parse(json) as { role?: string }).role ?? "");
+  } catch {
+    return "";
+  }
+}
+
 async function refreshSession(): Promise<boolean> {
   if (typeof window === "undefined") return false;
   const refresh = localStorage.getItem("ciao_refresh");

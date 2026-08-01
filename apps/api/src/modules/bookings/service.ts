@@ -12,6 +12,7 @@ import {
 } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
 import { CiaoError } from "../../lib/errors.js";
+import { effectiveFees, getSetting } from "../business/settings.js";
 import { bookingCode, invoiceNo } from "../../lib/ids.js";
 import { signActionToken } from "../../lib/auth.js";
 import { config } from "../../config.js";
@@ -36,6 +37,14 @@ export interface CreateStayRequestInput {
 }
 
 export async function createStayRequest(input: CreateStayRequestInput) {
+  // Operator kill switch. Turning bookings off keeps the marketplace browsable
+  // — a guest can still look, wishlist, and read reviews — while stopping us
+  // from taking money we can't currently service (rail outage, holiday, a
+  // supply problem). Concierge bookings still go through, because that path is
+  // a human on the phone who already knows the situation.
+  if (!input.concierge && !(await getSetting("ops.acceptingBookings")))
+    throw new CiaoError("VALIDATION", "bookings_paused");
+
   const [listing] = await db
     .select()
     .from(schema.listings)
@@ -49,6 +58,9 @@ export async function createStayRequest(input: CreateStayRequestInput) {
     .limit(1);
   if (!venue) throw new CiaoError("BOOKING_NOT_FOUND");
 
+  // Commercial terms come from the control plane, so a rate change in the
+  // business console applies to the next booking — not the next deploy.
+  const fees = await effectiveFees();
   const quote = quoteStay(
     {
       baseNightly: listing.baseNightly,
@@ -58,7 +70,7 @@ export async function createStayRequest(input: CreateStayRequestInput) {
     },
     new Date(`${input.checkIn}T00:00:00Z`),
     new Date(`${input.checkOut}T00:00:00Z`),
-    { foundingHost: venue.foundingHost },
+    { foundingHost: venue.foundingHost, fees },
   );
   if (quote.nights.length === 0) throw new CiaoError("VALIDATION", "empty stay");
 
