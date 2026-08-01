@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Link } from "@/lib/locale";
-import { LogoWithTail } from "@/components/logo";
+import { Logo } from "@/components/logo";
 import { HeroRotator, type HeroImage } from "@/components/hero-rotator";
 import { LanguageToggle } from "@/components/language-toggle";
 import { API_URL } from "@/lib/api";
@@ -409,7 +409,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
     <main className="mx-auto max-w-5xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
         <Link href="/">
-          <LogoWithTail size={40} />
+          <Logo />
         </Link>
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/search?type=coast">{c.navBrowse}</Link>

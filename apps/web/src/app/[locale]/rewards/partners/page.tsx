@@ -221,7 +221,7 @@ export default function PartnersPage() {
     <main className="mx-auto max-w-3xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
         <Link href="/">
-          <Logo size={34} />
+          <Logo />
         </Link>
         <nav className="flex items-center gap-2 text-xs font-bold text-sea">
           <Link href="/rewards" className="chip">{c.navTerms}</Link>

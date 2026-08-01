@@ -164,7 +164,7 @@ function BizConsole() {
       <header className="flex items-center justify-between gap-3 py-4">
         <div className="flex items-center gap-3">
           <Link href="/">
-            <Logo size={34} />
+            <Logo />
           </Link>
           <div>
             <h1 className="font-bold text-sea leading-tight">{c.brand}</h1>

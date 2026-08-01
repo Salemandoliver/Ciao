@@ -20,7 +20,7 @@ export default async function OfflinePage({ params }: { params: Promise<{ locale
   const c = copy[asLocale((await params).locale)];
   return (
     <main className="mx-auto max-w-md px-4 py-16 text-center space-y-4">
-      <Logo size={48} />
+      <Logo />
       <h1 className="font-bold text-xl text-sea">{c.title}</h1>
       <p className="text-muted">{c.body}</p>
       <Link href="/my" className="btn-primary inline-block">

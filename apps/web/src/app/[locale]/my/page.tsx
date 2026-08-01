@@ -60,7 +60,7 @@ export default function MyBookingsPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
-        <Link href="/"><Logo size={36} /></Link>
+        <Link href="/"><Logo /></Link>
         {credit > 0 ? <span className="chip">{c.credit(fmtLyd(credit, locale))}</span> : null}
       </header>
       <h1 className="font-bold text-xl text-sea mb-4">{c.title}</h1>

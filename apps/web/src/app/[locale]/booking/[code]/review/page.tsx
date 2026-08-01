@@ -72,7 +72,7 @@ export default function ReviewPage({ params }: { params: Promise<{ code: string 
   return (
     <main className="mx-auto max-w-xl px-4 pb-16">
       <header className="py-4">
-        <Link href="/"><Logo size={36} /></Link>
+        <Link href="/"><Logo /></Link>
       </header>
       <div className="card p-5 space-y-4">
         <h1 className="font-bold text-xl text-sea">{c.title}</h1>

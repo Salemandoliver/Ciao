@@ -125,7 +125,7 @@ function ConfirmForm() {
 export default function HostConfirmPage() {
   return (
     <main className="mx-auto max-w-md px-4 py-8">
-      <div className="text-center mb-6"><Logo size={44} /></div>
+      <div className="text-center mb-6"><Logo /></div>
       <Suspense>
         <ConfirmForm />
       </Suspense>

@@ -1,5 +1,5 @@
 import { Link } from "@/lib/locale";
-import { LogoWithTail } from "@/components/logo";
+import { Logo } from "@/components/logo";
 import { ListingCard } from "@/components/listing-card";
 import { HeroSearch } from "@/components/hero-search";
 import { HeroRotator, type HeroImage } from "@/components/hero-rotator";
@@ -141,7 +141,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
-        <LogoWithTail size={44} />
+        <Logo />
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/wishlist" aria-label={c.wishlist}>🤍</Link>
           <Link href="/about">{c.about}</Link>

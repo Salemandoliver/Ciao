@@ -166,6 +166,28 @@ for (const theme of ["light", "dark"]) {
       );
       continue;
     }
+    /*
+     * Broken images.
+     *
+     * Added after a middleware matcher that listed known asset prefixes missed
+     * `/hero-marina-800.webp`, so every hero photograph on the site was
+     * rewritten to `/ar/hero-…` and 404'd. The contrast audit sailed straight
+     * past it: text was still perfectly legible on an empty gradient. On a
+     * marketplace whose entire claim is "we went there and took these photos
+     * ourselves", missing photography is not a cosmetic defect.
+     */
+    const broken = await page.evaluate(() =>
+      [...document.querySelectorAll("img")]
+        .filter((i) => i.currentSrc && i.complete && i.naturalWidth === 0)
+        .map((i) => i.currentSrc)
+        .slice(0, 6),
+    );
+    if (broken.length) {
+      failures += broken.length;
+      console.log(`\n### ${theme} ${path} — ${broken.length} broken image(s)`);
+      for (const src of broken) console.log(`  ✗ ${src}`);
+    }
+
     const bad = [];
     const seen = new Set();
     for (const r of rows) {

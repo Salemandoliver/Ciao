@@ -88,7 +88,7 @@ export default async function SearchPage({
     <main className="mx-auto max-w-7xl px-4 pb-16">
       <header className="flex items-center gap-4 py-4">
         <Link href="/">
-          <Logo size={36} />
+          <Logo />
         </Link>
         <h1 className="font-bold text-sea">{term(VERTICALS, locale, type)}</h1>
         <div className="ms-auto">

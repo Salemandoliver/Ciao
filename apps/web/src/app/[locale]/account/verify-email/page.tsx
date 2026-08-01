@@ -62,7 +62,7 @@ function Verify() {
   return (
     <main className="mx-auto max-w-md px-4 py-10 text-center">
       <Link href="/" className="inline-block mb-6">
-        <Logo size={44} />
+        <Logo />
       </Link>
       <div className="card p-6">
         {state === "working" ? (

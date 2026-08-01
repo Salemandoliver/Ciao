@@ -240,7 +240,7 @@ export default async function ListingPage({
       />
       <header className="flex items-center justify-between py-4">
         <Link href="/">
-          <Logo size={36} />
+          <Logo />
         </Link>
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/search">{c.backToSearch}</Link>

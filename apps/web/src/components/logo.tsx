@@ -56,12 +56,23 @@ function Bubble({
   );
 }
 
-/** Primary wordmark (blue bubble, white text). */
-export function Logo({ size = 40, reversed = false }: { size?: number; reversed?: boolean }) {
-  return <Bubble height={size} withTail={false} reversed={reversed} />;
-}
+/**
+ * One mark, one size, everywhere.
+ *
+ * There used to be two components and five sizes across twenty call sites, so
+ * the logo grew a tail on the home page, lost it on a listing, and changed
+ * height between the two — which reads as a different app rather than a
+ * different page. A logo earns recognition by being identical every time it is
+ * seen; the moment it varies it stops being an identity and becomes decoration.
+ *
+ * The tail is not optional trim either: the Greeting Bubble *is* the «قول
+ * تشاو» device (§3.2). Without it the mark is just a word in a box.
+ *
+ * There is deliberately no `size` prop. That is the guard — a call site that
+ * tries to make this bigger fails to compile rather than quietly drifting.
+ */
+const LOGO_HEIGHT = 44;
 
-/** Wordmark with the corner chat-tail — hero/header moments. */
-export function LogoWithTail({ size = 48, reversed = false }: { size?: number; reversed?: boolean }) {
-  return <Bubble height={size} withTail reversed={reversed} />;
+export function Logo({ reversed = false }: { reversed?: boolean }) {
+  return <Bubble height={LOGO_HEIGHT} withTail reversed={reversed} />;
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Link } from "@/lib/locale";
-import { LogoWithTail } from "@/components/logo";
+import { Logo } from "@/components/logo";
 import { LanguageToggle } from "@/components/language-toggle";
 import { API_URL } from "@/lib/api";
 import { asLocale, type Locale } from "@/lib/i18n";
@@ -303,7 +303,7 @@ export default async function RewardsPage({ params }: { params: Promise<{ locale
     <main className="mx-auto max-w-3xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
         <Link href="/">
-          <LogoWithTail size={40} />
+          <Logo />
         </Link>
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/account?tab=points">{c.navPoints}</Link>

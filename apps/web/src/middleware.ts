@@ -35,12 +35,18 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   /*
-   * Everything except Next's own assets and the files that must be served from
-   * the bare origin: the service worker's scope is the path it is served from,
-   * so a rewritten `/sw.js` would silently narrow it and the PWA would stop
-   * controlling the site.
+   * Pages only. Anything with a file extension is a static asset and must be
+   * served from the bare origin untouched.
+   *
+   * The first version of this listed known asset prefixes instead, and missed
+   * `/hero-marina-800.webp` — every hero photograph on the site got rewritten
+   * to `/ar/hero-marina-800.webp` and 404'd, so the home page lost its
+   * background imagery. Matching on "has a dot in it" is the version that
+   * cannot be out-grown: no app route contains a dot, and every asset does.
+   *
+   * `/sw.js` falling out of scope matters for a second reason — a service
+   * worker's scope is the path it is served from, so a rewritten one would
+   * silently stop controlling the site.
    */
-  matcher: [
-    "/((?!_next/|api/|favicon|icon-|apple-icon|manifest\\.json|sw\\.js|robots\\.txt|sitemap\\.xml|img/|images/|media/).*)",
-  ],
+  matcher: ["/((?!api/|_next/|.*\\.).*)"],
 };

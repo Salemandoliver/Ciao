@@ -6,7 +6,7 @@ import { SwRegister } from "@/components/sw-register";
 import { OfflineBanner } from "@/components/offline-banner";
 import { PageViews } from "@/components/track";
 import { AnnouncementBar } from "@/components/announcement";
-import { ThemeBoot } from "@/components/theme-boot";
+import { ThemeBoot, ThemeSync } from "@/components/theme-boot";
 import { LocaleProvider } from "@/lib/locale";
 import { LOCALES, bcp47, dirOf, isLocale } from "@/lib/i18n";
 
@@ -100,11 +100,13 @@ export default async function RootLayout({
   if (!isLocale(locale)) notFound();
 
   return (
-    <html
-      lang={bcp47(locale)}
-      dir={dirOf(locale)}
-      className={`${almarai.variable} ${baloo.variable} ${inter.variable}`}
-    >
+    /*
+      No `className` on <html> — see components/theme-boot.tsx. React owns
+      every prop it renders, so a className here means React wipes the theme
+      class on any navigation that re-renders this layout, which is exactly
+      what switching language does. The font variables ride on <body> instead.
+    */
+    <html lang={bcp47(locale)} dir={dirOf(locale)}>
       <head>
         <ThemeBoot />
       </head>
@@ -114,8 +116,13 @@ export default async function RootLayout({
         Arabic in a face designed for Arabic rather than in a Latin font's
         fallback.
       */}
-      <body className={`${locale === "ar" ? "font-almarai" : "font-inter"} min-h-dvh`}>
+      <body
+        className={`${almarai.variable} ${baloo.variable} ${inter.variable} ${
+          locale === "ar" ? "font-almarai" : "font-inter"
+        } min-h-dvh`}
+      >
         <LocaleProvider locale={locale}>
+          <ThemeSync />
           <OfflineBanner />
           <AnnouncementBar locale={locale} />
           <PageViews />

@@ -158,7 +158,7 @@ export default function OpsPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
-        <Link href="/"><Logo size={36} /></Link>
+        <Link href="/"><Logo /></Link>
         <div className="flex items-center gap-3">
           <span className="chip">{c.opsUnit}</span>
           <LanguageToggle />

@@ -238,7 +238,7 @@ export default function AgentPage() {
   return (
     <main className="mx-auto max-w-xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
-        <Link href="/"><Logo size={36} /></Link>
+        <Link href="/"><Logo /></Link>
         <div className="flex items-center gap-3">
           <LanguageToggle />
           <button className="chip" onClick={sync}>

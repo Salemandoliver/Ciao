@@ -212,7 +212,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="mx-auto max-w-2xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
-        <Link href="/"><Logo size={36} /></Link>
+        <Link href="/"><Logo /></Link>
         <Link href="/my" className="text-sm font-bold text-sea">{c.myBookings}</Link>
       </header>
       {children}
