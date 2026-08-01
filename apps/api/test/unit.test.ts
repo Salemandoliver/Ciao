@@ -188,4 +188,16 @@ describe("phone normalization (local 09… format)", () => {
     expect(localPhone("+218911111111")).toBe("0911111111");
     expect(localPhone("+447700900123")).toBe("+447700900123");
   });
+
+  it("rejects a Libyan number that is a digit short instead of inventing one", async () => {
+    const { isValidPhoneInput, normalizePhone } = await import("@ciao/shared");
+    // Found in production: "091111111" (9 digits) was accepted and stored as
+    // "+091111111" — a number that exists nowhere, on an account its owner
+    // could never sign back into. No country code begins with 0.
+    expect(isValidPhoneInput("091111111")).toBe(false);
+    expect(normalizePhone("091111111")).not.toMatch(/^\+0/);
+    expect(isValidPhoneInput("09111111111")).toBe(false); // a digit too many
+    expect(isValidPhoneInput("0911111111")).toBe(true); // exactly right
+    expect(isValidPhoneInput("")).toBe(false);
+  });
 });

@@ -14,7 +14,8 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/logo";
-import { ApiError, api, ensureSession, sessionRole } from "@/lib/api";
+import { localPhone } from "@ciao/shared";
+import { ApiError, api, clearTokens, ensureSession, sessionClaims, sessionRole } from "@/lib/api";
 import { OverviewTab } from "./overview";
 import { CatalogueTab } from "./catalogue";
 import { FinanceTab } from "./finance";
@@ -39,6 +40,7 @@ function BizConsole() {
   const [tab, setTab] = useState<TabKey>((params.get("tab") as TabKey) ?? "overview");
   const [state, setState] = useState<"loading" | "ready" | "denied">("loading");
   const [role, setRole] = useState("");
+  const [signedInAs, setSignedInAs] = useState("");
 
   useEffect(() => {
     ensureSession().then(async (ok) => {
@@ -50,6 +52,7 @@ function BizConsole() {
         setState("ready");
         setRole(sessionRole());
       } catch (e) {
+        setSignedInAs(sessionClaims().phone ?? "");
         setState(e instanceof ApiError && e.status === 403 ? "denied" : "ready");
       }
     });
@@ -87,14 +90,36 @@ function BizConsole() {
       {state === "loading" ? (
         <p className="p-4 text-sea/60">جارٍ التحقق من الصلاحية…</p>
       ) : state === "denied" ? (
-        <div className="card p-6 text-center">
+        <div className="card p-6 text-center max-w-lg mx-auto">
           <p className="font-bold text-sea">هذه المنطقة لفريق تشاو الداخلي</p>
+          {signedInAs ? (
+            <p className="text-sm text-sea/60 mt-2">
+              أنت داخل بالرقم{" "}
+              <span className="font-bold text-sea" dir="ltr">
+                {localPhone(signedInAs)}
+              </span>{" "}
+              — وهذا الحساب ليس من الفريق.
+            </p>
+          ) : null}
           <p className="text-sm text-sea/60 mt-2">
-            تحتاج صلاحية «عمليات» أو «مدير». إن كنت من الفريق، اطلب من المدير رفع صلاحيتك.
+            تحتاج صلاحية «عمليات» أو «مدير». ادخل برقم من الفريق، أو اطلب من المدير رفع صلاحية رقمك
+            من شاشة «المستخدمون».
           </p>
-          <Link href="/" className="btn-primary !py-2 !text-sm inline-block mt-4">
-            العودة للتطبيق
-          </Link>
+          {/* A dead end with no way out is a support ticket. Give them the door. */}
+          <div className="flex flex-wrap gap-2 justify-center mt-4">
+            <button
+              className="btn-primary !py-2 !text-sm"
+              onClick={() => {
+                clearTokens();
+                router.push("/login?next=/biz");
+              }}
+            >
+              الدخول برقم آخر
+            </button>
+            <Link href="/" className="chip">
+              العودة للتطبيق
+            </Link>
+          </div>
         </div>
       ) : (
         <>

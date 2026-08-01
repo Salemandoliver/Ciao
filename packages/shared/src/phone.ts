@@ -11,7 +11,12 @@ export function normalizePhone(input: string): string {
   if (/^09\d{8}$/.test(d)) return `+218${d.slice(1)}`; // local mobile 09XXXXXXXX
   if (/^9\d{8}$/.test(d)) return `+218${d}`; // local without leading 0
   if (/^218\d{9}$/.test(d)) return `+${d}`; // country code without +
-  if (/^\d{9,15}$/.test(d)) return `+${d}`; // fallback: assume caller included cc
+  // Fallback: assume the caller included their country code. A leading zero is
+  // excluded deliberately — no country code starts with 0, so "091111111"
+  // (a Libyan number one digit short) must fail here rather than quietly
+  // becoming "+091111111" and opening an account the owner can never sign
+  // back into. A typo should bounce at the keypad, not months later.
+  if (/^[1-9]\d{8,14}$/.test(d)) return `+${d}`;
   return d;
 }
 
@@ -22,5 +27,6 @@ export function localPhone(e164: string): string {
 }
 
 export function isValidPhoneInput(input: string): boolean {
-  return /^\+\d{9,15}$/.test(normalizePhone(input));
+  // E.164 proper: a '+', then a country code that never starts with 0.
+  return /^\+[1-9]\d{8,14}$/.test(normalizePhone(input));
 }

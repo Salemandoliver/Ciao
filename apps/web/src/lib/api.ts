@@ -30,14 +30,18 @@ export function hasSession(): boolean {
  * so a forged token buys a differently-shaped screen and nothing else.
  */
 export function sessionRole(): string {
-  if (!accessToken) return "";
+  return sessionClaims().role ?? "";
+}
+
+/** Decoded access-token claims, for shaping the UI only (see sessionRole). */
+export function sessionClaims(): { role?: string; phone?: string; sub?: string } {
+  if (!accessToken) return {};
   try {
     const part = accessToken.split(".")[1];
-    if (!part) return "";
-    const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
-    return String((JSON.parse(json) as { role?: string }).role ?? "");
+    if (!part) return {};
+    return JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
   } catch {
-    return "";
+    return {};
   }
 }
 
