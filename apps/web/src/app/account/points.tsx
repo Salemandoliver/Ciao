@@ -185,6 +185,21 @@ export function PointsTab({ onChange }: { onChange: () => void | Promise<void> }
       </div>
 
       <div className="card p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-bold text-sea text-sm">اصرف نقاطك</h3>
+          <a href="/rewards" className="text-[11px] font-bold text-amber-dark">
+            شروط البرنامج ←
+          </a>
+        </div>
+        <p className="text-xs text-sea/70 mt-1 leading-relaxed">
+          حوّلها إلى رصيد داخل تشاو، أو اصرفها عند أحد شركائنا — مقهى داخل المنتجع، مخبز، أو مطعم.
+        </p>
+        <a href="/rewards/partners" className="btn-amber !py-2 !text-sm inline-block mt-3">
+          ☕ اصرف عند شريك
+        </a>
+      </div>
+
+      <div className="card p-4">
         <h3 className="font-bold text-sea text-sm mb-2">سجلّ النقاط</h3>
         {points.history.length === 0 ? (
           <p className="text-sm text-sea/50">لا حركات بعد.</p>

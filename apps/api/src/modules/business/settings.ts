@@ -47,6 +47,42 @@ export const SETTING_DEFAULTS = {
   /** Which payment rails the checkout offers, in display order (§10.2). */
   "payments.enabledRails": ["sadad", "adfali", "local_card", "cash"],
   /**
+   * Loyalty programme — every number the guest sees, operator-owned.
+   *
+   * These are commercial levers, not constants: a founder running an Eid
+   * campaign should be able to double the points on a completed stay from the
+   * console, and should be able to see what the programme currently promises
+   * without reading the source.
+   */
+  "loyalty.enabled": true,
+  /** Points per event. Keys match the earn reasons in loyalty.ts. */
+  "loyalty.earnRules": {
+    signup: 1000,
+    email_verified: 500,
+    // The number that sets the whole programme's scale: one completed stay
+    // should buy a coffee at a partner. At 1000 points to the dinar that means
+    // 5000 — roughly 0.4% of a typical booking, or 4% of our commission on it.
+    // Anything less and points are a number that never becomes anything.
+    stay_completed: 5000,
+    review_written: 2000,
+    referral_qualified: 10000,
+    referred_welcome: 5000,
+  } as Record<string, number>,
+  /** Dirhams per point at redemption. 1 → 1000 points = 1 LYD. */
+  "loyalty.pointToDirham": 1,
+  /** Floor for converting to wallet credit — below this it's noise. */
+  "loyalty.minRedeem": 5000,
+  /**
+   * Months before an earned point lapses. 0 means points never expire.
+   * Expiry manages the liability; it is also the setting most likely to anger
+   * customers, so the terms page states it plainly and every award shows its
+   * own expiry date in the guest's history.
+   */
+  "loyalty.expiryMonths": 24,
+  /** Spending points at partner businesses, and how long a voucher lives. */
+  "loyalty.partnersEnabled": true,
+  "loyalty.voucherMinutes": 30,
+  /**
    * Wallet top-up — customers funding a balance with their own cash.
    * OFF by default and deliberately so: Libya has no e-money or escrow regime,
    * and holding customer funds is the single biggest regulatory exposure in
@@ -203,6 +239,14 @@ export async function publicSettings() {
       loyalty: all["features.loyalty"],
     },
     paymentRails: all["payments.enabledRails"],
+    loyalty: {
+      enabled: all["loyalty.enabled"],
+      earnRules: all["loyalty.earnRules"],
+      pointToDirham: all["loyalty.pointToDirham"],
+      minRedeem: all["loyalty.minRedeem"],
+      expiryMonths: all["loyalty.expiryMonths"],
+      partnersEnabled: all["loyalty.partnersEnabled"],
+    },
     announcementAr: all["ops.announcementAr"],
     acceptingBookings: all["ops.acceptingBookings"],
     demoMode: all["ops.demoMode"],
@@ -236,6 +280,30 @@ export function validateSetting(key: string, value: unknown): string | null {
       if (!Array.isArray(v?.images) || v.images.length === 0)
         return "يجب أن تبقى صورة واحدة على الأقل في الواجهة";
       if (v.images.length > 8) return "الحد الأقصى 8 صور في الواجهة";
+      return null;
+    }
+    case "loyalty.pointToDirham":
+      return typeof value === "number" && value > 0 && value <= 100
+        ? null
+        : "قيمة النقطة يجب أن تكون بين 1 و100 درهم";
+    case "loyalty.minRedeem":
+      return typeof value === "number" && value >= 100 && value <= 100_000
+        ? null
+        : "الحد الأدنى للتحويل بين 100 و100000 نقطة";
+    case "loyalty.expiryMonths":
+      return typeof value === "number" && value >= 0 && value <= 120
+        ? null
+        : "مدة الصلاحية بين 0 (بلا انتهاء) و120 شهرًا";
+    case "loyalty.voucherMinutes":
+      return typeof value === "number" && value >= 5 && value <= 1440
+        ? null
+        : "مدة صلاحية القسيمة بين 5 دقائق و24 ساعة";
+    case "loyalty.earnRules": {
+      const v = value as Record<string, unknown>;
+      if (!v || typeof v !== "object") return "قواعد الكسب غير صالحة";
+      for (const [k, n] of Object.entries(v))
+        if (typeof n !== "number" || n < 0 || n > 100_000)
+          return `قيمة غير صالحة للقاعدة ${k}`;
       return null;
     }
     case "payments.enabledRails":

@@ -21,7 +21,7 @@
  */
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { and, count, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { normalizePhone } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
 import { CiaoError } from "../../lib/errors.js";
@@ -1005,6 +1005,288 @@ export async function businessRoutes(app: FastifyInstance) {
     const claims = await adminGuard(req);
     const { keys } = z.object({ keys: z.array(z.string()).min(1) }).parse(req.body);
     return reply.send({ ok: true, reset: await resetSettings(keys, claims.sub) });
+  });
+
+  // ═══════════════════════════════════════ 6b. loyalty economy management
+  /**
+   * The programme at a glance: what it currently promises, what it has cost,
+   * and what it still owes. An operator changing earn rates should see the
+   * outstanding liability on the same screen — points are a promise, and a
+   * promise you cannot size is a risk.
+   */
+  app.get("/v1/biz/loyalty", async (req, reply) => {
+    await opsGuard(req);
+
+    const [outstanding] = await db
+      .select({ total: sql<string>`coalesce(sum(${schema.loyaltyLedger.delta}), 0)` })
+      .from(schema.loyaltyLedger);
+
+    const byReason = await db
+      .select({
+        reason: schema.loyaltyLedger.reason,
+        total: sql<string>`sum(${schema.loyaltyLedger.delta})`,
+        n: sql<string>`count(*)`,
+      })
+      .from(schema.loyaltyLedger)
+      .groupBy(schema.loyaltyLedger.reason);
+
+    const [lapsing] = await db
+      .select({ total: sql<string>`coalesce(sum(${schema.loyaltyLedger.delta}), 0)` })
+      .from(schema.loyaltyLedger)
+      .where(
+        and(
+          sql`${schema.loyaltyLedger.delta} > 0`,
+          isNull(schema.loyaltyLedger.expiredAt),
+          sql`${schema.loyaltyLedger.expiresAt} < now() + interval '30 days'`,
+        ),
+      );
+
+    const [members] = await db
+      .select({ n: sql<string>`count(*)` })
+      .from(schema.users)
+      .where(sql`${schema.users.pointsBalance} > 0`);
+
+    const settings = await getAllSettings();
+    const pointToDirham = Number(settings["loyalty.pointToDirham"]);
+
+    return reply.send({
+      config: {
+        enabled: settings["loyalty.enabled"],
+        earnRules: settings["loyalty.earnRules"],
+        pointToDirham,
+        minRedeem: settings["loyalty.minRedeem"],
+        expiryMonths: settings["loyalty.expiryMonths"],
+        partnersEnabled: settings["loyalty.partnersEnabled"],
+        voucherMinutes: settings["loyalty.voucherMinutes"],
+      },
+      liability: {
+        outstandingPoints: Number(outstanding?.total ?? 0),
+        // What those points would cost us if every member redeemed tomorrow.
+        outstandingDirhams: Number(outstanding?.total ?? 0) * pointToDirham,
+        membersHoldingPoints: Number(members?.n ?? 0),
+        lapsingWithin30Days: Number(lapsing?.total ?? 0),
+      },
+      byReason: byReason.map((r) => ({
+        reason: r.reason,
+        points: Number(r.total ?? 0),
+        entries: Number(r.n ?? 0),
+      })),
+    });
+  });
+
+  // ---------------- partners
+  app.get("/v1/biz/partners", async (req, reply) => {
+    await opsGuard(req);
+    const rows = await db
+      .select({
+        partner: schema.partners,
+        venueNameAr: schema.venues.nameAr,
+        staffPhone: schema.users.phone,
+        issued: sql<string>`(select count(*) from partner_redemptions r where r.partner_id = ${schema.partners.id})`,
+        redeemed: sql<string>`(select count(*) from partner_redemptions r
+          where r.partner_id = ${schema.partners.id} and r.status = 'redeemed')`,
+        owed: sql<string>`(select coalesce(sum(r.value),0) from partner_redemptions r
+          where r.partner_id = ${schema.partners.id} and r.status = 'redeemed' and r.settled_at is null)`,
+      })
+      .from(schema.partners)
+      .leftJoin(schema.venues, eq(schema.partners.venueId, schema.venues.id))
+      .leftJoin(schema.users, eq(schema.partners.staffUserId, schema.users.id))
+      .orderBy(desc(schema.partners.createdAt));
+
+    return reply.send({
+      items: rows.map((r) => ({
+        ...r.partner,
+        venueNameAr: r.venueNameAr,
+        staffPhone: r.staffPhone,
+        issued: Number(r.issued ?? 0),
+        redeemed: Number(r.redeemed ?? 0),
+        owed: Number(r.owed ?? 0),
+      })),
+    });
+  });
+
+  app.post("/v1/biz/partners", async (req, reply) => {
+    const claims = await opsGuard(req);
+    const body = z
+      .object({
+        nameAr: z.string().min(2).max(120),
+        category: z.enum(["cafe", "restaurant", "bakery", "spa", "activity", "shop"]),
+        venueId: z.string().uuid().nullable().optional(),
+        city: z.string().max(40).optional(),
+        area: z.string().max(60).optional(),
+        contactPhone: z.string().max(20).optional(),
+        /** Phone of whoever will redeem at the till. */
+        staffPhone: z.string().min(9).max(20).optional(),
+        descriptionAr: z.string().max(1000).optional(),
+        minValue: z.number().int().min(1000).default(5000),
+        maxValue: z.number().int().min(1000).default(100000),
+      })
+      .parse(req.body);
+
+    if (body.maxValue < body.minValue) throw new CiaoError("VALIDATION", "max_below_min");
+
+    // The till account is a normal user, created if new — the cafe manager
+    // signs in with the phone they already use.
+    let staffUserId: string | null = null;
+    if (body.staffPhone) {
+      const phone = normalizePhone(body.staffPhone);
+      const [existing] = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.phone, phone))
+        .limit(1);
+      staffUserId =
+        existing?.id ??
+        (
+          await db
+            .insert(schema.users)
+            .values({ phone, role: "guest", displayName: body.nameAr })
+            .returning()
+        )[0]!.id;
+    }
+
+    const { staffPhone: _staffPhone, ...rest } = body;
+    const [partner] = await db
+      .insert(schema.partners)
+      .values({ ...rest, venueId: rest.venueId ?? null, staffUserId })
+      .returning();
+    await audit(claims.sub, "partner.create", "partner", partner!.id, { nameAr: body.nameAr });
+    return reply.status(201).send({ id: partner!.id });
+  });
+
+  app.patch("/v1/biz/partners/:id", async (req, reply) => {
+    const claims = await opsGuard(req);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const body = z
+      .object({
+        active: z.boolean().optional(),
+        minValue: z.number().int().min(1000).optional(),
+        maxValue: z.number().int().min(1000).optional(),
+        descriptionAr: z.string().max(1000).optional(),
+        contactPhone: z.string().max(20).optional(),
+      })
+      .parse(req.body);
+    await db.update(schema.partners).set(body).where(eq(schema.partners.id, id));
+    await audit(claims.sub, "partner.update", "partner", id, body);
+    return reply.send({ ok: true });
+  });
+
+  /** Mark what we owe a partner as paid. Admin-only: it is money leaving. */
+  app.post("/v1/biz/partners/:id/settle", async (req, reply) => {
+    const claims = await adminGuard(req);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const rows = await db
+      .update(schema.partnerRedemptions)
+      .set({ settledAt: new Date() })
+      .where(
+        and(
+          eq(schema.partnerRedemptions.partnerId, id),
+          eq(schema.partnerRedemptions.status, "redeemed"),
+          isNull(schema.partnerRedemptions.settledAt),
+        ),
+      )
+      .returning({ value: schema.partnerRedemptions.value });
+    const total = rows.reduce((s, r) => s + r.value, 0);
+    if (total > 0) {
+      const ledgerMod = await import("../payments/ledger.js");
+      await ledgerMod.post(db, null, [
+        { account: `partner_payable:${id}`, debit: total, memo: "partner settlement" },
+        { account: "rail_settlement_pending:payout", credit: total, memo: "partner settlement" },
+      ]);
+    }
+    await audit(claims.sub, "partner.settle", "partner", id, { total, vouchers: rows.length });
+    return reply.send({ ok: true, settled: rows.length, total });
+  });
+
+  // ---------------- promo codes
+  app.get("/v1/biz/promos", async (req, reply) => {
+    await opsGuard(req);
+    const rows = await db
+      .select({
+        promo: schema.promoCodes,
+        discountGiven: sql<string>`(select coalesce(sum(pr.discount),0) from promo_redemptions pr
+          where pr.promo_id = ${schema.promoCodes.id})`,
+      })
+      .from(schema.promoCodes)
+      .orderBy(desc(schema.promoCodes.createdAt))
+      .limit(200);
+    return reply.send({
+      items: rows.map((r) => ({ ...r.promo, discountGiven: Number(r.discountGiven ?? 0) })),
+    });
+  });
+
+  /**
+   * Creating a promo is admin-only: it spends margin, which is the same class
+   * of decision as changing the commission rate.
+   */
+  app.post("/v1/biz/promos", async (req, reply) => {
+    const claims = await adminGuard(req);
+    const body = z
+      .object({
+        code: z.string().min(3).max(24).regex(/^[A-Za-z0-9_-]+$/),
+        kind: z.enum(["percent", "fixed", "points"]),
+        value: z.number().int().min(1),
+        descriptionAr: z.string().max(200).optional(),
+        vertical: z.enum(["coast", "hall", "service"]).nullable().optional(),
+        city: z.string().max(40).nullable().optional(),
+        minSpend: z.number().int().min(0).default(0),
+        maxDiscount: z.number().int().min(0).nullable().optional(),
+        startsAt: z.string().datetime().nullable().optional(),
+        endsAt: z.string().datetime().nullable().optional(),
+        maxRedemptions: z.number().int().min(1).nullable().optional(),
+        perUserLimit: z.number().int().min(1).max(50).default(1),
+      })
+      .parse(req.body);
+
+    if (body.kind === "percent" && body.value > 10000)
+      throw new CiaoError("VALIDATION", "percent_above_100");
+
+    const code = body.code.trim().toUpperCase();
+    const [dupe] = await db
+      .select({ id: schema.promoCodes.id })
+      .from(schema.promoCodes)
+      .where(eq(schema.promoCodes.code, code))
+      .limit(1);
+    if (dupe) throw new CiaoError("VALIDATION", "code_exists");
+
+    const [promo] = await db
+      .insert(schema.promoCodes)
+      .values({
+        ...body,
+        code,
+        vertical: body.vertical ?? null,
+        city: body.city ?? null,
+        maxDiscount: body.maxDiscount ?? null,
+        startsAt: body.startsAt ? new Date(body.startsAt) : null,
+        endsAt: body.endsAt ? new Date(body.endsAt) : null,
+        maxRedemptions: body.maxRedemptions ?? null,
+        createdById: claims.sub,
+      })
+      .returning();
+    await audit(claims.sub, "promo.create", "promo", promo!.id, { code, kind: body.kind });
+    return reply.status(201).send({ id: promo!.id, code });
+  });
+
+  app.patch("/v1/biz/promos/:id", async (req, reply) => {
+    const claims = await adminGuard(req);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const body = z
+      .object({
+        active: z.boolean().optional(),
+        endsAt: z.string().datetime().nullable().optional(),
+        maxRedemptions: z.number().int().min(1).nullable().optional(),
+      })
+      .parse(req.body);
+    await db
+      .update(schema.promoCodes)
+      .set({
+        ...(body.active !== undefined ? { active: body.active } : {}),
+        ...(body.endsAt !== undefined ? { endsAt: body.endsAt ? new Date(body.endsAt) : null } : {}),
+        ...(body.maxRedemptions !== undefined ? { maxRedemptions: body.maxRedemptions } : {}),
+      })
+      .where(eq(schema.promoCodes.id, id));
+    await audit(claims.sub, "promo.update", "promo", id, body);
+    return reply.send({ ok: true });
   });
 
   // ================================================================ 7. audit

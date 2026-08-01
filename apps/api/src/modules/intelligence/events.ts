@@ -65,6 +65,11 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "referral.qualified": "referralId, bookingId",
   "wallet.topup_started": "amount, rail",
   "message.sent": "bookingId",
+  // loyalty economy — points, partners and promos
+  "loyalty.expired": "points",
+  "partner.voucher_issued": "partnerId, value, points",
+  "partner.voucher_redeemed": "partnerId, value, points",
+  "promo.applied": "code, discount, kind",
 };
 
 export interface EmitOptions {

@@ -21,7 +21,7 @@ const MAX_ATTEMPTS = 5;
 
 /** Ensure the recurring intelligence jobs exist (idempotent, called on boot). */
 export async function ensureRecurringJobs(): Promise<void> {
-  for (const kind of ["profile_fold", "events_prune"]) {
+  for (const kind of ["profile_fold", "events_prune", "loyalty_sweep"]) {
     const [pending] = await db
       .select({ id: schema.scheduledJobs.id })
       .from(schema.scheduledJobs)
@@ -219,6 +219,28 @@ async function handle(job: Job): Promise<void> {
         kind: "events_prune",
         refId: null,
         runAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      }).onConflictDoNothing();
+      break;
+    }
+    case "loyalty_sweep": {
+      /**
+       * Two housekeeping duties that both concern somebody's points, so they
+       * share a job rather than racing each other on the same rows:
+       *  - return points from partner vouchers that lapsed unused, so a guest
+       *    who never made it to the café isn't quietly out of pocket;
+       *  - expire awards past their date, written as offsetting rows so the
+       *    guest's history explains where the points went.
+       */
+      const loyalty = await import("./modules/accounts/loyalty.js");
+      const partners = await import("./modules/accounts/partners.js");
+      const refunded = await partners.expireVouchers();
+      const expired = await loyalty.expirePoints();
+      if (refunded || expired)
+        console.log(`loyalty sweep: ${refunded} points returned, ${expired} expired`);
+      await db.insert(schema.scheduledJobs).values({
+        kind: "loyalty_sweep",
+        refId: null,
+        runAt: new Date(Date.now() + 3600 * 1000), // hourly: vouchers live ~30min
       }).onConflictDoNothing();
       break;
     }

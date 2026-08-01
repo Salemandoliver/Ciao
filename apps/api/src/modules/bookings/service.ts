@@ -34,6 +34,8 @@ export interface CreateStayRequestInput {
   rail: PaymentRail;
   sadad?: { mobile: string; birthYear: string };
   concierge?: boolean;
+  /** Optional promo code, validated and capped at our commission. */
+  promoCode?: string;
 }
 
 export async function createStayRequest(input: CreateStayRequestInput) {
@@ -74,6 +76,37 @@ export async function createStayRequest(input: CreateStayRequestInput) {
   );
   if (quote.nights.length === 0) throw new CiaoError("VALIDATION", "empty stay");
 
+  /**
+   * Promo codes come out of our commission, never the host's share. The
+   * discount reduces what the guest pays and what we earn; the host's money is
+   * untouched, because it was promised to them and a marketing decision is not
+   * their problem. `evaluatePromo` does the capping; here we just apply it.
+   */
+  let discount = 0;
+  let appliedPromo: Awaited<ReturnType<typeof import("../accounts/promos.js").evaluatePromo>> | null =
+    null;
+  if (input.promoCode) {
+    const promos = await import("../accounts/promos.js");
+    try {
+      appliedPromo = await promos.evaluatePromo(input.promoCode, {
+        userId: input.guestId,
+        total: quote.total,
+        commission: quote.commission,
+        vertical: venue.type,
+        city: venue.city,
+        listingId: listing.id,
+      });
+      discount = appliedPromo.discount;
+    } catch (e) {
+      // A bad code must fail the request loudly rather than silently charging
+      // full price — the guest typed it for a reason.
+      throw e instanceof CiaoError ? e : new CiaoError("VALIDATION", "promo_invalid");
+    }
+  }
+  const payableTotal = quote.total - discount;
+  const payableDeposit = Math.max(0, quote.deposit - discount);
+  const payableCommission = Math.max(0, quote.commission - discount);
+
   const days = calendar.datesBetween(input.checkIn, input.checkOut);
   const code = bookingCode();
   // Hold inventory while payment completes: 30 min hold, extended on payment.
@@ -94,10 +127,12 @@ export async function createStayRequest(input: CreateStayRequestInput) {
         checkOut: input.checkOut,
         session: "night",
         guestCount: input.guestCount,
-        totalAmount: quote.total,
-        depositAmount: quote.deposit,
+        totalAmount: payableTotal,
+        depositAmount: payableDeposit,
         balanceOnArrival: quote.balanceOnArrival,
-        commissionAmount: quote.commission,
+        commissionAmount: payableCommission,
+        discountAmount: discount,
+        promoCode: appliedPromo?.code ?? null,
         cancellationTier: listing.cancellationTier as CancellationTier,
         concierge: input.concierge ?? false,
       })
@@ -106,6 +141,11 @@ export async function createStayRequest(input: CreateStayRequestInput) {
     await scheduleJob(tx, "hold_expiry", b!.id, holdExpiresAt);
     return b!;
   });
+
+  if (appliedPromo) {
+    const promos = await import("../accounts/promos.js");
+    await promos.applyPromo(appliedPromo, input.guestId, booking.id);
+  }
 
   await transition({
     bookingId: booking.id,
@@ -122,8 +162,9 @@ export async function createStayRequest(input: CreateStayRequestInput) {
     city: venue.city,
     area: venue.area,
     nights: quote.nights.length,
-    total: quote.total,
-    deposit: quote.deposit,
+    total: payableTotal,
+    deposit: payableDeposit,
+    discount,
     guests: input.guestCount,
     rail: input.rail,
     checkIn: input.checkIn,

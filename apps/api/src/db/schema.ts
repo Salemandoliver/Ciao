@@ -242,6 +242,9 @@ export const bookings = pgTable(
     checkedInAt: ts("checked_in_at"),
     completedAt: ts("completed_at"),
     cancelledAt: ts("cancelled_at"),
+    /** Promo discount applied at request time, funded from our commission. */
+    discountAmount: money("discount_amount").notNull().default(0),
+    promoCode: varchar("promo_code", { length: 24 }),
     concierge: boolean("concierge").notNull().default(false), // Phase A manual bookings
     notes: text("notes"),
     createdAt: now(),
@@ -714,13 +717,141 @@ export const loyaltyLedger = pgTable(
     refType: varchar("ref_type", { length: 20 }),
     refId: text("ref_id"),
     memoAr: text("memo_ar"),
+    /**
+     * When this award lapses. Null means it never does — redemptions and
+     * expiries themselves carry no expiry, only earnings do.
+     */
+    expiresAt: ts("expires_at"),
+    expiredAt: ts("expired_at"),
     createdAt: now(),
   },
   (t) => [
     index("loyalty_user_idx").on(t.userId, t.createdAt),
+    // The expiry sweep looks for live awards past their date.
+    index("loyalty_expiry_idx").on(t.expiresAt),
     // One award per (user, reason, ref) — makes every earn idempotent, so a
     // retried webhook or a double-tapped button can't mint points twice.
     uniqueIndex("loyalty_award_uq").on(t.userId, t.reason, t.refId),
+  ],
+);
+
+/**
+ * Redemption partners — the coffee shop inside the resort, the restaurant on
+ * the corniche, the bakery that does the cake.
+ *
+ * This is where loyalty stops being a discount on us and becomes money in a
+ * Libyan small business's till. That makes it a genuinely different product:
+ * points earned booking a chalet buy a coffee at the place next door, and the
+ * café gets a paying customer it wouldn't have had.
+ *
+ * It also makes a burned point a *real* liability, so redemption posts to a
+ * `partner_payable:<id>` ledger account rather than quietly vanishing.
+ */
+export const partners = pgTable(
+  "partners",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    nameAr: text("name_ar").notNull(),
+    category: varchar("category", { length: 24 }).notNull(), // cafe|restaurant|bakery|spa|activity|shop
+    // Partners often sit inside a venue we already verified — the café at the
+    // resort. Linking them lets us show "on site" on the listing page.
+    venueId: uuid("venue_id").references(() => venues.id),
+    city: varchar("city", { length: 40 }),
+    area: varchar("area", { length: 60 }),
+    contactPhone: varchar("contact_phone", { length: 20 }),
+    /** Staff account that redeems vouchers at the counter. */
+    staffUserId: uuid("staff_user_id").references(() => users.id),
+    descriptionAr: text("description_ar"),
+    logoUrl: text("logo_url"),
+    /** Smallest and largest voucher a guest may cut, in dirhams. */
+    minValue: money("min_value").notNull().default(5_000),
+    maxValue: money("max_value").notNull().default(100_000),
+    active: boolean("active").notNull().default(true),
+    createdAt: now(),
+  },
+  (t) => [index("partners_active_idx").on(t.active), index("partners_venue_idx").on(t.venueId)],
+);
+
+/**
+ * A point voucher: points already burned, value the partner may claim.
+ *
+ * Points are burned at issue, not at redemption. A voucher that could still be
+ * spent elsewhere while sitting in someone's phone is a double-spend waiting
+ * to happen — and the person who eats it would be the café. Unredeemed
+ * vouchers expire and the points come back.
+ */
+export const partnerRedemptions = pgTable(
+  "partner_redemptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 12 }).notNull(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    partnerId: uuid("partner_id").notNull().references(() => partners.id),
+    points: integer("points").notNull(),
+    value: money("value").notNull(), // dirhams the partner may claim
+    status: varchar("status", { length: 12 }).notNull().default("issued"),
+    // issued|redeemed|expired|cancelled
+    expiresAt: ts("expires_at").notNull(),
+    redeemedAt: ts("redeemed_at"),
+    redeemedByUserId: uuid("redeemed_by_user_id").references(() => users.id),
+    settledAt: ts("settled_at"),
+    createdAt: now(),
+  },
+  (t) => [
+    uniqueIndex("partner_redemption_code_uq").on(t.code),
+    index("partner_redemption_user_idx").on(t.userId, t.createdAt),
+    index("partner_redemption_partner_idx").on(t.partnerId, t.status),
+  ],
+);
+
+/**
+ * Promo codes.
+ *
+ * The commercial rule encoded here: a promo is funded from Ciao's commission
+ * and capped there. We will discount our own margin to win a booking; we will
+ * not quietly pay a host out of pocket because someone typed a generous
+ * percentage into a form at midnight.
+ */
+export const promoCodes = pgTable(
+  "promo_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 24 }).notNull(),
+    kind: varchar("kind", { length: 10 }).notNull(), // percent|fixed|points
+    /** bps for percent, dirhams for fixed, whole points for points. */
+    value: integer("value").notNull(),
+    descriptionAr: text("description_ar"),
+    vertical: varchar("vertical", { length: 8 }), // coast|hall|service|null = all
+    city: varchar("city", { length: 40 }),
+    listingId: uuid("listing_id").references(() => listings.id),
+    minSpend: money("min_spend").notNull().default(0),
+    maxDiscount: money("max_discount"), // ceiling for percent codes
+    startsAt: ts("starts_at"),
+    endsAt: ts("ends_at"),
+    maxRedemptions: integer("max_redemptions"),
+    perUserLimit: integer("per_user_limit").notNull().default(1),
+    timesUsed: integer("times_used").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    createdById: uuid("created_by_id").references(() => users.id),
+    createdAt: now(),
+  },
+  (t) => [uniqueIndex("promo_code_uq").on(t.code), index("promo_active_idx").on(t.active)],
+);
+
+export const promoRedemptions = pgTable(
+  "promo_redemptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    promoId: uuid("promo_id").notNull().references(() => promoCodes.id),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    bookingId: uuid("booking_id").references(() => bookings.id),
+    discount: money("discount").notNull(),
+    createdAt: now(),
+  },
+  (t) => [
+    index("promo_redemption_promo_idx").on(t.promoId),
+    // One row per (promo, booking) makes application idempotent under retry.
+    uniqueIndex("promo_redemption_booking_uq").on(t.promoId, t.bookingId),
   ],
 );
 

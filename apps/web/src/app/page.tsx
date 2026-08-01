@@ -117,6 +117,10 @@ export default async function HomePage() {
           <Link href="/about" className="font-bold text-sea/80 hover:text-sea">
             من نحن وكيف نعتمد الأماكن
           </Link>
+          {" · "}
+          <Link href="/rewards" className="font-bold text-sea/80 hover:text-sea">
+            نقاط المكافآت
+          </Link>
         </p>
         <p>تشاو — ciao.ly · طرابلس، ليبيا</p>
         <p>الأسعار كلها بالدينار الليبي. العربون فقط أونلاين والباقي عند الوصول.</p>

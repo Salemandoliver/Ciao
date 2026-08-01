@@ -22,12 +22,16 @@ import { FinanceTab } from "./finance";
 import { PeopleTab } from "./people";
 import { SettingsTab } from "./settings";
 import { AuditTab } from "./audit";
+import { LoyaltyTab } from "./loyalty";
+import { PromosTab } from "./promos";
 
 const TABS = [
   ["overview", "📊", "نظرة عامة"],
   ["catalogue", "🏝", "الأنشطة"],
   ["finance", "💰", "المالية"],
   ["people", "👥", "المستخدمون"],
+  ["loyalty", "⭐", "النقاط والشركاء"],
+  ["promos", "🎟", "أكواد الخصم"],
   ["settings", "⚙️", "الإعدادات"],
   ["audit", "📜", "سجل التدقيق"],
 ] as const;
@@ -143,6 +147,8 @@ function BizConsole() {
             {tab === "catalogue" ? <CatalogueTab /> : null}
             {tab === "finance" ? <FinanceTab /> : null}
             {tab === "people" ? <PeopleTab isAdmin={isAdmin} /> : null}
+            {tab === "loyalty" ? <LoyaltyTab isAdmin={isAdmin} /> : null}
+            {tab === "promos" ? <PromosTab isAdmin={isAdmin} /> : null}
             {tab === "settings" ? <SettingsTab isAdmin={isAdmin} /> : null}
             {tab === "audit" ? <AuditTab /> : null}
           </div>

@@ -15,25 +15,36 @@
  * a published rate. Conversion is the moment a marketing liability becomes a
  * real one, so it goes through the ledger like any other money movement.
  */
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lte, sql } from "drizzle-orm";
 import { db, schema } from "../../db/client.js";
 import { CiaoError } from "../../lib/errors.js";
 import { track } from "../intelligence/events.js";
+import { getSetting } from "../business/settings.js";
 
-/** How points are earned. Values are deliberately modest and legible. */
+/**
+ * Compiled-in defaults. The live values come from the control plane, so an
+ * operator can run an Eid campaign without a deploy — these exist so the app
+ * still behaves correctly if the settings table is unreachable.
+ */
 export const POINT_RULES = {
   /** Signing up at all — the nudge that turns a booker into a member. */
-  signup: 100,
+  signup: 1000,
   /** Verifying an email gives us a channel that survives a SIM change. */
-  email_verified: 50,
-  /** A completed stay, the behaviour we actually want. */
-  stay_completed: 250,
+  email_verified: 500,
+  /**
+   * The number that sets the scale of the whole programme: **one completed
+   * stay should buy a coffee at a partner.** At 1000 points to the dinar that
+   * is 5000 — about 0.4% of a typical booking, or 4% of our commission on it.
+   * Set it lower and points become a number that never turns into anything,
+   * which is worse than having no programme.
+   */
+  stay_completed: 5000,
   /** Writing a review — the corpus is the product (§8.8). */
-  review_written: 150,
+  review_written: 2000,
   /** Your invitee completed their first stay. Paid on delivery, not signup. */
-  referral_qualified: 500,
+  referral_qualified: 10000,
   /** Being invited and completing your first stay. */
-  referred_welcome: 250,
+  referred_welcome: 5000,
 } as const;
 
 export type PointReason = keyof typeof POINT_RULES;
@@ -44,7 +55,30 @@ export type PointReason = keyof typeof POINT_RULES;
  * quotes a "worth" to the user has to change with it.
  */
 export const POINT_TO_DIRHAM = 1;
-export const MIN_REDEEM_POINTS = 1000; // 1 LYD — below this it's noise
+export const MIN_REDEEM_POINTS = 5000; // 5 LYD — one stay's worth
+
+/** The programme as it currently stands, straight from the control plane. */
+export async function loyaltyConfig() {
+  const [enabled, earnRules, pointToDirham, minRedeem, expiryMonths, partnersEnabled, voucherMinutes] =
+    await Promise.all([
+      getSetting("loyalty.enabled"),
+      getSetting("loyalty.earnRules"),
+      getSetting("loyalty.pointToDirham"),
+      getSetting("loyalty.minRedeem"),
+      getSetting("loyalty.expiryMonths"),
+      getSetting("loyalty.partnersEnabled"),
+      getSetting("loyalty.voucherMinutes"),
+    ]);
+  return {
+    enabled: Boolean(enabled),
+    earnRules: { ...POINT_RULES, ...(earnRules as Record<string, number>) },
+    pointToDirham: Number(pointToDirham) || POINT_TO_DIRHAM,
+    minRedeem: Number(minRedeem) || MIN_REDEEM_POINTS,
+    expiryMonths: Number(expiryMonths ?? 0),
+    partnersEnabled: Boolean(partnersEnabled),
+    voucherMinutes: Number(voucherMinutes) || 30,
+  };
+}
 
 const REASON_AR: Record<string, string> = {
   signup: "مكافأة إنشاء الحساب",
@@ -54,6 +88,9 @@ const REASON_AR: Record<string, string> = {
   referral_qualified: "صديق دعوته أتمّ أول حجز",
   referred_welcome: "انضممت بدعوة من صديق",
   redeemed: "تحويل نقاط إلى رصيد",
+  expired: "انتهت صلاحية نقاط",
+  partner_voucher: "قسيمة لدى شريك",
+  partner_voucher_refund: "إرجاع نقاط قسيمة منتهية",
 };
 
 /**
@@ -69,8 +106,18 @@ export async function awardPoints(
   refId: string | null,
   refType?: string,
 ): Promise<number> {
-  const delta = POINT_RULES[reason];
+  const cfg = await loyaltyConfig();
+  if (!cfg.enabled) return 0;
+  const delta = cfg.earnRules[reason];
   if (!delta) return 0;
+
+  // Expiry is stamped per award, not computed later from a moving setting.
+  // Shortening the programme's expiry must not retroactively wipe points
+  // someone already earned under the old terms.
+  const expiresAt =
+    cfg.expiryMonths > 0
+      ? new Date(new Date().setMonth(new Date().getMonth() + cfg.expiryMonths))
+      : null;
 
   const [row] = await db
     .insert(schema.loyaltyLedger)
@@ -81,6 +128,7 @@ export async function awardPoints(
       refId: refId ?? reason, // null refIds would defeat the unique index
       refType,
       memoAr: REASON_AR[reason] ?? reason,
+      expiresAt,
     })
     .onConflictDoNothing()
     .returning();
@@ -122,13 +170,13 @@ export async function pointsHistory(userId: string, limit = 50) {
  * credit or silently eats someone's points.
  */
 export async function redeemPoints(userId: string, points: number) {
-  if (points < MIN_REDEEM_POINTS)
-    throw new CiaoError("VALIDATION", `min_redeem_${MIN_REDEEM_POINTS}`);
+  const cfg = await loyaltyConfig();
+  if (points < cfg.minRedeem) throw new CiaoError("VALIDATION", `min_redeem_${cfg.minRedeem}`);
 
   const balance = await pointsBalance(userId);
   if (points > balance) throw new CiaoError("VALIDATION", "insufficient_points");
 
-  const dirhams = points * POINT_TO_DIRHAM;
+  const dirhams = points * cfg.pointToDirham;
   const ledger = await import("../payments/ledger.js");
 
   await db.transaction(async (tx) => {
@@ -156,6 +204,59 @@ export async function redeemPoints(userId: string, points: number) {
 
   track("loyalty.redeemed", { points, dirhams }, { userId });
   return { points, dirhams, remaining: balance - points };
+}
+
+/**
+ * Expire lapsed awards.
+ *
+ * Written as an offsetting negative row rather than a mutation of the original,
+ * so a guest asking "where did my points go?" gets an answer with a date on it
+ * instead of a silently smaller number. Runs from the worker.
+ */
+export async function expirePoints(limit = 500): Promise<number> {
+  const due = await db
+    .select()
+    .from(schema.loyaltyLedger)
+    .where(
+      and(
+        sql`${schema.loyaltyLedger.delta} > 0`,
+        isNull(schema.loyaltyLedger.expiredAt),
+        sql`${schema.loyaltyLedger.expiresAt} is not null`,
+        lte(schema.loyaltyLedger.expiresAt, new Date()),
+      ),
+    )
+    .limit(limit);
+  if (due.length === 0) return 0;
+
+  let expired = 0;
+  for (const row of due) {
+    // Only expire what the guest still holds: someone who already spent these
+    // points must not be pushed negative by a late sweep.
+    const balance = await pointsBalance(row.userId);
+    const amount = Math.min(row.delta, Math.max(0, balance));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(schema.loyaltyLedger)
+        .set({ expiredAt: new Date() })
+        .where(eq(schema.loyaltyLedger.id, row.id));
+      if (amount > 0) {
+        await tx.insert(schema.loyaltyLedger).values({
+          userId: row.userId,
+          delta: -amount,
+          reason: "expired",
+          refId: `expire:${row.id}`,
+          refType: "loyalty",
+          memoAr: REASON_AR.expired,
+        });
+        await tx
+          .update(schema.users)
+          .set({ pointsBalance: sql`greatest(0, ${schema.users.pointsBalance} - ${amount})` })
+          .where(eq(schema.users.id, row.userId));
+      }
+    });
+    if (amount > 0) expired += amount;
+  }
+  return expired;
 }
 
 /** Arabic label for a ledger row, so the client never has to translate. */

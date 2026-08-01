@@ -41,6 +41,15 @@ import {
   referralSummary,
 } from "./loyalty.js";
 import {
+  PARTNER_CATEGORY_AR,
+  issueVoucher,
+  listPartners,
+  myVouchers,
+  redeemVoucher,
+} from "./partners.js";
+import { evaluatePromo, normalizePromoCode, rejectionMessage } from "./promos.js";
+import { loyaltyConfig } from "./loyalty.js";
+import {
   authenticationOptions,
   deletePasskey,
   listPasskeys,
@@ -437,6 +446,132 @@ export async function accountRoutes(app: FastifyInstance) {
       : and(eq(schema.messages.toUserId, claims.sub), isNull(schema.messages.readAt));
     await db.update(schema.messages).set({ readAt: new Date() }).where(where);
     return reply.send({ ok: true });
+  });
+
+  // ═══════════════════════════════════════════ 5b. partners & point vouchers
+  /**
+   * The partner directory. Public: a guest deciding whether membership is
+   * worth anything should be able to see where points actually spend before
+   * they sign up for anything.
+   */
+  app.get("/v1/partners", async (req, reply) => {
+    const q = z
+      .object({ city: z.string().max(40).optional(), venueId: z.string().uuid().optional() })
+      .parse(req.query);
+    const cfg = await loyaltyConfig();
+    reply.header("cache-control", "public, max-age=120, stale-while-revalidate=600");
+    return reply.send({
+      enabled: cfg.enabled && cfg.partnersEnabled,
+      pointToDirham: cfg.pointToDirham,
+      voucherMinutes: cfg.voucherMinutes,
+      categories: PARTNER_CATEGORY_AR,
+      items: await listPartners(q),
+    });
+  });
+
+  app.post("/v1/me/vouchers", async (req, reply) => {
+    const claims = await authenticate(req);
+    const { partnerId, value } = z
+      .object({ partnerId: z.string().uuid(), value: z.number().int().min(1000) })
+      .parse(req.body);
+    const voucher = await issueVoucher(claims.sub, partnerId, value);
+    track(
+      "partner.voucher_issued",
+      { partnerId, value, points: voucher.points },
+      { userId: claims.sub },
+    );
+    return reply.status(201).send(voucher);
+  });
+
+  app.get("/v1/me/vouchers", async (req, reply) => {
+    const claims = await authenticate(req);
+    return reply.send({ items: await myVouchers(claims.sub) });
+  });
+
+  /**
+   * The counter. Called by the partner's own account so a guest can never
+   * mark their own voucher used and walk out with a coffee the café never
+   * agreed to hand over.
+   */
+  app.post("/v1/partner/redeem", async (req, reply) => {
+    const claims = await authenticate(req);
+    const { code } = z.object({ code: z.string().min(4).max(12) }).parse(req.body);
+    return reply.send(await redeemVoucher(code, claims.sub));
+  });
+
+  /** What the till sees: today's redemptions and what we owe so far. */
+  app.get("/v1/partner/summary", async (req, reply) => {
+    const claims = await authenticate(req);
+    const [partner] = await db
+      .select()
+      .from(schema.partners)
+      .where(eq(schema.partners.staffUserId, claims.sub))
+      .limit(1);
+    if (!partner) throw new CiaoError("AUTH_FORBIDDEN", "not_a_partner");
+
+    const rows = await db
+      .select({
+        code: schema.partnerRedemptions.code,
+        value: schema.partnerRedemptions.value,
+        redeemedAt: schema.partnerRedemptions.redeemedAt,
+        settledAt: schema.partnerRedemptions.settledAt,
+      })
+      .from(schema.partnerRedemptions)
+      .where(
+        and(
+          eq(schema.partnerRedemptions.partnerId, partner.id),
+          eq(schema.partnerRedemptions.status, "redeemed"),
+        ),
+      )
+      .orderBy(desc(schema.partnerRedemptions.redeemedAt))
+      .limit(100);
+
+    return reply.send({
+      partner: { id: partner.id, nameAr: partner.nameAr },
+      // Unsettled value is what Ciao owes them right now.
+      owed: rows.filter((r) => !r.settledAt).reduce((s, r) => s + r.value, 0),
+      redemptions: rows,
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════ 5c. promo codes
+  /**
+   * Check a code without committing to it. Read-only, so a checkout screen can
+   * call it as the guest types without burning a redemption on a typo.
+   */
+  app.post("/v1/promos/check", async (req, reply) => {
+    const claims = await authenticate(req);
+    const body = z
+      .object({
+        code: z.string().min(2).max(24),
+        total: z.number().int().min(0),
+        commission: z.number().int().min(0),
+        vertical: z.string().max(8).optional(),
+        city: z.string().max(40).optional(),
+        listingId: z.string().uuid().optional(),
+      })
+      .parse(req.body);
+    try {
+      const result = await evaluatePromo(normalizePromoCode(body.code), {
+        userId: claims.sub,
+        total: body.total,
+        commission: body.commission,
+        vertical: body.vertical,
+        city: body.city,
+        listingId: body.listingId,
+      });
+      return reply.send({
+        valid: true,
+        discount: result.discount,
+        descriptionAr: result.descriptionAr,
+        kind: result.kind,
+      });
+    } catch (e) {
+      const reason = e instanceof CiaoError ? String(e.detail ?? "unknown") : "unknown";
+      // A rejected code is a normal outcome at checkout, not an error state:
+      // answer 200 with a reason the guest can act on.
+      return reply.send({ valid: false, reason, messageAr: rejectionMessage(reason) });
+    }
   });
 
   // ═════════════════════════════════════════════════════ 6. payment methods
