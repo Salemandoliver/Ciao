@@ -281,8 +281,14 @@ export function TrustDialog({
                   <div key={r.id} className="border-b border-sand pb-3 last:border-0">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-sm text-sea">{r.author}</span>
+                      {/* Always five glyphs so the rows read as one scale, not
+                          ragged lines of different lengths. */}
                       <span className="text-amber-dark text-xs" dir="ltr">
-                        {"★".repeat(Math.min(5, Math.round(r.overall)))} {r.overall.toFixed(1)}
+                        {"★".repeat(Math.min(5, Math.round(r.overall)))}
+                        <span className="opacity-25">
+                          {"★".repeat(5 - Math.min(5, Math.round(r.overall)))}
+                        </span>{" "}
+                        {r.overall.toFixed(1)}
                       </span>
                     </div>
                     {r.text ? <p className="text-sm mt-1 text-sea/85">{r.text}</p> : null}
