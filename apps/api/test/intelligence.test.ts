@@ -211,3 +211,31 @@ describe("pipeline: ingest → fold → recs → insights", () => {
     for (const item of body.items) expect(item.because.length).toBeGreaterThan(0);
   });
 });
+
+describe("trust surface (reviews + disputes)", () => {
+  it("exposes rating, histogram, dispute record and review eligibility", async () => {
+    const list = await app.inject({ method: "GET", url: "/v1/listings?type=coast&limit=50" });
+    const items = (list.json() as { items: { id: string; slug: string }[] }).items;
+    const villa = items.find((i) => i.slug === "janzour-marina-villa");
+    if (!villa) return; // seed not present in this DB — nothing to assert
+    const res = await app.inject({ method: "GET", url: `/v1/listings/${villa.id}/trust` });
+    expect(res.statusCode).toBe(200);
+    const t = res.json() as {
+      rating: { value: number; count: number; histogram: Record<string, number>; source: string };
+      reviews: { author: string; text?: string }[];
+      disputes: { opened: number; resolved: number; deliveredBookings: number };
+      canReview: { eligible: boolean };
+    };
+    expect(t.rating.count).toBeGreaterThanOrEqual(3);
+    expect(t.rating.source).toBe("guests");
+    // histogram sums to the review count
+    expect(Object.values(t.rating.histogram).reduce((a, b) => a + b, 0)).toBe(t.rating.count);
+    // dispute record has a denominator and never leaks statements
+    expect(t.disputes.deliveredBookings).toBeGreaterThanOrEqual(t.disputes.opened);
+    expect(JSON.stringify(t.disputes)).not.toContain("statement");
+    // reviewer identity is initials only (§11.5)
+    for (const r of t.reviews) expect(r.author.length).toBeLessThanOrEqual(12);
+    // anonymous callers are told to sign in rather than shown a review form
+    expect(t.canReview.eligible).toBe(false);
+  });
+});

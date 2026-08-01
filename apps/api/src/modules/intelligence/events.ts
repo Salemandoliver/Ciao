@@ -48,6 +48,11 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "listing.saved": "listingId, vertical, city, area, priceNightly",
   "listing.unsaved": "listingId",
   "map.opened": "vertical, city, resultCount",
+  "map.pin_selected": "listingId, vertical",
+  // trust surfaces — reviews & disputes are the product's core promise
+  "trust.opened": "listingId, rating, reviewCount, disputeCount",
+  "review.started": "listingId, bookingCode",
+  "dispute.opened": "bookingId, listingId, category",
 };
 
 export interface EmitOptions {

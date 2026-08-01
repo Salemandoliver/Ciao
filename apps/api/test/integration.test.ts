@@ -167,6 +167,13 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Don't leave test fixtures live in the shared dev database.
+  if (listingId) {
+    await db
+      .update(schema.listings)
+      .set({ status: "delisted" })
+      .where(eq(schema.listings.id, listingId));
+  }
   await app.close();
   await pool.end();
 });

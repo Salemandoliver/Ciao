@@ -7,6 +7,7 @@ import type { PublicListing } from "@/lib/types";
 import { BookingWidget } from "./booking-widget";
 import { TrackEvent } from "@/components/track";
 import { Heart } from "@/components/heart";
+import { TrustButton, TrustStars } from "@/components/trust-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -180,7 +181,14 @@ export default async function ListingPage({
           <div>
             <h1 className="font-bold text-2xl text-sea">{l.titleAr}</h1>
             <div className="mt-1">
-              <Stars rating={l.rating} source={l.ratingSource} size="text-base" />
+              <TrustStars
+                listingId={l.id}
+                listingTitle={l.titleAr}
+                rating={l.rating}
+                source={l.ratingSource}
+                count={l.reviewCount}
+                size="text-base"
+              />
             </div>
             <p className="text-sea/70 mt-1">{l.descriptionAr}</p>
           </div>
@@ -353,6 +361,15 @@ export default async function ListingPage({
               التقييمات تُقبل فقط من ضيوف أكملوا إقامة مدفوعة العربون — لا تقييمات مزيفة.
             </p>
           )}
+
+          <TrustButton
+            listingId={l.id}
+            listingTitle={l.titleAr}
+            rating={l.rating}
+            className="btn-primary w-full sm:w-auto !py-2.5 text-sm"
+          >
+            ⭐ كل التقييمات وسجل الشكاوى
+          </TrustButton>
 
           {/* أماكن مشابهة قريبة — Airbnb "More nearby" */}
           {l.similar?.length ? (

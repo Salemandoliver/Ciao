@@ -15,6 +15,7 @@ import { opsRoutes } from "./modules/ops/routes.js";
 import { hostRoutes } from "./modules/host/routes.js";
 import { intelligenceRoutes } from "./modules/intelligence/routes.js";
 import { wishlistRoutes } from "./modules/wishlist/routes.js";
+import { trustRoutes } from "./modules/trust/routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -95,6 +96,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(hostRoutes);
   await app.register(intelligenceRoutes);
   await app.register(wishlistRoutes);
+  await app.register(trustRoutes);
 
   return app;
 }

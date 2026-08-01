@@ -76,6 +76,16 @@ export async function listingRoutes(app: FastifyInstance) {
         listing: schema.listings,
         venue: schema.venues,
         reliability: schema.reliabilityScores.score,
+        reviewCount: sql<string>`(select count(*) from reviews r
+            where r.listing_id = ${schema.listings.id}
+              and r.author_role = 'guest' and r.published_at is not null)`,
+        // Mean of each review's own dimension-average (§8.8) — the guest
+        // aggregate takes over from the Ciao inspection score at >= 3 reviews.
+        guestRating: sql<string | null>`(select avg(m) from (
+            select (select avg(value::numeric) from jsonb_each_text(r.scores)) as m
+            from reviews r
+            where r.listing_id = ${schema.listings.id}
+              and r.author_role = 'guest' and r.published_at is not null) t)`,
       })
       .from(schema.listings)
       .innerJoin(schema.venues, eq(schema.listings.venueId, schema.venues.id))
@@ -94,9 +104,15 @@ export async function listingRoutes(app: FastifyInstance) {
       .offset(q.offset);
 
     return reply.send({
-      items: rows.map(({ listing, venue, reliability }) =>
-        publicListing(listing, venue, reliability),
-      ),
+      items: rows.map(({ listing, venue, reliability, reviewCount, guestRating }) => {
+        const count = Number(reviewCount ?? 0);
+        const base = publicListing(listing, venue, reliability, count);
+        if (count >= 3 && guestRating != null) {
+          base.rating = Number(Number(guestRating).toFixed(1));
+          base.ratingSource = "guests";
+        }
+        return base;
+      }),
     });
   });
 
@@ -184,7 +200,7 @@ export async function listingRoutes(app: FastifyInstance) {
       )
       .limit(4);
 
-    const base = publicListing(row.listing, row.venue, null);
+    const base = publicListing(row.listing, row.venue, null, reviews.length);
     // Guest aggregate replaces the Ciao rating once real (§8.8: ≥3 reviews).
     if (aggregate != null) {
       base.rating = aggregate;
@@ -319,6 +335,7 @@ function publicListing(
   listing: typeof schema.listings.$inferSelect,
   venue: typeof schema.venues.$inferSelect,
   reliability: number | null,
+  reviewCount = 0,
 ) {
   return {
     id: listing.id,
@@ -354,5 +371,6 @@ function publicListing(
     hostReliability: reliability,
     rating: ciaoRating(listing, venue, reliability),
     ratingSource: "ciao" as "ciao" | "guests",
+    reviewCount,
   };
 }

@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { ListingCard } from "@/components/listing-card";
 import { HeroSearch } from "@/components/hero-search";
 import { TrackEvent } from "@/components/track";
-import { MapSection } from "./map-section";
+import { SearchResults } from "./results";
 import { API_URL } from "@/lib/api";
 import { SERVICE_CATEGORIES } from "@/lib/services";
 import type { PublicListing } from "@/lib/types";
@@ -54,7 +53,7 @@ export default async function SearchPage({
   };
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-16">
+    <main className="mx-auto max-w-7xl px-4 pb-16">
       <header className="flex items-center gap-4 py-4">
         <Link href="/">
           <Logo size={36} />
@@ -151,19 +150,7 @@ export default async function SearchPage({
         )}
       </div>
 
-      <MapSection items={items} vertical={type} />
-
-      {items.length === 0 ? (
-        <div className="card p-8 text-center text-sea/70">
-          لا نتائج بهذه الفلاتر — جرّب توسيع البحث.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((l) => (
-            <ListingCard key={l.id} l={l} />
-          ))}
-        </div>
-      )}
+      <SearchResults items={items} vertical={type} />
     </main>
   );
 }

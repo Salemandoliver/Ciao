@@ -20,10 +20,12 @@ const CITY_AR: Record<string, string> = {
 export function Stars({
   rating,
   source,
+  count,
   size = "text-sm",
 }: {
   rating?: number;
   source?: "ciao" | "guests";
+  count?: number;
   size?: string;
 }) {
   if (!rating) return null;
@@ -36,7 +38,9 @@ export function Stars({
       </span>
       <span className="font-bold text-sea">{rating.toFixed(1)}</span>
       <span className="text-sea/50 text-xs">
-        {source === "guests" ? "تقييم الضيوف" : "تقييم تشاو"}
+        {count && count > 0
+          ? `· ${count} ${source === "guests" ? "تقييم" : "تقييم تشاو"}`
+          : "· تقييم تشاو"}
       </span>
     </span>
   );
@@ -85,7 +89,7 @@ export function ListingCard({ l }: { l: PublicListing }) {
       </div>
       <div className="p-3 space-y-1.5">
         <h3 className="font-bold text-base leading-snug">{l.titleAr}</h3>
-        <Stars rating={l.rating} source={l.ratingSource} />
+        <Stars rating={l.rating} source={l.ratingSource} count={l.reviewCount} />
         <p className="text-sm text-sea/70">
           {AREA_AR[l.area ?? ""] ?? l.area} · {CITY_AR[l.city] ?? l.city}
         </p>

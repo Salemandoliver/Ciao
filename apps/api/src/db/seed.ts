@@ -294,6 +294,235 @@ async function syncServices() {
   console.log("Services synced.");
 }
 
+
+/**
+ * Demo trust history — completed stays, published reviews, and one dispute
+ * that was opened and resolved. Without this the trust dialog would show
+ * empty states, and the whole point is that trust data is visible from day one.
+ * Idempotent: skipped per-listing once reviews exist.
+ */
+const REVIEWERS: { phone: string; displayName: string; publicName: string }[] = [
+  { phone: "+218945100001", displayName: "سارة الزوي", publicName: "س. ز" },
+  { phone: "+218945100002", displayName: "محمد العابد", publicName: "م. ع" },
+  { phone: "+218945100003", displayName: "فاطمة بن عمر", publicName: "ف. ب" },
+  { phone: "+218945100004", displayName: "نور الحضيري", publicName: "ن. ح" },
+  { phone: "+218945100005", displayName: "أحمد مفتاح", publicName: "أ. م" },
+  { phone: "+218945100006", displayName: "ريم الطاهر", publicName: "ر. ط" },
+];
+
+type DemoReview = {
+  scores: Record<string, number>;
+  text: string;
+  hostReply?: string;
+};
+
+const DEMO_REVIEWS: Record<string, DemoReview[]> = {
+  "janzour-marina-villa": [
+    {
+      scores: { cleanliness: 5, accuracy: 5, privacy: 5, communication: 5, value: 5 },
+      text: "المكان مطابق للصور تمامًا، والمسبح مسوَّر فعلًا كما وُصف. أول مرة نحجز بدون مكالمات ولا وساطة.",
+      hostReply: "شكرًا على زيارتكم، أهلًا بكم دائمًا.",
+    },
+    {
+      scores: { cleanliness: 5, accuracy: 5, privacy: 5, communication: 4, value: 5 },
+      text: "الخصوصية ممتازة للعائلة، والمولّد اشتغل مباشرة لما انقطعت الكهرباء.",
+    },
+    {
+      scores: { cleanliness: 5, accuracy: 5, privacy: 5, communication: 5, value: 4 },
+      text: "نظيفة جدًا والعنوان وصلنا فورًا بعد العربون. السعر مناسب لآخر الأسبوع.",
+    },
+    {
+      scores: { cleanliness: 4, accuracy: 5, privacy: 5, communication: 5, value: 4 },
+      text: "تجربة مريحة. الاستقبال كان سريع والباقي دفعناه نقدًا عند الوصول بدون أي مشاكل.",
+    },
+    {
+      scores: { cleanliness: 5, accuracy: 4, privacy: 5, communication: 5, value: 5 },
+      text: "غرفة واحدة كانت أصغر مما تخيلت لكن كل شيء آخر ممتاز. الشاطئ قريب فعلًا.",
+      hostReply: "شكرًا لملاحظتك — حدّثنا الصور لتوضيح مقاس الغرفة.",
+    },
+    {
+      scores: { cleanliness: 3, accuracy: 4, privacy: 5, communication: 4, value: 4 },
+      text: "النظافة كانت متوسطة يوم وصولنا وتمّت معالجتها بسرعة بعد ما بلّغنا تشاو.",
+      hostReply: "اعتذارنا، غيّرنا شركة التنظيف بعد هذه الملاحظة.",
+    },
+  ],
+  "tajoura-golden-sands": [
+    {
+      scores: { cleanliness: 5, accuracy: 5, privacy: 5, communication: 5, value: 5 },
+      text: "على البحر مباشرة كما هو مكتوب. الأطفال ما طلعوش من المية.",
+      hostReply: "نورتوا الشاليه.",
+    },
+    {
+      scores: { cleanliness: 5, accuracy: 5, privacy: 4, communication: 5, value: 5 },
+      text: "الحجز كان سهل والعربون بسيط. أفضل من التعامل بالواتساب مع ناس ما نعرفهمش.",
+    },
+    {
+      scores: { cleanliness: 4, accuracy: 5, privacy: 4, communication: 5, value: 5 },
+      text: "ممتاز للعائلة، والمضيف ردّ على تأكيد الحجز خلال دقائق.",
+    },
+    {
+      scores: { cleanliness: 5, accuracy: 4, privacy: 4, communication: 4, value: 5 },
+      text: "قضينا يومين ممتازين. الطريق للشاليه يحتاج انتباه بالليل.",
+    },
+  ],
+  "ain-zara-palms": [
+    {
+      scores: { cleanliness: 5, accuracy: 5, privacy: 4, communication: 5, value: 5 },
+      text: "حجزناها ليوم كامل لعيد ميلاد. المسبح نظيف والمكان واسع.",
+      hostReply: "شكرًا لكم، مبروك المناسبة.",
+    },
+    {
+      scores: { cleanliness: 4, accuracy: 5, privacy: 3, communication: 5, value: 5 },
+      text: "قيمة ممتازة مقابل السعر. الجيران يشوفوا جزء من الحديقة فانتبهوا لو تبون ستر كامل.",
+    },
+    {
+      scores: { cleanliness: 5, accuracy: 5, privacy: 4, communication: 4, value: 5 },
+      text: "استراحة مريحة ونهار كامل بسعر معقول.",
+    },
+  ],
+  "andalus-hall-tripoli": [
+    {
+      scores: { cleanliness: 5, accuracy: 5, privacy: 5, communication: 5, value: 4 },
+      text: "قاعة عرس بنتي كانت ممتازة. الباقة الذهبية شملت كل شيء بدون مفاجآت في الحساب.",
+      hostReply: "مبروك مرة أخرى، شرّفتونا.",
+    },
+    {
+      scores: { cleanliness: 5, accuracy: 5, privacy: 5, communication: 4, value: 4 },
+      text: "السعة كما هي مكتوبة بالضبط — ٥٠٠ ضيفة وما ضاقت القاعة.",
+    },
+    {
+      scores: { cleanliness: 5, accuracy: 4, privacy: 5, communication: 5, value: 4 },
+      text: "التنسيق والإضاءة جميلة. الصوتيات كانت عالية شوي في البداية وتم ضبطها.",
+    },
+  ],
+  "diwan-catering-tripoli": [
+    {
+      scores: { quality: 5, accuracy: 5, punctuality: 5, communication: 5, value: 4 },
+      text: "البوفيه وصل في وقته بالضبط والكمية كانت كافية لـ٣٠٠ ضيف. التذوق قبل التعاقد ساعدنا كثير.",
+      hostReply: "شكرًا لثقتكم.",
+    },
+    {
+      scores: { quality: 5, accuracy: 5, punctuality: 4, communication: 5, value: 5 },
+      text: "الأكل ممتاز والطاقم مرتب. تعاملنا كان عبر تشاو والسعر ثبت من البداية.",
+    },
+    {
+      scores: { quality: 4, accuracy: 5, punctuality: 5, communication: 5, value: 5 },
+      text: "خدمة محترمة وأسعار واضحة بلا مفاجآت.",
+    },
+  ],
+  "kaakat-cakes-tripoli": [
+    {
+      scores: { quality: 5, accuracy: 5, punctuality: 5, communication: 5, value: 5 },
+      text: "الكيكة طلعت أحلى من الصورة اللي اتفقنا عليها، ووصلت للقاعة قبل الموعد.",
+      hostReply: "مبروك، وشكرًا على الثقة.",
+    },
+    {
+      scores: { quality: 5, accuracy: 4, punctuality: 5, communication: 5, value: 4 },
+      text: "الطعم ممتاز. اللون طلع أفتح شوي من المتفق عليه لكن الشكل كان راقي.",
+    },
+    {
+      scores: { quality: 5, accuracy: 5, punctuality: 5, communication: 4, value: 5 },
+      text: "التوصيل والتركيب في القاعة كان احترافي.",
+    },
+  ],
+};
+
+async function syncDemoTrust() {
+  // reviewers
+  const reviewerIds: string[] = [];
+  for (const r of REVIEWERS) {
+    let [u] = await db.select().from(schema.users).where(eq(schema.users.phone, r.phone)).limit(1);
+    if (!u) {
+      [u] = await db
+        .insert(schema.users)
+        .values({ phone: r.phone, role: "guest", displayName: r.displayName, publicName: r.publicName })
+        .returning();
+    }
+    reviewerIds.push(u!.id);
+  }
+
+  let seededDispute = false;
+  for (const [slug, reviews] of Object.entries(DEMO_REVIEWS)) {
+    const [row] = await db
+      .select({ listing: schema.listings, venue: schema.venues })
+      .from(schema.listings)
+      .innerJoin(schema.venues, eq(schema.listings.venueId, schema.venues.id))
+      .where(eq(schema.listings.slug, slug))
+      .limit(1);
+    if (!row) continue;
+
+    const [already] = await db
+      .select({ id: schema.reviews.id })
+      .from(schema.reviews)
+      .where(eq(schema.reviews.listingId, row.listing.id))
+      .limit(1);
+    if (already) continue;
+
+    for (let i = 0; i < reviews.length; i++) {
+      const r = reviews[i]!;
+      const guestId = reviewerIds[i % reviewerIds.length]!;
+      // Past stay: 20..120 days ago, 2 nights.
+      const daysAgo = 20 + i * 14;
+      const checkIn = new Date(Date.now() - daysAgo * 24 * 3600 * 1000);
+      const checkOut = new Date(checkIn.getTime() + 2 * 24 * 3600 * 1000);
+      const total = row.listing.baseNightly * 2;
+      const deposit = Math.round(total * 0.2);
+      const [booking] = await db
+        .insert(schema.bookings)
+        .values({
+          code: `CIA-D${slug.slice(0, 2).toUpperCase()}${i}${Math.floor(Math.random() * 900 + 100)}`,
+          listingId: row.listing.id,
+          venueId: row.venue.id,
+          guestId,
+          hostId: row.venue.hostId,
+          type: row.venue.type === "hall" ? "event_date" : row.venue.type === "service" ? "visit" : "stay",
+          state: "reviewed",
+          checkIn: checkIn.toISOString().slice(0, 10),
+          checkOut: checkOut.toISOString().slice(0, 10),
+          totalAmount: total,
+          depositAmount: deposit,
+          balanceOnArrival: total - deposit,
+          commissionAmount: Math.round(total * 0.1),
+          completedAt: checkOut,
+          createdAt: new Date(checkIn.getTime() - 10 * 24 * 3600 * 1000),
+        })
+        .returning();
+
+      await db.insert(schema.reviews).values({
+        bookingId: booking!.id,
+        listingId: row.listing.id,
+        authorRole: "guest",
+        authorId: guestId,
+        scores: r.scores,
+        text: r.text,
+        hostReply: r.hostReply,
+        publishedAt: new Date(checkOut.getTime() + 2 * 24 * 3600 * 1000),
+        createdAt: new Date(checkOut.getTime() + 24 * 3600 * 1000),
+      });
+
+      // One real dispute in the history: opened on the cleanliness complaint,
+      // resolved inside the 48h SLA with a partial refund.
+      if (!seededDispute && slug === "janzour-marina-villa" && i === reviews.length - 1) {
+        const opened = new Date(checkOut.getTime() + 6 * 3600 * 1000);
+        await db.insert(schema.disputes).values({
+          bookingId: booking!.id,
+          openedById: guestId,
+          category: "misrepresentation",
+          statement: "النظافة عند الوصول لم تكن بالمستوى المتوقع.",
+          status: "resolved",
+          resolution: "تم التحقق مع المضيف واسترجاع جزء من العربون للضيف، والتزم المضيف بتغيير شركة التنظيف.",
+          remedy: "partial_refund",
+          dueAt: new Date(opened.getTime() + 48 * 3600 * 1000),
+          resolvedAt: new Date(opened.getTime() + 20 * 3600 * 1000),
+          createdAt: opened,
+        });
+        seededDispute = true;
+      }
+    }
+  }
+  console.log("Demo trust history synced (reviews + dispute record).");
+}
+
 async function main() {
   const [existing] = await db
     .select({ id: schema.listings.id })
@@ -305,6 +534,7 @@ async function main() {
     await syncServices();
     await syncServiceFacts();
     await syncMedia();
+    await syncDemoTrust();
     await pool.end();
     return;
   }
@@ -554,6 +784,7 @@ async function main() {
   await syncServices();
   await syncServiceFacts();
   await syncMedia();
+  await syncDemoTrust();
   console.log("Seeded 3 coast venues + 1 wedding hall with packages. تشاو!");
   await pool.end();
 }
