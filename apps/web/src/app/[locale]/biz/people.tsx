@@ -9,7 +9,10 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api } from "@/lib/api";
-import { Money, Pill, ROLE_AR } from "./lib";
+import { useLocale } from "@/lib/locale";
+import { ROLES, fmtDate, fmtNum, term } from "@/lib/vocab";
+import type { Locale } from "@/lib/i18n";
+import { Money, Pill } from "./lib";
 
 interface BizUser {
   id: string;
@@ -22,7 +25,55 @@ interface BizUser {
   gmv: number;
 }
 
+const ROLE_KEYS = ["guest", "host", "agent", "ops", "admin"];
+
+const copy = {
+  ar: {
+    loadFailed: "تعذر تحميل المستخدمين",
+    /* The role change reads right-to-left in Arabic and left-to-right in
+       English, so the arrow has to flip with the language or it points at the
+       role being replaced. */
+    arrow: "←",
+    confirmRole: (label: string) =>
+      `تأكيد تغيير الصلاحية؟\n${label}\n\nسيُسجَّل هذا في سجل التدقيق باسمك.`,
+    adminOnly: "تغيير الصلاحيات للمدير فقط",
+    changeFailed: "تعذر تغيير الصلاحية",
+    all: "الكل",
+    searchPlaceholder: "بحث بالاسم أو الرقم",
+    userCount: (n: string) => `${n} مستخدم`,
+    thUser: "المستخدم",
+    thRole: "الصلاحية",
+    thBookings: "حجوزات",
+    thSpend: "إنفاق",
+    thSince: "منذ",
+    noResults: "لا نتائج",
+    privacyNote:
+      "لا تُعرض أسماء المستخدمين كاملة في أي شاشة عامة — العلن يرى الأحرف الأولى فقط (§11.5). هذه الشاشة داخلية ومحمية بالصلاحيات، وكل تغيير صلاحية يُسجَّل باسم من نفّذه.",
+  },
+  en: {
+    loadFailed: "Could not load the users",
+    arrow: "→",
+    confirmRole: (label: string) =>
+      `Change this role?\n${label}\n\nIt goes into the audit trail under your name.`,
+    adminOnly: "Only an admin can change roles",
+    changeFailed: "Could not change the role",
+    all: "All",
+    searchPlaceholder: "Search by name or number",
+    userCount: (n: string) => `${n} users`,
+    thUser: "User",
+    thRole: "Role",
+    thBookings: "Bookings",
+    thSpend: "Spend",
+    thSince: "Since",
+    noResults: "No results",
+    privacyNote:
+      "Full user names are never shown on a public screen — the public sees initials only (§11.5). This screen is internal and permission-gated, and every role change is recorded against the name of whoever made it.",
+  },
+} satisfies Record<Locale, unknown>;
+
 export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
+  const locale = useLocale();
+  const c = copy[locale];
   const [items, setItems] = useState<BizUser[]>([]);
   const [total, setTotal] = useState(0);
   const [role, setRole] = useState("all");
@@ -37,9 +88,9 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
       setItems(res.items);
       setTotal(res.total);
     } catch {
-      setMsg("تعذر تحميل المستخدمين");
+      setMsg(c.loadFailed);
     }
-  }, [role, search]);
+  }, [role, search, c]);
 
   useEffect(() => {
     void load();
@@ -47,9 +98,12 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
 
   async function changeRole(u: BizUser, next: string) {
     if (next === u.role) return;
-    const label = `${u.displayName ?? u.phone}: ${ROLE_AR[u.role]} ← ${ROLE_AR[next]}`;
-    if (!window.confirm(`تأكيد تغيير الصلاحية؟\n${label}\n\nسيُسجَّل هذا في سجل التدقيق باسمك.`))
-      return;
+    const label = `${u.displayName ?? u.phone}: ${term(ROLES, locale, u.role)} ${c.arrow} ${term(
+      ROLES,
+      locale,
+      next,
+    )}`;
+    if (!window.confirm(c.confirmRole(label))) return;
     try {
       await api(`/v1/biz/users/${u.id}/role`, {
         method: "PATCH",
@@ -58,33 +112,29 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
       setMsg(`✅ ${label}`);
       await load();
     } catch (e) {
-      setMsg(
-        e instanceof ApiError && e.status === 403
-          ? "تغيير الصلاحيات للمدير فقط"
-          : "تعذر تغيير الصلاحية",
-      );
+      setMsg(e instanceof ApiError && e.status === 403 ? c.adminOnly : c.changeFailed);
     }
   }
 
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        {["all", "guest", "host", "agent", "ops", "admin"].map((r) => (
+        {["all", ...ROLE_KEYS].map((r) => (
           <button
             key={r}
             onClick={() => setRole(r)}
             className={`chip ${role === r ? "!bg-sea !text-white" : ""}`}
           >
-            {r === "all" ? "الكل" : ROLE_AR[r]}
+            {r === "all" ? c.all : term(ROLES, locale, r)}
           </button>
         ))}
         <input
           className="input !py-1.5 !text-sm max-w-[220px]"
-          placeholder="بحث بالاسم أو الرقم"
+          placeholder={c.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <span className="text-xs text-faint">{total} مستخدم</span>
+        <span className="text-xs text-faint">{c.userCount(fmtNum(locale, total))}</span>
       </div>
 
       {msg ? <p className="mb-3 text-sm font-bold text-sea">{msg}</p> : null}
@@ -93,11 +143,11 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
         <table className="w-full text-xs">
           <thead className="bg-sand/60 text-muted">
             <tr>
-              <th className="text-start p-2">المستخدم</th>
-              <th className="text-start p-2">الصلاحية</th>
-              <th className="text-start p-2">حجوزات</th>
-              <th className="text-start p-2">إنفاق</th>
-              <th className="text-start p-2">منذ</th>
+              <th className="text-start p-2">{c.thUser}</th>
+              <th className="text-start p-2">{c.thRole}</th>
+              <th className="text-start p-2">{c.thBookings}</th>
+              <th className="text-start p-2">{c.thSpend}</th>
+              <th className="text-start p-2">{c.thSince}</th>
             </tr>
           </thead>
           <tbody>
@@ -114,13 +164,13 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
                       value={u.role}
                       onChange={(e) => changeRole(u, e.target.value)}
                     >
-                      {Object.entries(ROLE_AR).map(([k, v]) => (
-                        <option key={k} value={k}>{v}</option>
+                      {ROLE_KEYS.map((k) => (
+                        <option key={k} value={k}>{term(ROLES, locale, k)}</option>
                       ))}
                     </select>
                   ) : (
                     <Pill tone={u.role === "admin" || u.role === "ops" ? "amber" : "sand"}>
-                      {ROLE_AR[u.role] ?? u.role}
+                      {term(ROLES, locale, u.role)}
                     </Pill>
                   )}
                 </td>
@@ -129,14 +179,18 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
                   <Money dirhams={u.gmv} />
                 </td>
                 <td className="p-2 text-faint" dir="ltr">
-                  {new Date(u.createdAt).toLocaleDateString("ar-LY")}
+                  {fmtDate(locale, u.createdAt, {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
                 </td>
               </tr>
             ))}
             {items.length === 0 ? (
               <tr>
                 <td className="p-4 text-faint" colSpan={5}>
-                  لا نتائج
+                  {c.noResults}
                 </td>
               </tr>
             ) : null}
@@ -144,10 +198,7 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
         </table>
       </div>
 
-      <p className="text-[11px] text-faint mt-3 leading-relaxed">
-        لا تُعرض أسماء المستخدمين كاملة في أي شاشة عامة — العلن يرى الأحرف الأولى فقط (§11.5).
-        هذه الشاشة داخلية ومحمية بالصلاحيات، وكل تغيير صلاحية يُسجَّل باسم من نفّذه.
-      </p>
+      <p className="text-[11px] text-faint mt-3 leading-relaxed">{c.privacyNote}</p>
     </div>
   );
 }

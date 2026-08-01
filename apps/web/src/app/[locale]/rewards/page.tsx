@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/lib/locale";
 import { LogoWithTail } from "@/components/logo";
+import { LanguageToggle } from "@/components/language-toggle";
 import { API_URL } from "@/lib/api";
+import { asLocale, type Locale } from "@/lib/i18n";
+import { fmtNum } from "@/lib/vocab";
 
 /**
- * Reward points — the terms, in plain Arabic.
+ * Reward points — the terms, in plain Arabic and plain English.
  *
  * Loyalty terms are usually written to be technically true and practically
  * unreadable, which is how customers end up surprised when points vanish. This
@@ -16,15 +19,14 @@ import { API_URL } from "@/lib/api";
  * That is the same posture as the dispute record on the About page. A
  * programme willing to print its own catch is more believable than one that
  * hides it.
+ *
+ * The English keeps that bluntness word for word. This is a document a
+ * customer has to be able to act on, so it says "withdrawn" where the Arabic
+ * says withdrawn and "forfeited" where the Arabic says forfeited; a gentler
+ * translation would be a different promise.
  */
 
 export const revalidate = 300;
-
-export const metadata: Metadata = {
-  title: "نقاط المكافآت — شروط البرنامج | تشاو",
-  description:
-    "كيف تكسب نقاط تشاو، وكيف تستخدمها، ومتى تنتهي صلاحيتها — بلغة واضحة وأرقام محدّثة من النظام مباشرة.",
-};
 
 interface PublicSettings {
   loyalty?: {
@@ -53,14 +55,231 @@ const FALLBACK = {
   partnersEnabled: true,
 };
 
-const EARN_AR: Record<string, string> = {
-  signup: "إنشاء العضوية",
-  email_verified: "توثيق بريدك الإلكتروني",
-  stay_completed: "إتمام إقامة أو خدمة",
-  review_written: "كتابة تقييم بعد الإقامة",
-  referral_qualified: "صديق دعوته أتمّ أول حجز له",
-  referred_welcome: "انضمامك بدعوة صديق وإتمام أول حجز",
-};
+/** Numbers inside a sentence, so the eye can find them without reading it. */
+function B({ children }: { children: React.ReactNode }) {
+  return <strong className="text-sea">{children}</strong>;
+}
+
+const copy = {
+  ar: {
+    metaTitle: "نقاط المكافآت — شروط البرنامج | تشاو",
+    metaDescription:
+      "كيف تكسب نقاط تشاو، وكيف تستخدمها، ومتى تنتهي صلاحيتها — بلغة واضحة وأرقام محدّثة من النظام مباشرة.",
+
+    navPoints: "نقاطي",
+    navAbout: "من نحن",
+
+    title: "نقاط تشاو",
+    intro1:
+      "تكسب نقاطًا حين تستخدم تشاو فعلًا — لا مقابل التسجيل وحده. تحوّلها إلى رصيد يخصم من عربون حجزك القادم، أو تصرفها عند أحد شركائنا: مقهى داخل المنتجع، مخبز، أو مطعم قريب.",
+    intro2: (
+      <>
+        وضعنا القيم على قاعدة بسيطة:{" "}
+        <B>إقامة واحدة مكتملة تكفي لقهوة عند أحد شركائنا</B>. النقاط التي لا تتحول إلى شيء ملموس
+        ليست مكافأة.
+      </>
+    ),
+    introNote:
+      "الأرقام في هذه الصفحة تُقرأ مباشرة من نظامنا، فهي دائمًا مطابقة لما يحسبه التطبيق فعلًا.",
+
+    awkwardTitle: "ثلاثة أشياء نقولها من البداية",
+    awkwardNotMoney: (
+      <>
+        <B>١. النقاط ليست نقودًا.</B> لا تُصرف نقدًا ولا تُحوَّل لشخص آخر، وليست وديعة لدينا. هي
+        مكافأة على استخدامك للتطبيق، تتحول إلى رصيد داخل تشاو حين تختار ذلك.
+      </>
+    ),
+    awkwardExpiry: (months: number) => (
+      <>
+        <B>٢. {months > 0 ? "للنقاط مدة صلاحية." : "النقاط لا تنتهي صلاحيتها."}</B>{" "}
+        {months > 0 ? (
+          <>
+            كل نقطة تنتهي بعد <B>{months} شهرًا</B> من كسبها. تاريخ انتهاء كل مكافأة يظهر في سجل
+            نقاطك، ولا نغيّر تاريخ نقاط كسبتها بالفعل حتى لو غيّرنا المدة لاحقًا.
+          </>
+        ) : (
+          "لن تفقد نقاطك بمرور الوقت."
+        )}
+      </>
+    ),
+    awkwardRates: (
+      <>
+        <B>٣. قد نغيّر قيم المكافآت.</B> نسب الكسب وقيمة النقطة قابلة للتعديل، وأي تعديل يسري على
+        ما تكسبه بعده — لا على ما في رصيدك.
+      </>
+    ),
+
+    earnTitle: "كيف تكسب",
+    earn: {
+      signup: "إنشاء العضوية",
+      email_verified: "توثيق بريدك الإلكتروني",
+      stay_completed: "إتمام إقامة أو خدمة",
+      review_written: "كتابة تقييم بعد الإقامة",
+      referral_qualified: "صديق دعوته أتمّ أول حجز له",
+      referred_welcome: "انضمامك بدعوة صديق وإتمام أول حجز",
+    } as Record<string, string>,
+    earnNote:
+      "مكافأة الدعوة تُصرف حين يُتمّ صديقك أول حجز فعليًا، لا عند تسجيله — حتى لا يُستغل البرنامج بحسابات وهمية. لكل حساب دعوة واحدة فقط، ولا يمكنك استخدام كودك أنت.",
+
+    useTitle: "كيف تستخدمها",
+    useCreditTitle: "١. رصيد داخل تشاو",
+    useCreditBody: (perDinar: string, minPoints: string, minLyd: string) => (
+      <>
+        كل <B>{perDinar}</B> نقطة = ١ دينار رصيد، يُخصم تلقائيًا من عربون حجزك القادم. أقل مبلغ
+        للتحويل <B>{minPoints}</B> نقطة ({minLyd} د.ل).
+      </>
+    ),
+    usePartnersTitle: "٢. عند شركائنا",
+    usePartnersOn:
+      "اختر شريكًا وقيمة القسيمة، فتظهر لك بكود قصير تعرضه عند الكاشير. تُخصم النقاط فور إصدار القسيمة، وإن لم تستخدمها خلال مدتها تعود نقاطك إليك تلقائيًا.",
+    usePartnersOff: "الصرف عند الشركاء غير مفعّل حاليًا.",
+    usePartnersLink: "شاهد الشركاء ←",
+
+    termsTitle: "الشروط بالتفصيل",
+    termsWhoLabel: "من يستحق:",
+    termsWho:
+      "أي عضو في تشاو برقم هاتف موثّق. النقاط شخصية ومرتبطة بحسابك، ولا تُنقل إلى حساب آخر ولا تُورَّث ولا تُباع.",
+    termsWhenLabel: "متى تُضاف:",
+    termsWhen:
+      "بعد إتمام الحدث المستحق — إتمام الإقامة، أو نشر التقييم، أو إتمام صديقك لأول حجز. لا تُضاف عند الطلب أو عند الدفع، لأن الحجز قد يُلغى.",
+    termsCancelLabel: "عند الإلغاء أو الاسترجاع:",
+    termsCancel: "إن أُلغيت الإقامة التي مُنحت عنها النقاط، يجوز لنا سحب النقاط المقابلة لها.",
+    termsAbuseLabel: "سوء الاستخدام:",
+    termsAbuse:
+      "الحسابات المتعددة لنفس الشخص، والدعوات الوهمية، ومحاولات التحايل على البرنامج — كلها تؤدي إلى سحب النقاط وإيقاف المشاركة في البرنامج.",
+    termsCloseLabel: "إغلاق الحساب:",
+    termsClose: "النقاط تسقط عند إغلاق الحساب. حوّل رصيدك قبل الإغلاق.",
+    termsVouchersLabel: "القسائم لدى الشركاء:",
+    termsVouchers:
+      "القسيمة صالحة لدى الشريك المحدد فقط، ولمرة واحدة، وخلال المدة الظاهرة عليها. لا تُستبدل نقدًا ولا يُعاد باقيها. الشريك مسؤول عن جودة ما يقدّمه، وأي خلاف بشأن الخدمة نفسها يُحل معه — ونحن نساعد.",
+    termsChangeLabel: "التعديل والإيقاف:",
+    termsChange:
+      "يجوز لنا تعديل البرنامج أو إيقافه بإشعار مسبق معقول. عند الإيقاف، تبقى النقاط التي في رصيدك قابلة للتحويل خلال المدة التي نعلنها.",
+    termsLegal: "هذه الشروط جزء من شروط استخدام تشاو، وتخضع للقانون الليبي. آخر تحديث: أغسطس ٢٠٢٦.",
+
+    ctaPoints: "افتح نقاطي",
+    ctaPartners: "شركاء الصرف",
+
+    footerPlace: "تشاو — ciao.ly · طرابلس، ليبيا",
+  },
+  en: {
+    metaTitle: "Reward points — programme terms | Ciao",
+    metaDescription:
+      "How you earn Ciao points, how you use them, and when they expire — in plain language, with the figures read straight from the system.",
+
+    navPoints: "My points",
+    navAbout: "About",
+
+    title: "Ciao points",
+    intro1:
+      "You earn points when you actually use Ciao — not simply for signing up. You turn them into credit that comes off the deposit on your next booking, or you spend them at one of our partners: a café inside the resort, a bakery, or a restaurant nearby.",
+    intro2: (
+      <>
+        We set the values on one simple rule:{" "}
+        <B>one completed stay is enough for a coffee at one of our partners</B>. Points that never
+        turn into something real are not a reward.
+      </>
+    ),
+    introNote:
+      "The figures on this page are read straight from our system, so they always match what the app actually calculates.",
+
+    awkwardTitle: "Three things we say up front",
+    awkwardNotMoney: (
+      <>
+        <B>1. Points are not money.</B> They are not paid out in cash, they cannot be transferred to
+        anyone else, and they are not a deposit we hold for you. They are a reward for using the
+        app, and they become credit inside Ciao when you choose to convert them.
+      </>
+    ),
+    awkwardExpiry: (months: number) => (
+      <>
+        <B>2. {months > 0 ? "Points expire." : "Points do not expire."}</B>{" "}
+        {months > 0 ? (
+          <>
+            Every point expires <B>{months} months</B> after you earn it. The expiry date of each
+            reward is shown in your points history, and we do not change the date on points you have
+            already earned, even if we change the period later.
+          </>
+        ) : (
+          "You will not lose your points as time passes."
+        )}
+      </>
+    ),
+    awkwardRates: (
+      <>
+        <B>3. We may change the reward values.</B> The earning rates and the value of a point can be
+        adjusted, and any change applies to what you earn after it — not to what is already in your
+        balance.
+      </>
+    ),
+
+    earnTitle: "How you earn",
+    earn: {
+      signup: "Creating your membership",
+      email_verified: "Verifying your email address",
+      stay_completed: "Completing a stay or a service",
+      review_written: "Writing a review after your stay",
+      referral_qualified: "A friend you invited completes their first booking",
+      referred_welcome: "Joining on a friend's invite and completing your first booking",
+    } as Record<string, string>,
+    earnNote:
+      "The invite reward is paid when your friend actually completes a first booking, not when they sign up — so the programme cannot be worked with fake accounts. Each account can use one invite only, and you cannot use your own code.",
+
+    useTitle: "How you use them",
+    useCreditTitle: "1. Credit inside Ciao",
+    useCreditBody: (perDinar: string, minPoints: string, minLyd: string) => (
+      <>
+        Every <B>{perDinar}</B> points = 1 dinar of credit, taken off the deposit on your next
+        booking automatically. The smallest amount you can convert is <B>{minPoints}</B> points (
+        {minLyd} LYD).
+      </>
+    ),
+    usePartnersTitle: "2. At our partners",
+    usePartnersOn:
+      "Pick a partner and a voucher value, and you get a short code to show at the till. The points are taken the moment the voucher is issued, and if you do not use it within its window your points come back to you automatically.",
+    usePartnersOff: "Spending at partners is switched off at the moment.",
+    usePartnersLink: "See the partners →",
+
+    termsTitle: "The terms in full",
+    termsWhoLabel: "Who qualifies:",
+    termsWho:
+      "Any Ciao member with a verified phone number. Points are personal and tied to your account; they are not moved to another account, not inherited, and not sold.",
+    termsWhenLabel: "When they are added:",
+    termsWhen:
+      "After the qualifying event is complete — the stay finished, the review published, or your friend's first booking completed. They are not added when you request a booking or when you pay, because a booking can still be cancelled.",
+    termsCancelLabel: "On cancellation or refund:",
+    termsCancel:
+      "If the stay the points were awarded for is cancelled, we may withdraw the points awarded for it.",
+    termsAbuseLabel: "Misuse:",
+    termsAbuse:
+      "Several accounts for the same person, fake invites, and attempts to work around the programme all lead to the points being withdrawn and to being stopped from taking part in the programme.",
+    termsCloseLabel: "Closing your account:",
+    termsClose:
+      "Points are forfeited when the account is closed. Convert your balance before you close it.",
+    termsVouchersLabel: "Partner vouchers:",
+    termsVouchers:
+      "A voucher is valid at the named partner only, once, and within the window shown on it. It is not exchanged for cash and no change is given. The partner is responsible for the quality of what they provide, and any dispute about the service itself is settled with them — and we help.",
+    termsChangeLabel: "Changing or ending the programme:",
+    termsChange:
+      "We may change the programme or stop it with reasonable prior notice. If we stop it, the points in your balance stay convertible for the period we announce.",
+    termsLegal:
+      "These terms are part of Ciao's terms of use, and are governed by Libyan law. Last updated: August 2026.",
+
+    ctaPoints: "Open my points",
+    ctaPartners: "Where to spend",
+
+    footerPlace: "Ciao — ciao.ly · Tripoli, Libya",
+  },
+} satisfies Record<Locale, unknown>;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const c = copy[asLocale((await params).locale)];
+  return { title: c.metaTitle, description: c.metaDescription };
+}
 
 async function getConfig() {
   try {
@@ -73,7 +292,9 @@ async function getConfig() {
   }
 }
 
-export default async function RewardsPage() {
+export default async function RewardsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const locale = asLocale((await params).locale);
+  const c = copy[locale];
   const cfg = await getConfig();
   const perDinar = Math.round(1000 / cfg.pointToDirham);
   const minRedeemLyd = (cfg.minRedeem * cfg.pointToDirham) / 1000;
@@ -85,103 +306,71 @@ export default async function RewardsPage() {
           <LogoWithTail size={40} />
         </Link>
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
-          <Link href="/account?tab=points">نقاطي</Link>
-          <Link href="/about">من نحن</Link>
+          <Link href="/account?tab=points">{c.navPoints}</Link>
+          <Link href="/about">{c.navAbout}</Link>
+          <LanguageToggle />
         </nav>
       </header>
 
       <section className="card p-5">
-        <h1 className="font-baloo font-extrabold text-2xl text-sea">نقاط تشاو</h1>
-        <p className="text-sm text-muted mt-2 leading-relaxed">
-          تكسب نقاطًا حين تستخدم تشاو فعلًا — لا مقابل التسجيل وحده. تحوّلها إلى رصيد يخصم من
-          عربون حجزك القادم، أو تصرفها عند أحد شركائنا: مقهى داخل المنتجع، مخبز، أو مطعم قريب.
-        </p>
-        <p className="text-sm text-muted mt-2 leading-relaxed">
-          وضعنا القيم على قاعدة بسيطة: <strong className="text-sea">إقامة واحدة مكتملة تكفي
-          لقهوة عند أحد شركائنا</strong>. النقاط التي لا تتحول إلى شيء ملموس ليست مكافأة.
-        </p>
-        <p className="text-xs text-faint mt-3 leading-relaxed">
-          الأرقام في هذه الصفحة تُقرأ مباشرة من نظامنا، فهي دائمًا مطابقة لما يحسبه التطبيق فعلًا.
-        </p>
+        <h1 className="font-baloo font-extrabold text-2xl text-sea">{c.title}</h1>
+        <p className="text-sm text-muted mt-2 leading-relaxed">{c.intro1}</p>
+        <p className="text-sm text-muted mt-2 leading-relaxed">{c.intro2}</p>
+        <p className="text-xs text-faint mt-3 leading-relaxed">{c.introNote}</p>
       </section>
 
       {/* The awkward parts, first */}
       <section className="card p-5 mt-4 ring-1 ring-amber/50">
-        <h2 className="font-bold text-sea">ثلاثة أشياء نقولها من البداية</h2>
+        <h2 className="font-bold text-sea">{c.awkwardTitle}</h2>
         <ol className="text-sm text-sea/80 mt-3 space-y-3 leading-relaxed">
-          <li>
-            <strong className="text-sea">١. النقاط ليست نقودًا.</strong> لا تُصرف نقدًا ولا
-            تُحوَّل لشخص آخر، وليست وديعة لدينا. هي مكافأة على استخدامك للتطبيق، تتحول إلى رصيد
-            داخل تشاو حين تختار ذلك.
-          </li>
-          <li>
-            <strong className="text-sea">
-              ٢. {cfg.expiryMonths > 0 ? "للنقاط مدة صلاحية." : "النقاط لا تنتهي صلاحيتها."}
-            </strong>{" "}
-            {cfg.expiryMonths > 0 ? (
-              <>
-                كل نقطة تنتهي بعد{" "}
-                <strong className="text-sea">{cfg.expiryMonths} شهرًا</strong> من كسبها. تاريخ
-                انتهاء كل مكافأة يظهر في سجل نقاطك، ولا نغيّر تاريخ نقاط كسبتها بالفعل حتى لو
-                غيّرنا المدة لاحقًا.
-              </>
-            ) : (
-              "لن تفقد نقاطك بمرور الوقت."
-            )}
-          </li>
-          <li>
-            <strong className="text-sea">٣. قد نغيّر قيم المكافآت.</strong> نسب الكسب وقيمة
-            النقطة قابلة للتعديل، وأي تعديل يسري على ما تكسبه بعده — لا على ما في رصيدك.
-          </li>
+          <li>{c.awkwardNotMoney}</li>
+          <li>{c.awkwardExpiry(cfg.expiryMonths)}</li>
+          <li>{c.awkwardRates}</li>
         </ol>
       </section>
 
       <section className="mt-4">
-        <h2 className="font-bold text-xl text-sea mb-2">كيف تكسب</h2>
+        <h2 className="font-bold text-xl text-sea mb-2">{c.earnTitle}</h2>
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <tbody>
               {Object.entries(cfg.earnRules)
-                .filter(([k]) => EARN_AR[k])
+                .filter(([k]) => c.earn[k])
                 .map(([k, v]) => (
                   <tr key={k} className="border-b border-sand last:border-0">
-                    <td className="p-3 text-sea/80">{EARN_AR[k]}</td>
+                    <td className="p-3 text-sea/80">{c.earn[k]}</td>
                     <td className="p-3 text-end font-bold text-sea tabular-nums whitespace-nowrap">
-                      +{v}
+                      +{fmtNum(locale, v)}
                     </td>
                   </tr>
                 ))}
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-faint mt-2 leading-relaxed">
-          مكافأة الدعوة تُصرف حين يُتمّ صديقك أول حجز فعليًا، لا عند تسجيله — حتى لا يُستغل
-          البرنامج بحسابات وهمية. لكل حساب دعوة واحدة فقط، ولا يمكنك استخدام كودك أنت.
-        </p>
+        <p className="text-xs text-faint mt-2 leading-relaxed">{c.earnNote}</p>
       </section>
 
       <section className="mt-4">
-        <h2 className="font-bold text-xl text-sea mb-2">كيف تستخدمها</h2>
+        <h2 className="font-bold text-xl text-sea mb-2">{c.useTitle}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="card p-4">
-            <h3 className="font-bold text-sea">١. رصيد داخل تشاو</h3>
+            <h3 className="font-bold text-sea">{c.useCreditTitle}</h3>
             <p className="text-sm text-muted mt-1 leading-relaxed">
-              كل <strong className="text-sea">{perDinar}</strong> نقطة = ١ دينار رصيد، يُخصم
-              تلقائيًا من عربون حجزك القادم. أقل مبلغ للتحويل{" "}
-              <strong className="text-sea">{cfg.minRedeem}</strong> نقطة (
-              {minRedeemLyd.toLocaleString("ar-LY", { maximumFractionDigits: 2 })} د.ل).
+              {c.useCreditBody(
+                fmtNum(locale, perDinar),
+                fmtNum(locale, cfg.minRedeem),
+                fmtNum(locale, minRedeemLyd, { maximumFractionDigits: 2 }),
+              )}
             </p>
           </div>
           <div className="card p-4">
-            <h3 className="font-bold text-sea">٢. عند شركائنا</h3>
+            <h3 className="font-bold text-sea">{c.usePartnersTitle}</h3>
             <p className="text-sm text-muted mt-1 leading-relaxed">
-              {cfg.partnersEnabled
-                ? "اختر شريكًا وقيمة القسيمة، فتظهر لك بكود قصير تعرضه عند الكاشير. تُخصم النقاط فور إصدار القسيمة، وإن لم تستخدمها خلال مدتها تعود نقاطك إليك تلقائيًا."
-                : "الصرف عند الشركاء غير مفعّل حاليًا."}
+              {cfg.partnersEnabled ? c.usePartnersOn : c.usePartnersOff}
             </p>
             {cfg.partnersEnabled ? (
               <Link href="/rewards/partners" className="text-link font-bold text-sm mt-2 inline-block">
-                شاهد الشركاء ←
+                {c.usePartnersLink}
               </Link>
             ) : null}
           </div>
@@ -189,59 +378,46 @@ export default async function RewardsPage() {
       </section>
 
       <section className="mt-4">
-        <h2 className="font-bold text-xl text-sea mb-2">الشروط بالتفصيل</h2>
+        <h2 className="font-bold text-xl text-sea mb-2">{c.termsTitle}</h2>
         <div className="card p-5 text-sm text-sea/80 space-y-3 leading-relaxed">
           <p>
-            <strong className="text-sea">من يستحق:</strong> أي عضو في تشاو برقم هاتف موثّق. النقاط
-            شخصية ومرتبطة بحسابك، ولا تُنقل إلى حساب آخر ولا تُورَّث ولا تُباع.
+            <B>{c.termsWhoLabel}</B> {c.termsWho}
           </p>
           <p>
-            <strong className="text-sea">متى تُضاف:</strong> بعد إتمام الحدث المستحق — إتمام
-            الإقامة، أو نشر التقييم، أو إتمام صديقك لأول حجز. لا تُضاف عند الطلب أو عند الدفع، لأن
-            الحجز قد يُلغى.
+            <B>{c.termsWhenLabel}</B> {c.termsWhen}
           </p>
           <p>
-            <strong className="text-sea">عند الإلغاء أو الاسترجاع:</strong> إن أُلغيت الإقامة التي
-            مُنحت عنها النقاط، يجوز لنا سحب النقاط المقابلة لها.
+            <B>{c.termsCancelLabel}</B> {c.termsCancel}
           </p>
           <p>
-            <strong className="text-sea">سوء الاستخدام:</strong> الحسابات المتعددة لنفس الشخص،
-            والدعوات الوهمية، ومحاولات التحايل على البرنامج — كلها تؤدي إلى سحب النقاط وإيقاف
-            المشاركة في البرنامج.
+            <B>{c.termsAbuseLabel}</B> {c.termsAbuse}
           </p>
           <p>
-            <strong className="text-sea">إغلاق الحساب:</strong> النقاط تسقط عند إغلاق الحساب. حوّل
-            رصيدك قبل الإغلاق.
+            <B>{c.termsCloseLabel}</B> {c.termsClose}
           </p>
           <p>
-            <strong className="text-sea">القسائم لدى الشركاء:</strong> القسيمة صالحة لدى الشريك
-            المحدد فقط، ولمرة واحدة، وخلال المدة الظاهرة عليها. لا تُستبدل نقدًا ولا يُعاد باقيها.
-            الشريك مسؤول عن جودة ما يقدّمه، وأي خلاف بشأن الخدمة نفسها يُحل معه — ونحن نساعد.
+            <B>{c.termsVouchersLabel}</B> {c.termsVouchers}
           </p>
           <p>
-            <strong className="text-sea">التعديل والإيقاف:</strong> يجوز لنا تعديل البرنامج أو
-            إيقافه بإشعار مسبق معقول. عند الإيقاف، تبقى النقاط التي في رصيدك قابلة للتحويل خلال
-            المدة التي نعلنها.
+            <B>{c.termsChangeLabel}</B> {c.termsChange}
           </p>
-          <p className="text-xs text-faint">
-            هذه الشروط جزء من شروط استخدام تشاو، وتخضع للقانون الليبي. آخر تحديث: أغسطس ٢٠٢٦.
-          </p>
+          <p className="text-xs text-faint">{c.termsLegal}</p>
         </div>
       </section>
 
       <div className="flex flex-wrap gap-2 mt-6">
         <Link href="/account?tab=points" className="btn-primary !py-2 !text-sm">
-          افتح نقاطي
+          {c.ctaPoints}
         </Link>
         {cfg.partnersEnabled ? (
           <Link href="/rewards/partners" className="chip">
-            شركاء الصرف
+            {c.ctaPartners}
           </Link>
         ) : null}
       </div>
 
       <footer className="mt-12 text-center text-sm text-faint">
-        <p>تشاو — ciao.ly · طرابلس، ليبيا</p>
+        <p>{c.footerPlace}</p>
       </footer>
     </main>
   );

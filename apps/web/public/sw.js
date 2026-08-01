@@ -26,11 +26,29 @@
  * Cache names are versioned; bumping the version makes activate() purge every
  * older cache, so a browser holding a poisoned shell heals itself on reload.
  */
-const VERSION = "v2";
+const VERSION = "v3";
 const SHELL_CACHE = `ciao-shell-${VERSION}`;
 const DATA_CACHE = `ciao-data-${VERSION}`;
 const ASSET_CACHE = `ciao-assets-${VERSION}`;
-const SHELL_URLS = ["/manifest.json", "/icon-192.svg", "/icon-512.svg", "/offline"];
+/*
+ * Both offline shells are precached. The site is bilingual and the fallback is
+ * the one page a user is guaranteed to reach at their worst moment — mid
+ * blackout, on a dying phone. Serving the Arabic shell to someone who has been
+ * reading English all session is the point at which they conclude the app is
+ * broken rather than that the network is.
+ */
+const SHELL_URLS = [
+  "/manifest.json",
+  "/icon-192.svg",
+  "/icon-512.svg",
+  "/offline",
+  "/en/offline",
+];
+
+/** The offline page matching the language of the page the user asked for. */
+function offlineShellFor(url) {
+  return url.pathname === "/en" || url.pathname.startsWith("/en/") ? "/en/offline" : "/offline";
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -119,10 +137,12 @@ self.addEventListener("fetch", (event) => {
   // 3. Navigations: network-first, so HTML and its chunks always come from the
   //    same build. Offline falls back to the last good copy, then /offline.
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, SHELL_CACHE, "/offline"));
+    event.respondWith(networkFirst(request, SHELL_CACHE, offlineShellFor(url)));
     return;
   }
 
   // 4. Everything else same-origin (images, fonts, manifest): cache-first.
-  event.respondWith(cacheFirst(request, SHELL_CACHE).catch(() => caches.match("/offline")));
+  event.respondWith(
+    cacheFirst(request, SHELL_CACHE).catch(() => caches.match(offlineShellFor(url))),
+  );
 });

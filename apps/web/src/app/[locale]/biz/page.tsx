@@ -11,9 +11,11 @@
  * nothing but a differently-shaped screen.
  */
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { Link, useLocale, useRouter } from "@/lib/locale";
+import { localePath, type Locale } from "@/lib/i18n";
 import { Logo } from "@/components/logo";
+import { LanguageToggle } from "@/components/language-toggle";
 import { localPhone } from "@ciao/shared";
 import { ApiError, api, clearTokens, ensureSession, sessionClaims, sessionRole } from "@/lib/api";
 import { OverviewTab } from "./overview";
@@ -25,20 +27,106 @@ import { AuditTab } from "./audit";
 import { LoyaltyTab } from "./loyalty";
 import { PromosTab } from "./promos";
 
-const TABS = [
-  ["overview", "📊", "نظرة عامة"],
-  ["catalogue", "🏝", "الأنشطة"],
-  ["finance", "💰", "المالية"],
-  ["people", "👥", "المستخدمون"],
-  ["loyalty", "⭐", "النقاط والشركاء"],
-  ["promos", "🎟", "أكواد الخصم"],
-  ["settings", "⚙️", "الإعدادات"],
-  ["audit", "📜", "سجل التدقيق"],
+const TAB_KEYS = [
+  "overview",
+  "catalogue",
+  "finance",
+  "people",
+  "loyalty",
+  "promos",
+  "settings",
+  "audit",
 ] as const;
 
-type TabKey = (typeof TABS)[number][0];
+type TabKey = (typeof TAB_KEYS)[number];
+
+const TAB_EMOJI: Record<TabKey, string> = {
+  overview: "📊",
+  catalogue: "🏝",
+  finance: "💰",
+  people: "👥",
+  loyalty: "⭐",
+  promos: "🎟",
+  settings: "⚙️",
+  audit: "📜",
+};
+
+/**
+ * Console copy.
+ *
+ * This is an internal tool, so the English is the register an operations team
+ * actually uses with each other: short labels, no reassurance, no marketing.
+ * The access-denied text says plainly what privilege is missing and who can
+ * grant it, because the alternative is a support message.
+ */
+const copy = {
+  ar: {
+    tabs: {
+      overview: "نظرة عامة",
+      catalogue: "الأنشطة",
+      finance: "المالية",
+      people: "المستخدمون",
+      loyalty: "النقاط والشركاء",
+      promos: "أكواد الخصم",
+      settings: "الإعدادات",
+      audit: "سجل التدقيق",
+    },
+    brand: "تشاو بزنس",
+    tagline: "النظام الداخلي لإدارة المنصّة",
+    ops: "لوحة العمليات",
+    app: "التطبيق",
+    checking: "جارٍ التحقق من الصلاحية…",
+    deniedTitle: "هذه المنطقة لفريق تشاو الداخلي",
+    signedInAs: (phone: string) => (
+      <>
+        أنت داخل بالرقم{" "}
+        <span className="font-bold text-sea" dir="ltr">
+          {phone}
+        </span>{" "}
+        — وهذا الحساب ليس من الفريق.
+      </>
+    ),
+    deniedBody:
+      "تحتاج صلاحية «عمليات» أو «مدير». ادخل برقم من الفريق، أو اطلب من المدير رفع صلاحية رقمك من شاشة «المستخدمون».",
+    otherNumber: "الدخول برقم آخر",
+    backToApp: "العودة للتطبيق",
+  },
+  en: {
+    tabs: {
+      overview: "Overview",
+      catalogue: "Businesses",
+      finance: "Finance",
+      people: "Users",
+      loyalty: "Points & partners",
+      promos: "Promo codes",
+      settings: "Settings",
+      audit: "Audit log",
+    },
+    brand: "Ciao Business",
+    tagline: "Internal platform administration",
+    ops: "Ops board",
+    app: "The app",
+    checking: "Checking your access…",
+    deniedTitle: "This area is for the Ciao internal team",
+    signedInAs: (phone: string) => (
+      <>
+        You are signed in as{" "}
+        <span className="font-bold text-sea" dir="ltr">
+          {phone}
+        </span>{" "}
+        — that account is not on the team.
+      </>
+    ),
+    deniedBody:
+      "You need the Operations or Admin role. Sign in with a team number, or ask an admin to raise your number's role from the Users screen.",
+    otherNumber: "Sign in with another number",
+    backToApp: "Back to the app",
+  },
+} satisfies Record<Locale, unknown>;
 
 function BizConsole() {
+  const locale = useLocale();
+  const c = copy[locale];
   const router = useRouter();
   const params = useSearchParams();
   const [tab, setTab] = useState<TabKey>((params.get("tab") as TabKey) ?? "overview");
@@ -64,7 +152,9 @@ function BizConsole() {
 
   function go(next: TabKey) {
     setTab(next);
-    window.history.replaceState(null, "", `/biz?tab=${next}`);
+    // Through `localePath`, or an English operator switching tab is silently
+    // dropped back onto the Arabic console.
+    window.history.replaceState(null, "", localePath(`/biz?tab=${next}`, locale));
   }
 
   const isAdmin = role === "admin";
@@ -77,38 +167,30 @@ function BizConsole() {
             <Logo size={34} />
           </Link>
           <div>
-            <h1 className="font-bold text-sea leading-tight">تشاو بزنس</h1>
-            <p className="text-[11px] text-faint">النظام الداخلي لإدارة المنصّة</p>
+            <h1 className="font-bold text-sea leading-tight">{c.brand}</h1>
+            <p className="text-[11px] text-faint">{c.tagline}</p>
           </div>
         </div>
         <nav className="flex items-center gap-2 text-xs font-bold text-sea">
           <Link href="/ops" className="chip">
-            لوحة العمليات
+            {c.ops}
           </Link>
           <Link href="/" className="chip">
-            التطبيق
+            {c.app}
           </Link>
+          <LanguageToggle />
         </nav>
       </header>
 
       {state === "loading" ? (
-        <p className="p-4 text-faint">جارٍ التحقق من الصلاحية…</p>
+        <p className="p-4 text-faint">{c.checking}</p>
       ) : state === "denied" ? (
         <div className="card p-6 text-center max-w-lg mx-auto">
-          <p className="font-bold text-sea">هذه المنطقة لفريق تشاو الداخلي</p>
+          <p className="font-bold text-sea">{c.deniedTitle}</p>
           {signedInAs ? (
-            <p className="text-sm text-faint mt-2">
-              أنت داخل بالرقم{" "}
-              <span className="font-bold text-sea" dir="ltr">
-                {localPhone(signedInAs)}
-              </span>{" "}
-              — وهذا الحساب ليس من الفريق.
-            </p>
+            <p className="text-sm text-faint mt-2">{c.signedInAs(localPhone(signedInAs))}</p>
           ) : null}
-          <p className="text-sm text-faint mt-2">
-            تحتاج صلاحية «عمليات» أو «مدير». ادخل برقم من الفريق، أو اطلب من المدير رفع صلاحية رقمك
-            من شاشة «المستخدمون».
-          </p>
+          <p className="text-sm text-faint mt-2">{c.deniedBody}</p>
           {/* A dead end with no way out is a support ticket. Give them the door. */}
           <div className="flex flex-wrap gap-2 justify-center mt-4">
             <button
@@ -118,17 +200,17 @@ function BizConsole() {
                 router.push("/login?next=/biz");
               }}
             >
-              الدخول برقم آخر
+              {c.otherNumber}
             </button>
             <Link href="/" className="chip">
-              العودة للتطبيق
+              {c.backToApp}
             </Link>
           </div>
         </div>
       ) : (
         <>
           <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
-            {TABS.map(([key, emoji, label]) => (
+            {TAB_KEYS.map((key) => (
               <button
                 key={key}
                 onClick={() => go(key)}
@@ -136,8 +218,8 @@ function BizConsole() {
                   tab === key ? "bg-sea text-white" : "bg-surface text-muted hover:bg-sand"
                 }`}
               >
-                <span aria-hidden>{emoji}</span>
-                {label}
+                <span aria-hidden>{TAB_EMOJI[key]}</span>
+                {c.tabs[key]}
               </button>
             ))}
           </div>

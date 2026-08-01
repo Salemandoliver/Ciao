@@ -406,6 +406,9 @@ export async function businessRoutes(app: FastifyInstance) {
         listingId: r.listing.id,
         slug: r.listing.slug,
         titleAr: r.listing.titleAr,
+        // Enough for the console to show at a glance which listings still have
+        // no English; the English description is only fetched when editing.
+        titleEn: r.listing.titleEn,
         status: r.listing.status,
         vertical: r.listing.serviceCategory ? "service" : r.venue.type,
         serviceCategory: r.listing.serviceCategory,
@@ -603,6 +606,15 @@ export async function businessRoutes(app: FastifyInstance) {
       .object({
         titleAr: z.string().min(3).max(200).optional(),
         descriptionAr: z.string().max(3000).optional(),
+        /*
+         * English copy is optional and stays optional. A listing with no
+         * English falls back to the Arabic on the public site (marked as
+         * Arabic), which is the honest outcome; storing null rather than an
+         * empty string keeps "not written yet" distinguishable from "written
+         * and then emptied" for anyone auditing translation coverage.
+         */
+        titleEn: z.string().max(200).nullable().optional(),
+        descriptionEn: z.string().max(3000).nullable().optional(),
         houseRulesAr: z.string().max(3000).optional(),
         baseNightly: z.number().int().min(0).optional(),
         dayUsePrice: z.number().int().min(0).nullable().optional(),

@@ -1,11 +1,50 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { Link, useLocale, useRouter } from "@/lib/locale";
 import { Logo } from "@/components/logo";
+import { LanguageToggle } from "@/components/language-toggle";
 import { api, setTokens, ApiError } from "@/lib/api";
+import type { Locale } from "@/lib/i18n";
+
+const copy = {
+  ar: {
+    title: "الدخول برقم الهاتف",
+    phonePlaceholder: "091 2345678",
+    sendCode: "أرسل رمز التحقق",
+    sendFailed: "تعذر إرسال الرمز",
+    demoCode: (code: string) => `وضع العرض التجريبي — رمزك: ${code}`,
+    signIn: "دخول",
+    wrongCode: "رمز غير صحيح",
+    passkeyCancelled: "أُلغيت العملية",
+    noPasskey: "لا يوجد مفتاح دخول على هذا الجهاز — ادخل برقمك ثم فعّله من الأمان",
+    or: "أو",
+    passkeySignIn: "🔐 الدخول بالبصمة",
+    passkeyNote: "أسرع، ومجاني، ويشتغل حتى بدون شبكة — فعّله مرة واحدة من إعدادات الأمان.",
+    noPasswords: "لا كلمات مرور ولا بريد إلكتروني — رقمك هو حسابك.",
+  },
+  en: {
+    title: "Sign in with your phone",
+    phonePlaceholder: "091 2345678",
+    sendCode: "Send the code",
+    sendFailed: "Could not send the code",
+    demoCode: (code: string) => `Demo mode — your code is ${code}`,
+    signIn: "Sign in",
+    wrongCode: "That code is not right",
+    passkeyCancelled: "Cancelled",
+    noPasskey:
+      "There is no passkey on this device — sign in with your number, then turn one on under Security",
+    or: "or",
+    passkeySignIn: "🔐 Sign in with your fingerprint",
+    passkeyNote:
+      "Faster, free, and it works with no signal — set it up once from your security settings.",
+    noPasswords: "No passwords and no email — your number is your account.",
+  },
+} satisfies Record<Locale, unknown>;
 
 function LoginForm() {
+  const locale = useLocale();
+  const c = copy[locale];
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") ?? "/my";
@@ -43,14 +82,11 @@ function LoginForm() {
         { method: "POST", body: JSON.stringify({ response }) },
       );
       setTokens(r.accessToken, r.refreshToken);
+      // `next` stays a bare path — the wrapped router puts the language on.
       router.push(next);
     } catch (e) {
       const name = (e as { name?: string })?.name;
-      setError(
-        name === "NotAllowedError"
-          ? "أُلغيت العملية"
-          : "لا يوجد مفتاح دخول على هذا الجهاز — ادخل برقمك ثم فعّله من الأمان",
-      );
+      setError(name === "NotAllowedError" ? c.passkeyCancelled : c.noPasskey);
     } finally {
       setBusy(false);
     }
@@ -67,7 +103,7 @@ function LoginForm() {
       if (r.devCode) setDevCode(r.devCode);
       setStage("otp");
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "تعذر إرسال الرمز");
+      setError(e instanceof ApiError ? e.message : c.sendFailed);
     } finally {
       setBusy(false);
     }
@@ -84,7 +120,7 @@ function LoginForm() {
       setTokens(r.accessToken, r.refreshToken);
       router.push(next);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "رمز غير صحيح");
+      setError(e instanceof ApiError ? e.message : c.wrongCode);
     } finally {
       setBusy(false);
     }
@@ -92,18 +128,20 @@ function LoginForm() {
 
   return (
     <div className="card p-6 space-y-4">
-      <h1 className="font-bold text-xl text-sea">الدخول برقم الهاتف</h1>
+      <h1 className="font-bold text-xl text-sea">{c.title}</h1>
       {stage === "phone" ? (
         <>
+          {/* Numbers stay in the local 09… form in both languages — this is
+              the number the person hands to a taxi driver. */}
           <input
             dir="ltr"
             className="input text-center"
-            placeholder="091 2345678"
+            placeholder={c.phonePlaceholder}
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
           <button className="btn-primary w-full" onClick={request} disabled={busy || phone.replace(/\D/g, "").length < 9}>
-            أرسل رمز التحقق
+            {c.sendCode}
           </button>
         </>
       ) : (
@@ -116,9 +154,9 @@ function LoginForm() {
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />
-          {devCode ? <p className="text-xs text-link">وضع العرض التجريبي — رمزك: {devCode}</p> : null}
+          {devCode ? <p className="text-xs text-link">{c.demoCode(devCode)}</p> : null}
           <button className="btn-primary w-full" onClick={verify} disabled={busy || code.length !== 6}>
-            دخول
+            {c.signIn}
           </button>
         </>
       )}
@@ -128,7 +166,7 @@ function LoginForm() {
         <>
           <div className="flex items-center gap-2 text-xs text-faint">
             <span className="h-px flex-1 bg-sea/15" />
-            أو
+            {c.or}
             <span className="h-px flex-1 bg-sea/15" />
           </div>
           <button
@@ -136,17 +174,13 @@ function LoginForm() {
             onClick={passkeyLogin}
             disabled={busy}
           >
-            🔐 الدخول بالبصمة
+            {c.passkeySignIn}
           </button>
-          <p className="text-[11px] text-faint text-center">
-            أسرع، ومجاني، ويشتغل حتى بدون شبكة — فعّله مرة واحدة من إعدادات الأمان.
-          </p>
+          <p className="text-[11px] text-faint text-center">{c.passkeyNote}</p>
         </>
       ) : null}
 
-      <p className="text-xs text-faint">
-        لا كلمات مرور ولا بريد إلكتروني — رقمك هو حسابك.
-      </p>
+      <p className="text-xs text-faint">{c.noPasswords}</p>
     </div>
   );
 }
@@ -154,8 +188,9 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <main className="mx-auto max-w-md px-4 pb-16">
-      <header className="py-4">
+      <header className="flex items-center justify-between py-4">
         <Link href="/"><Logo size={36} /></Link>
+        <LanguageToggle />
       </header>
       <Suspense>
         <LoginForm />

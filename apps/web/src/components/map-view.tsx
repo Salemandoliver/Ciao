@@ -11,7 +11,19 @@
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import { trackClient } from "@/lib/tracker";
+import { useLocale } from "@/lib/locale";
+import { fmtNum } from "@/lib/vocab";
+import { dirOf, type Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
+
+/**
+ * Pin labels. A price pin has room for two or three words, so these are the
+ * shortest honest form: what you would say pointing at the map.
+ */
+const copy = {
+  ar: { dinars: (n: string) => `${n} د.ل`, service: "خدمة", packages: "باقات" },
+  en: { dinars: (n: string) => `${n} LYD`, service: "Service", packages: "Packages" },
+} satisfies Record<Locale, unknown>;
 
 type MarkerHandle = { setIcon(icon: unknown): void };
 
@@ -28,6 +40,7 @@ export function MapView({
   onSelect?: (id: string) => void;
   className?: string;
 }) {
+  const locale = useLocale();
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<{ remove(): void; setView(c: [number, number], z: number): void } | null>(
     null,
@@ -70,7 +83,9 @@ export function MapView({
           const lat = Number(item.approxLocation!.lat);
           const lng = Number(item.approxLocation!.lng);
           bounds.push([lat, lng]);
-          const marker = L.marker([lat, lng], { icon: priceIcon(L, item, false) }).addTo(map);
+          const marker = L.marker([lat, lng], {
+            icon: priceIcon(L, item, false, locale),
+          }).addTo(map);
           marker.on("click", () => {
             onSelectRef.current?.(item.id);
             trackClient("map.pin_selected", { listingId: item.id, vertical });
@@ -98,7 +113,7 @@ export function MapView({
       markersRef.current = {};
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items]);
+  }, [items, locale]);
 
   // Repaint pins when the selection changes (either direction: map ⇄ list).
   useEffect(() => {
@@ -106,26 +121,30 @@ export function MapView({
     if (!L) return;
     for (const item of items) {
       const m = markersRef.current[item.id];
-      if (m) m.setIcon(priceIcon(L, item, item.id === selectedId));
+      if (m) m.setIcon(priceIcon(L, item, item.id === selectedId, locale));
     }
-  }, [selectedId, items]);
+  }, [selectedId, items, locale]);
 
   return <div ref={ref} className={className} />;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function priceIcon(L: any, item: PublicListing, active: boolean) {
+function priceIcon(L: any, item: PublicListing, active: boolean, locale: Locale) {
+  const c = copy[locale];
   const price =
     item.baseNightly > 0
-      ? `${Math.round(item.baseNightly / 1000).toLocaleString("ar-LY")} د.ل`
+      ? c.dinars(fmtNum(locale, Math.round(item.baseNightly / 1000)))
       : item.type === "service"
-        ? "خدمة"
-        : "باقات";
+        ? c.service
+        : c.packages;
   const bg = active ? "#1B4F72" : "#fff";
   const fg = active ? "#fff" : "#1B4F72";
+  // The pin is raw HTML handed to Leaflet, outside React and outside the
+  // document's `dir`, so it has to state its own direction and face.
+  const font = locale === "en" ? "Inter,Almarai,Tahoma,sans-serif" : "Almarai,Tahoma,sans-serif";
   return L.divIcon({
     className: "",
-    html: `<div style="background:${bg};border:1.5px solid #1B4F72;color:${fg};font-weight:800;font-family:Almarai,Tahoma,sans-serif;font-size:12px;padding:3px 9px;border-radius:999px;box-shadow:0 1px 5px rgba(0,0,0,.28);white-space:nowrap;direction:rtl;transform:scale(${active ? 1.12 : 1});transition:transform .15s">${price}</div>`,
+    html: `<div style="background:${bg};border:1.5px solid #1B4F72;color:${fg};font-weight:800;font-family:${font};font-size:12px;padding:3px 9px;border-radius:999px;box-shadow:0 1px 5px rgba(0,0,0,.28);white-space:nowrap;direction:${dirOf(locale)};transform:scale(${active ? 1.12 : 1});transition:transform .15s">${price}</div>`,
     iconAnchor: [24, 14],
   });
 }

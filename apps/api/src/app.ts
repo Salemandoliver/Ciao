@@ -99,7 +99,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     const status = (err as { statusCode?: number }).statusCode;
     if (typeof status === "number" && status >= 400 && status < 500) {
       const def = status === 429 ? ERRORS.RATE_LIMITED : ERRORS.VALIDATION;
-      req.log.warn({ err: err.message, status }, "client error");
+      req.log.warn({ err: String((err as Error)?.message ?? err), status }, "client error");
       return reply
         .status(status)
         .send({ error: { code: def.code, message: locale === "en" ? def.en : def.ar } });

@@ -5,24 +5,125 @@
  * Multi-rail choice; Sadad runs the OTP flow; card/tlync redirect.
  */
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useLocale } from "@/lib/locale";
 import { api, ensureSession, fmtLyd, setTokens, ApiError } from "@/lib/api";
 import type { PublicListing, Quote } from "@/lib/types";
 import { localPhone, normalizePhone } from "@ciao/shared";
 import { trackClient } from "@/lib/tracker";
+import { listingTitle } from "@/lib/content";
+import { PAYMENT_RAILS, term } from "@/lib/vocab";
+import type { Locale } from "@/lib/i18n";
 
 type Step = "dates" | "phone" | "otp" | "rail" | "sadad_otp" | "done";
 
-const RAIL_AR: Record<string, string> = {
-  sadad: "سداد (المدار)",
-  adfali: "إدفعلي (مصرف التجارة والتنمية)",
-  local_card: "بطاقة مصرفية محلية",
-  tlync: "تطبيقات المصارف (T-Lync)",
-  mpgs: "Visa / Mastercard دولية",
-};
+/**
+ * The money words are the ones people read hardest, so they say exactly what
+ * the Arabic says: a deposit that holds the date, the rest in cash on arrival,
+ * and what happens if the host says no. Nothing is softened and nothing is
+ * added — a promise invented in English is a promise the host never made.
+ *
+ * The WhatsApp message is written in the reader's language on purpose: it goes
+ * to the Ciao team, who answer in both, and it arrives with the listing title
+ * and slug so the right place is never in doubt.
+ */
+const copy = {
+  ar: {
+    otpSendFailed: "تعذر إرسال الرمز",
+    otpWrong: "رمز غير صحيح",
+    bookingFailed: "تعذر إنشاء الحجز",
+    paymentFailed: "لم يكتمل الدفع — جرّب مرة أخرى",
+
+    quoteTitle: "اطلب عرض سعر",
+    quoteBody:
+      "الخدمات تُسعَّر حسب مناسبتك — أرسل تاريخك وعدد الضيوف ويرد عليك المزوّد بعرض واضح عبر فريق تشاو.",
+    quoteCta: "💬 اطلب عرض سعر (واتساب)",
+    quoteNote: "الحجز والدفع عبر تشاو قادم للخدمات — حاليًا فريقنا يوصلك بالمزوّد المعتمد.",
+    quoteWa: (title: string, slug: string) => `أريد عرض سعر من ${title} (${slug})`,
+
+    viewingTitle: "احجز موعد معاينة",
+    viewingBody:
+      "الأعراس لا تُحجز بدون معاينة — نرتب لك زيارة للقاعة ثم تقفل التاريخ بعربون 10٪ أونلاين مع عقد PDF واضح.",
+    viewingCta: "📅 اطلب موعد معاينة (واتساب)",
+    viewingNote: "الحجز الذاتي الكامل للقاعات قادم — حاليًا فريق تشاو يرافقك خطوة بخطوة.",
+    viewingWa: (title: string, slug: string) => `أريد معاينة ${title} (${slug})`,
+
+    bookTitle: "احجز إقامتك",
+    checkIn: "الوصول",
+    checkOut: "المغادرة",
+    nights: (n: number, price: string) => `${n} ليالٍ × ${price}`,
+    depositNow: "العربون الآن (٢٠٪)",
+    balance: "الباقي نقدًا عند الوصول",
+    refundNote:
+      "إذا رفض المضيف أو انتهت مهلة التأكيد، يرجع عربونك كاملًا فورًا كرصيد (+5٪ هدية) أو تحويلًا بنكيًا.",
+    bookNow: (deposit: string) => `احجز الآن — العربون ${deposit}`,
+
+    phoneLabel: "رقم هاتفك (يصلك رمز تحقق)",
+    sendCode: "أرسل الرمز",
+    otpLabel: "رمز التحقق",
+    devCode: (code: string) => `وضع العرض التجريبي — رمزك: ${code}`,
+    confirm: "تأكيد",
+
+    railTitle: "اختر طريقة دفع العربون:",
+    birthYear: "سنة الميلاد (لتحقق سداد)",
+    booking: "جارٍ الحجز…",
+    payDeposit: "ادفع العربون واقفل التاريخ",
+
+    sadadOtp: "أدخل رمز سداد الذي وصلك برسالة:",
+    confirmPayment: "تأكيد الدفع",
+  },
+  en: {
+    otpSendFailed: "We could not send the code",
+    otpWrong: "That code is not right",
+    bookingFailed: "We could not create the booking",
+    paymentFailed: "The payment did not go through — try again",
+
+    quoteTitle: "Ask for a quote",
+    quoteBody:
+      "Services are priced around your occasion — send your date and guest count and the provider comes back with a clear quote through the Ciao team.",
+    quoteCta: "💬 Ask for a quote (WhatsApp)",
+    quoteNote:
+      "Booking and paying through Ciao is coming for services — for now our team connects you to the verified provider.",
+    quoteWa: (title: string, slug: string) => `I'd like a quote from ${title} (${slug})`,
+
+    viewingTitle: "Book a viewing",
+    viewingBody:
+      "Nobody books a wedding without seeing the hall — we arrange the visit, then you hold the date with a 10% deposit online and a clear PDF contract.",
+    viewingCta: "📅 Ask for a viewing (WhatsApp)",
+    viewingNote:
+      "Full self-service booking for halls is coming — for now the Ciao team walks you through it step by step.",
+    viewingWa: (title: string, slug: string) => `I'd like to view ${title} (${slug})`,
+
+    bookTitle: "Book your stay",
+    checkIn: "Check-in",
+    checkOut: "Check-out",
+    nights: (n: number, price: string) => `${n} nights × ${price}`,
+    depositNow: "Deposit now (20%)",
+    balance: "Rest in cash on arrival",
+    refundNote:
+      "If the host declines or the confirmation window runs out, your deposit comes back in full straight away — as credit (+5% on top) or a bank transfer.",
+    bookNow: (deposit: string) => `Book now — deposit ${deposit}`,
+
+    phoneLabel: "Your phone number (we send a code)",
+    sendCode: "Send the code",
+    otpLabel: "Verification code",
+    devCode: (code: string) => `Demo mode — your code: ${code}`,
+    confirm: "Confirm",
+
+    railTitle: "Choose how to pay the deposit:",
+    birthYear: "Year of birth (for the Sadad check)",
+    booking: "Booking…",
+    payDeposit: "Pay the deposit and hold the date",
+
+    sadadOtp: "Enter the Sadad code you were sent:",
+    confirmPayment: "Confirm payment",
+  },
+} satisfies Record<Locale, unknown>;
 
 export function BookingWidget({ listing }: { listing: PublicListing }) {
   const router = useRouter();
+  const locale = useLocale();
+  const c = copy[locale];
+  const title = listingTitle(locale, listing).text;
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -72,7 +173,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
       if (r.devCode) setDevCode(r.devCode);
       setStep("otp");
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "تعذر إرسال الرمز");
+      setError(e instanceof ApiError ? e.message : c.otpSendFailed);
     } finally {
       setBusy(false);
     }
@@ -90,7 +191,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
       await loadRails();
       setStep("rail");
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "رمز غير صحيح");
+      setError(e instanceof ApiError ? e.message : c.otpWrong);
     } finally {
       setBusy(false);
     }
@@ -142,7 +243,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
         router.push(`/booking/${r.code}`);
       }
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "تعذر إنشاء الحجز");
+      setError(e instanceof ApiError ? e.message : c.bookingFailed);
     } finally {
       setBusy(false);
     }
@@ -158,7 +259,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
       });
       router.push(`/booking/${bookingCode}`);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "لم يكتمل الدفع — جرّب مرة أخرى");
+      setError(e instanceof ApiError ? e.message : c.paymentFailed);
     } finally {
       setBusy(false);
     }
@@ -167,22 +268,17 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
   if (listing.type === "service") {
     return (
       <div className="card p-4 sticky top-4">
-        <h2 className="font-bold text-sea text-lg">اطلب عرض سعر</h2>
-        <p className="text-sm text-muted mt-1">
-          الخدمات تُسعَّر حسب مناسبتك — أرسل تاريخك وعدد الضيوف ويرد عليك المزوّد
-          بعرض واضح عبر فريق تشاو.
-        </p>
+        <h2 className="font-bold text-sea text-lg">{c.quoteTitle}</h2>
+        <p className="text-sm text-muted mt-1">{c.quoteBody}</p>
         <a
           className="btn-primary block text-center mt-4"
           href={`https://wa.me/218910000001?text=${encodeURIComponent(
-            `أريد عرض سعر من ${listing.titleAr} (${listing.slug})`,
+            c.quoteWa(title, listing.slug),
           )}`}
         >
-          💬 اطلب عرض سعر (واتساب)
+          {c.quoteCta}
         </a>
-        <p className="text-xs text-faint mt-2 text-center">
-          الحجز والدفع عبر تشاو قادم للخدمات — حاليًا فريقنا يوصلك بالمزوّد المعتمد.
-        </p>
+        <p className="text-xs text-faint mt-2 text-center">{c.quoteNote}</p>
       </div>
     );
   }
@@ -190,34 +286,29 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
   if (listing.type === "hall") {
     return (
       <div className="card p-4 sticky top-4">
-        <h2 className="font-bold text-sea text-lg">احجز موعد معاينة</h2>
-        <p className="text-sm text-muted mt-1">
-          الأعراس لا تُحجز بدون معاينة — نرتب لك زيارة للقاعة ثم تقفل التاريخ بعربون
-          10٪ أونلاين مع عقد PDF واضح.
-        </p>
+        <h2 className="font-bold text-sea text-lg">{c.viewingTitle}</h2>
+        <p className="text-sm text-muted mt-1">{c.viewingBody}</p>
         <a
           className="btn-primary block text-center mt-4"
           href={`https://wa.me/218910000001?text=${encodeURIComponent(
-            `أريد معاينة ${listing.titleAr} (${listing.slug})`,
+            c.viewingWa(title, listing.slug),
           )}`}
         >
-          📅 اطلب موعد معاينة (واتساب)
+          {c.viewingCta}
         </a>
-        <p className="text-xs text-faint mt-2 text-center">
-          الحجز الذاتي الكامل للقاعات قادم — حاليًا فريق تشاو يرافقك خطوة بخطوة.
-        </p>
+        <p className="text-xs text-faint mt-2 text-center">{c.viewingNote}</p>
       </div>
     );
   }
 
   return (
     <div className="card p-4 sticky top-4 space-y-3">
-      <h2 className="font-bold text-sea text-lg">احجز إقامتك</h2>
+      <h2 className="font-bold text-sea text-lg">{c.bookTitle}</h2>
 
       {step === "dates" || quote === null ? (
         <>
           <label className="block text-sm font-bold">
-            الوصول
+            {c.checkIn}
             <input
               type="date"
               className="input mt-1"
@@ -227,7 +318,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
             />
           </label>
           <label className="block text-sm font-bold">
-            المغادرة
+            {c.checkOut}
             <input
               type="date"
               className="input mt-1"
@@ -242,36 +333,31 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
       {quote ? (
         <div className="rounded-xl bg-sand p-3 text-sm space-y-1">
           <div className="flex justify-between">
-            <span>
-              {quote.nights.length} ليالٍ × {fmtLyd(quote.nights[0]?.price ?? 0)}
-            </span>
-            <span className="font-bold">{fmtLyd(quote.total)}</span>
+            <span>{c.nights(quote.nights.length, fmtLyd(quote.nights[0]?.price ?? 0, locale))}</span>
+            <span className="font-bold">{fmtLyd(quote.total, locale)}</span>
           </div>
           <div className="flex justify-between text-sea font-bold text-base">
-            <span>العربون الآن (٢٠٪)</span>
-            <span>{fmtLyd(quote.deposit)}</span>
+            <span>{c.depositNow}</span>
+            <span>{fmtLyd(quote.deposit, locale)}</span>
           </div>
           <div className="flex justify-between text-muted">
-            <span>الباقي نقدًا عند الوصول</span>
-            <span>{fmtLyd(quote.balanceOnArrival)}</span>
+            <span>{c.balance}</span>
+            <span>{fmtLyd(quote.balanceOnArrival, locale)}</span>
           </div>
-          <p className="text-xs text-faint pt-1">
-            إذا رفض المضيف أو انتهت مهلة التأكيد، يرجع عربونك كاملًا فورًا كرصيد (+5٪
-            هدية) أو تحويلًا بنكيًا.
-          </p>
+          <p className="text-xs text-faint pt-1">{c.refundNote}</p>
         </div>
       ) : null}
 
       {step === "dates" && quote ? (
         <button className="btn-amber w-full" onClick={startBooking} disabled={busy}>
-          احجز الآن — العربون {fmtLyd(quote.deposit)}
+          {c.bookNow(fmtLyd(quote.deposit, locale))}
         </button>
       ) : null}
 
       {step === "phone" ? (
         <div className="space-y-2">
           <label className="block text-sm font-bold">
-            رقم هاتفك (يصلك رمز تحقق)
+            {c.phoneLabel}
             <input
               dir="ltr"
               className="input mt-1 text-center"
@@ -281,7 +367,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
             />
           </label>
           <button className="btn-primary w-full" onClick={requestOtp} disabled={busy || phone.replace(/\D/g, "").length < 9}>
-            أرسل الرمز
+            {c.sendCode}
           </button>
         </div>
       ) : null}
@@ -289,7 +375,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
       {step === "otp" ? (
         <div className="space-y-2">
           <label className="block text-sm font-bold">
-            رمز التحقق
+            {c.otpLabel}
             <input
               dir="ltr"
               inputMode="numeric"
@@ -299,18 +385,16 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
               onChange={(e) => setOtp(e.target.value)}
             />
           </label>
-          {devCode ? (
-            <p className="text-xs text-link">وضع العرض التجريبي — رمزك: {devCode}</p>
-          ) : null}
+          {devCode ? <p className="text-xs text-link">{c.devCode(devCode)}</p> : null}
           <button className="btn-primary w-full" onClick={verifyOtp} disabled={busy || otp.length !== 6}>
-            تأكيد
+            {c.confirm}
           </button>
         </div>
       ) : null}
 
       {step === "rail" ? (
         <div className="space-y-2">
-          <p className="text-sm font-bold">اختر طريقة دفع العربون:</p>
+          <p className="text-sm font-bold">{c.railTitle}</p>
           {rails.map((r) => (
             <label
               key={r}
@@ -327,14 +411,14 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
                   trackClient("rail.selected", { rail: r });
                 }}
               />
-              <span className="text-sm font-bold">{RAIL_AR[r] ?? r}</span>
+              <span className="text-sm font-bold">{term(PAYMENT_RAILS, locale, r)}</span>
             </label>
           ))}
           {rail === "sadad" ? (
             <input
               dir="ltr"
               className="input"
-              placeholder="سنة الميلاد (لتحقق سداد)"
+              placeholder={c.birthYear}
               value={sadadBirthYear}
               onChange={(e) => setSadadBirthYear(e.target.value)}
             />
@@ -344,14 +428,14 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
             onClick={submitBooking}
             disabled={busy || !rail || (rail === "sadad" && sadadBirthYear.length !== 4)}
           >
-            {busy ? "جارٍ الحجز…" : "ادفع العربون واقفل التاريخ"}
+            {busy ? c.booking : c.payDeposit}
           </button>
         </div>
       ) : null}
 
       {step === "sadad_otp" ? (
         <div className="space-y-2">
-          <p className="text-sm">أدخل رمز سداد الذي وصلك برسالة:</p>
+          <p className="text-sm">{c.sadadOtp}</p>
           <input
             dir="ltr"
             inputMode="numeric"
@@ -361,7 +445,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
             onChange={(e) => setSadadOtp(e.target.value)}
           />
           <button className="btn-primary w-full" onClick={confirmSadad} disabled={busy}>
-            تأكيد الدفع
+            {c.confirmPayment}
           </button>
         </div>
       ) : null}

@@ -94,7 +94,14 @@ export async function bookingRoutes(app: FastifyInstance) {
       cancellationTier: b.cancellationTier,
       confirmationDeadline: b.confirmationDeadline,
       listing: listing
-        ? { slug: listing.slug, titleAr: listing.titleAr, media: listing.media }
+        ? {
+            slug: listing.slug,
+            titleAr: listing.titleAr,
+            // The voucher is the one screen a guest opens at the gate. If a
+            // listing has an English title, it belongs here too.
+            titleEn: listing.titleEn,
+            media: listing.media,
+          }
         : null,
       venue: venue
         ? {

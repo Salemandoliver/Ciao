@@ -85,7 +85,7 @@ export interface BookingDetail {
   balanceOnArrival: number;
   cancellationTier: string;
   confirmationDeadline?: string;
-  listing?: { slug: string; titleAr: string; media: { url: string }[] };
+  listing?: { slug: string; titleAr: string; titleEn?: string; media: { url: string }[] };
   venue?: {
     nameAr: string;
     city: string;

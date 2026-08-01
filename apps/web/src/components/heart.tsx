@@ -2,6 +2,13 @@
 /** The wishlist heart — Airbnb-familiar, satisfying, and a rich intent signal. */
 import { useEffect, useState } from "react";
 import { hydrateWishlist, isSaved, onWishlistChange, toggleSaved } from "@/lib/wishlist";
+import { useLocale } from "@/lib/locale";
+import type { Locale } from "@/lib/i18n";
+
+const copy = {
+  ar: { add: "أضف إلى المفضلة", remove: "أزل من المفضلة" },
+  en: { add: "Save", remove: "Remove from saved" },
+} satisfies Record<Locale, unknown>;
 
 let hydrated = false;
 
@@ -14,6 +21,8 @@ export function Heart({
   meta?: { vertical?: string; city?: string; area?: string; priceNightly?: number };
   size?: number;
 }) {
+  const locale = useLocale();
+  const c = copy[locale];
   const [saved, setSaved] = useState(false);
   const [pop, setPop] = useState(false);
 
@@ -28,7 +37,7 @@ export function Heart({
 
   return (
     <button
-      aria-label={saved ? "أزل من المفضلة" : "أضف إلى المفضلة"}
+      aria-label={saved ? c.remove : c.add}
       className="rounded-full bg-white/85 shadow flex items-center justify-center active:scale-95 transition-transform"
       style={{ width: size, height: size }}
       onClick={async (e) => {

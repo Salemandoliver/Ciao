@@ -1,22 +1,54 @@
-import Link from "next/link";
+import { Link } from "@/lib/locale";
 import { Logo } from "@/components/logo";
+import { LanguageToggle } from "@/components/language-toggle";
 import { HeroSearch } from "@/components/hero-search";
 import { TrackEvent } from "@/components/track";
 import { SearchResults } from "./results";
 import { API_URL } from "@/lib/api";
-import { SERVICE_CATEGORIES } from "@/lib/services";
+import { serviceCategories } from "@/lib/services";
+import { VERTICALS, term } from "@/lib/vocab";
+import { asLocale, type Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The filter chips are the product (§8.4), so they are written, not translated.
+ * «ستر» is about screening and privacy for the women in the party — what the
+ * walls, the pool and the approach actually allow — so English says "privacy",
+ * never anything about how anyone should behave.
+ */
+const copy = {
+  ar: {
+    highPrivacy: "🔒 ستر عالي",
+    generator: "⚡ مولّد",
+    generatorBackup: "⚡ مولّد احتياطي",
+    familyOnly: "👨‍👩‍👧 عائلات فقط",
+    bedrooms: "🛏 +3 غرف",
+    womenGuests: "👥 +400 ضيفة",
+  },
+  en: {
+    highPrivacy: "🔒 High privacy",
+    generator: "⚡ Generator",
+    generatorBackup: "⚡ Backup generator",
+    familyOnly: "👨‍👩‍👧 Families only",
+    bedrooms: "🛏 3+ bedrooms",
+    womenGuests: "👥 400+ women guests",
+  },
+} satisfies Record<Locale, unknown>;
+
 /** Search with the cultural filters that ARE the product (§8.4). */
 export default async function SearchPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ locale: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const params = await searchParams;
-  const type = params.type === "hall" ? "hall" : params.type === "service" ? "service" : "coast";
+  const locale = asLocale((await params).locale);
+  const c = copy[locale];
+  const sp = await searchParams;
+  const type = sp.type === "hall" ? "hall" : sp.type === "service" ? "service" : "coast";
   const qs = new URLSearchParams({ type, limit: "30" });
   for (const key of [
     "city",
@@ -31,7 +63,7 @@ export default async function SearchPage({
     "checkOut",
     "serviceCategory",
   ]) {
-    if (params[key]) qs.set(key, params[key]!);
+    if (sp[key]) qs.set(key, sp[key]!);
   }
 
   let items: PublicListing[] = [];
@@ -58,21 +90,22 @@ export default async function SearchPage({
         <Link href="/">
           <Logo size={36} />
         </Link>
-        <h1 className="font-bold text-sea">
-          {type === "coast" ? "شاليهات واستراحات" : type === "service" ? "خدمات المناسبات" : "قاعات الأفراح"}
-        </h1>
+        <h1 className="font-bold text-sea">{term(VERTICALS, locale, type)}</h1>
+        <div className="ms-auto">
+          <LanguageToggle />
+        </div>
       </header>
 
       <TrackEvent
         name="search.performed"
         props={{
           vertical: type,
-          city: params.city,
-          area: params.area,
-          checkIn: params.checkIn,
-          checkOut: params.checkOut,
-          guests: params.maxGuests ? Number(params.maxGuests) : undefined,
-          filters: ["minPrivacy", "generator", "familyOnly", "minBedrooms", "womensCapacity"].filter((k) => params[k]),
+          city: sp.city,
+          area: sp.area,
+          checkIn: sp.checkIn,
+          checkOut: sp.checkOut,
+          guests: sp.maxGuests ? Number(sp.maxGuests) : undefined,
+          filters: ["minPrivacy", "generator", "familyOnly", "minBedrooms", "womensCapacity"].filter((k) => sp[k]),
           resultCount: items.length,
         }}
       />
@@ -81,12 +114,12 @@ export default async function SearchPage({
           compact
           initial={{
             type,
-            city: params.city,
-            area: params.area,
-            checkIn: params.checkIn,
-            checkOut: params.checkOut,
-            guests: params.maxGuests ?? params.womensCapacity,
-            serviceCategory: params.serviceCategory,
+            city: sp.city,
+            area: sp.area,
+            checkIn: sp.checkIn,
+            checkOut: sp.checkOut,
+            guests: sp.maxGuests ?? sp.womensCapacity,
+            serviceCategory: sp.serviceCategory,
           }}
         />
       </div>
@@ -96,37 +129,37 @@ export default async function SearchPage({
         {type === "coast" ? (
           <>
             <Link
-              href={filterLink({ minPrivacy: params.minPrivacy ? null : "80" })}
-              className={`chip ${params.minPrivacy ? "!bg-sea !text-white" : ""}`}
+              href={filterLink({ minPrivacy: sp.minPrivacy ? null : "80" })}
+              className={`chip ${sp.minPrivacy ? "!bg-sea !text-white" : ""}`}
             >
-              🔒 ستر عالي
+              {c.highPrivacy}
             </Link>
             <Link
-              href={filterLink({ generator: params.generator ? null : "true" })}
-              className={`chip ${params.generator ? "!bg-sea !text-white" : ""}`}
+              href={filterLink({ generator: sp.generator ? null : "true" })}
+              className={`chip ${sp.generator ? "!bg-sea !text-white" : ""}`}
             >
-              ⚡ مولّد
+              {c.generator}
             </Link>
             <Link
-              href={filterLink({ familyOnly: params.familyOnly ? null : "true" })}
-              className={`chip ${params.familyOnly ? "!bg-sea !text-white" : ""}`}
+              href={filterLink({ familyOnly: sp.familyOnly ? null : "true" })}
+              className={`chip ${sp.familyOnly ? "!bg-sea !text-white" : ""}`}
             >
-              👨‍👩‍👧 عائلات فقط
+              {c.familyOnly}
             </Link>
             <Link
-              href={filterLink({ minBedrooms: params.minBedrooms ? null : "3" })}
-              className={`chip ${params.minBedrooms ? "!bg-sea !text-white" : ""}`}
+              href={filterLink({ minBedrooms: sp.minBedrooms ? null : "3" })}
+              className={`chip ${sp.minBedrooms ? "!bg-sea !text-white" : ""}`}
             >
-              🛏 +3 غرف
+              {c.bedrooms}
             </Link>
           </>
         ) : type === "service" ? (
           <>
-            {SERVICE_CATEGORIES.map(([key, emoji, label]) => (
+            {serviceCategories(locale).map(([key, emoji, label]) => (
               <Link
                 key={key}
-                href={filterLink({ serviceCategory: params.serviceCategory === key ? null : key })}
-                className={`chip ${params.serviceCategory === key ? "!bg-sea !text-white" : ""}`}
+                href={filterLink({ serviceCategory: sp.serviceCategory === key ? null : key })}
+                className={`chip ${sp.serviceCategory === key ? "!bg-sea !text-white" : ""}`}
               >
                 {emoji} {label}
               </Link>
@@ -135,16 +168,16 @@ export default async function SearchPage({
         ) : (
           <>
             <Link
-              href={filterLink({ womensCapacity: params.womensCapacity ? null : "400" })}
-              className={`chip ${params.womensCapacity ? "!bg-sea !text-white" : ""}`}
+              href={filterLink({ womensCapacity: sp.womensCapacity ? null : "400" })}
+              className={`chip ${sp.womensCapacity ? "!bg-sea !text-white" : ""}`}
             >
-              👥 +400 ضيفة
+              {c.womenGuests}
             </Link>
             <Link
-              href={filterLink({ generator: params.generator ? null : "true" })}
-              className={`chip ${params.generator ? "!bg-sea !text-white" : ""}`}
+              href={filterLink({ generator: sp.generator ? null : "true" })}
+              className={`chip ${sp.generator ? "!bg-sea !text-white" : ""}`}
             >
-              ⚡ مولّد احتياطي
+              {c.generatorBackup}
             </Link>
           </>
         )}

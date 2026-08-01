@@ -8,6 +8,8 @@
  * should be the strongest photograph, not an afterthought.
  */
 import { useState } from "react";
+import { useLocale } from "@/lib/locale";
+import type { Locale } from "@/lib/i18n";
 import { Pill, Section } from "./lib";
 
 interface HeroImage {
@@ -18,6 +20,51 @@ interface HeroValue {
   intervalMs: number;
   images: HeroImage[];
 }
+
+const copy = {
+  ar: {
+    title: "صور الواجهة الرئيسية",
+    overridden: "مُعدّلة",
+    default: "افتراضي",
+    intro:
+      "تتبدّل هذه الصور تلقائيًا في أعلى الصفحة الرئيسية. الصورة الأولى هي التي تُحمَّل فورًا على الشبكات البطيئة — اجعلها الأقوى.",
+    duplicate: "هذه الصورة مضافة بالفعل",
+    keepOne: "يجب أن تبقى صورة واحدة على الأقل",
+    defaultAlt: "صورة من ليبيا",
+    first: "الأولى",
+    earlier: "تقديم",
+    later: "تأخير",
+    earlierGlyph: "›",
+    laterGlyph: "‹",
+    remove: "حذف",
+    altPlaceholder: "وصف الصورة (للقارئ الصوتي)",
+    add: "+ إضافة صورة",
+    interval: "مدة عرض كل صورة (ثانية)",
+    footer:
+      "يُكتب المسار بدون اللاحقة: النظام يطلب تلقائيًا نسختي 800 و1600 بكسل بصيغة WebP، فيصل للهاتف على شبكة ضعيفة أخفّ ملف ممكن.",
+  },
+  en: {
+    title: "Home page hero images",
+    overridden: "Overridden",
+    default: "Default",
+    intro:
+      "These images rotate at the top of the home page. The first one is what loads immediately on a slow connection — make it the strongest photograph.",
+    duplicate: "That image is already in the rotation",
+    keepOne: "At least one image has to remain",
+    defaultAlt: "A photograph from Libya",
+    first: "First",
+    earlier: "Move earlier",
+    later: "Move later",
+    earlierGlyph: "‹",
+    laterGlyph: "›",
+    remove: "Remove",
+    altPlaceholder: "Image description (for screen readers)",
+    add: "+ Add image",
+    interval: "Seconds per image",
+    footer:
+      "Write the path without the suffix: the app requests the 800px and 1600px WebP variants itself, so a phone on a weak network gets the smallest file that will do.",
+  },
+} satisfies Record<Locale, unknown>;
 
 export function HeroSettings({
   row,
@@ -30,6 +77,8 @@ export function HeroSettings({
   isAdmin: boolean;
   onChange: (v: HeroValue) => void;
 }) {
+  const locale = useLocale();
+  const c = copy[locale];
   const [src, setSrc] = useState("");
   const [alt, setAlt] = useState("");
   const [err, setErr] = useState("");
@@ -43,11 +92,11 @@ export function HeroSettings({
     const clean = src.trim().replace(/-(800|1600)\.webp$/, "");
     if (!clean) return;
     if (images.some((i) => i.src === clean)) {
-      setErr("هذه الصورة مضافة بالفعل");
+      setErr(c.duplicate);
       return;
     }
     setErr("");
-    update({ images: [...images, { src: clean, alt: alt.trim() || "صورة من ليبيا" }] });
+    update({ images: [...images, { src: clean, alt: alt.trim() || c.defaultAlt }] });
     setSrc("");
     setAlt("");
   }
@@ -62,7 +111,7 @@ export function HeroSettings({
 
   function remove(i: number) {
     if (images.length <= 1) {
-      setErr("يجب أن تبقى صورة واحدة على الأقل");
+      setErr(c.keepOne);
       return;
     }
     setErr("");
@@ -71,13 +120,16 @@ export function HeroSettings({
 
   return (
     <Section
-      title="صور الواجهة الرئيسية"
-      action={row?.overridden ? <Pill tone="amber">مُعدّلة</Pill> : <Pill tone="slate">افتراضي</Pill>}
+      title={c.title}
+      action={
+        row?.overridden ? (
+          <Pill tone="amber">{c.overridden}</Pill>
+        ) : (
+          <Pill tone="slate">{c.default}</Pill>
+        )
+      }
     >
-      <p className="text-xs text-faint mb-3 leading-relaxed">
-        تتبدّل هذه الصور تلقائيًا في أعلى الصفحة الرئيسية. الصورة الأولى هي التي تُحمَّل فورًا على
-        الشبكات البطيئة — اجعلها الأقوى.
-      </p>
+      <p className="text-xs text-faint mb-3 leading-relaxed">{c.intro}</p>
 
       {err ? <p className="text-sm font-bold text-danger mb-2">{err}</p> : null}
 
@@ -88,7 +140,7 @@ export function HeroSettings({
             <img src={`${img.src}-800.webp`} alt={img.alt} className="w-full h-24 object-cover" />
             {i === 0 ? (
               <span className="absolute top-1 start-1 rounded-full bg-amber px-2 py-0.5 text-[10px] font-bold text-sea-dark">
-                الأولى
+                {c.first}
               </span>
             ) : null}
             {isAdmin ? (
@@ -97,22 +149,22 @@ export function HeroSettings({
                   <button
                     className="w-6 h-6 rounded-full btn-on-photo text-xs font-bold"
                     onClick={() => move(i, -1)}
-                    aria-label="تقديم"
+                    aria-label={c.earlier}
                   >
-                    ›
+                    {c.earlierGlyph}
                   </button>
                   <button
                     className="w-6 h-6 rounded-full btn-on-photo text-xs font-bold"
                     onClick={() => move(i, 1)}
-                    aria-label="تأخير"
+                    aria-label={c.later}
                   >
-                    ‹
+                    {c.laterGlyph}
                   </button>
                 </div>
                 <button
                   className="w-6 h-6 rounded-full bg-red-600/90 text-white text-xs font-bold"
                   onClick={() => remove(i)}
-                  aria-label="حذف"
+                  aria-label={c.remove}
                 >
                   ✕
                 </button>
@@ -133,18 +185,18 @@ export function HeroSettings({
           />
           <input
             className="input !py-2 !text-sm"
-            placeholder="وصف الصورة (للقارئ الصوتي)"
+            placeholder={c.altPlaceholder}
             value={alt}
             onChange={(e) => setAlt(e.target.value)}
           />
           <button className="chip justify-center" onClick={add}>
-            + إضافة صورة
+            {c.add}
           </button>
         </div>
       ) : null}
 
       <label className="block text-xs font-bold text-muted mt-3">
-        مدة عرض كل صورة (ثانية)
+        {c.interval}
         <input
           className="input !py-1.5 !text-sm mt-1 max-w-[110px]"
           inputMode="numeric"
@@ -154,10 +206,7 @@ export function HeroSettings({
         />
       </label>
 
-      <p className="text-[11px] text-faint mt-3 leading-relaxed">
-        يُكتب المسار بدون اللاحقة: النظام يطلب تلقائيًا نسختي 800 و1600 بكسل بصيغة WebP، فيصل
-        للهاتف على شبكة ضعيفة أخفّ ملف ممكن.
-      </p>
+      <p className="text-[11px] text-faint mt-3 leading-relaxed">{c.footer}</p>
     </Section>
   );
 }

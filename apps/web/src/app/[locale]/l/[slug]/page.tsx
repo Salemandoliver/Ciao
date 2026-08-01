@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/lib/locale";
 import { Logo } from "@/components/logo";
+import { LanguageToggle } from "@/components/language-toggle";
 import { Stars, VerifiedBadge } from "@/components/listing-card";
 import { API_URL, fmtLyd } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
@@ -8,8 +9,150 @@ import { BookingWidget } from "./booking-widget";
 import { TrackEvent } from "@/components/track";
 import { Heart } from "@/components/heart";
 import { TrustButton, TrustStars } from "@/components/trust-dialog";
+import { listingDescription, listingTitle, textProps } from "@/lib/content";
+import { AMENITIES, AREAS, CITIES, REVIEW_DIMENSIONS, fmtDate, term } from "@/lib/vocab";
+import { asLocale, bcp47, type Locale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Listing-page copy.
+ *
+ * This page makes the promises the whole marketplace rests on — what the badge
+ * means, when the address appears, what happens to the deposit — so the English
+ * says exactly what the Arabic says and not one degree more. «الستر» is the
+ * privacy the walls and the approach give the women in the party; it is a fact
+ * about the property, described as such.
+ */
+const copy = {
+  ar: {
+    notFound: "هذا المكان غير متاح حاليًا.",
+    browseSimilar: "تصفّح أماكن مشابهة",
+    backToSearch: "→ رجوع للبحث",
+    photoAlt: (title: string, n: number) => `${title} — صورة ${n}`,
+    photoCount: (n: number) => `📷 ${n} صور · تصويرنا — اسحب للمزيد`,
+
+    verifiedHeading: "✓ ماذا يعني «موثّق من تشاو»؟",
+    verifiedService:
+      "فريق تشاو قابل هذا المزوّد شخصيًا، تحقق من نشاطه ومن أعماله السابقة، واعتمده — لا يُنشر أي مزوّد قبل أن نعتمده بأنفسنا. والتوثيق يُجدَّد سنويًا.",
+    verifiedStay:
+      "فريق تشاو زار هذا المكان بنفسه، تحقق من المالك ومن كل المرافق، والتقط الصور بنفسه — لا يُنشر أي مكان قبل أن نعتمده شخصيًا. والتوثيق يُجدَّد سنويًا. تفاصيل الفحص كاملة في جدول الحقائق.",
+
+    serviceIncludes: "ماذا تشمل الخدمة",
+    factsTable: "جدول الحقائق",
+    checked: (when: string) => ` · تحقق ${when}`,
+    privacyScore: "🔒 درجة الستر",
+    walledPool: " · مسبح مسوَّر",
+    notOverlooked: " · غير مكشوف على الجيران",
+
+    packages: "الباقات",
+    packagesNote: "القاعات تُعاين قبل الحجز — اطلب موعد زيارة وسنرتب لك المعاينة.",
+
+    thingsToKnow: "أشياء تعرفها",
+    cancellation: "🗓 سياسة الإلغاء",
+    cancellationService: "تُحدَّد مع المزوّد في عرض السعر قبل الدفع — بلا شروط مخفية.",
+    tiers: {
+      flexible: "مرنة: استرجاع كامل للعربون حتى ٤٨ ساعة قبل الوصول",
+      moderate: "متوسطة: استرجاع كامل قبل ٧ أيام، ونصفه بعد ذلك",
+      strict: "صارمة: عربون قفل التاريخ غير مسترجَع — والتنازل ممكن عبر بورصة تشاو",
+    },
+    howService: "🔑 كيف تتم الخدمة",
+    houseRules: "🔑 قواعد البيت",
+    howServiceBody:
+      "تتفق مع المزوّد على التفاصيل عبر فريق تشاو، ويُثبَّت السعر كتابيًا قبل أي دفع.",
+    houseRulesDefault: "يحددها المضيف عند التأكيد — اسأله في المحادثة.",
+    locationPrivacy: "📍 الموقع والخصوصية",
+    locationService: (place: string) =>
+      `المنطقة: ${place} — بيانات التواصل مع المزوّد تصلك بعد تأكيد الطلب عبر فريق تشاو.`,
+    locationStay: (place: string) =>
+      `المنطقة: ${place} — العنوان الدقيق ورقم المضيف يظهران فور دفع العربون. هذا يحمي الطرفين.`,
+
+    guestRatings: "تقييم الضيوف",
+    distribution: "التوزيع",
+    realStays: "تقييمات من إقامات حقيقية",
+    hostReply: "↩ رد المضيف:",
+    noReviews:
+      "التقييمات تُقبل فقط من ضيوف أكملوا إقامة مدفوعة العربون — لا تقييمات مزيفة.",
+    allReviews: "⭐ كل التقييمات وسجل الشكاوى",
+
+    similarServices: "مزوّدون مشابهون",
+    similarPlaces: "أماكن مشابهة قريبة",
+    verifiedShort: "✓ موثّق",
+    perNight: (price: string) => ` · ${price}/ليلة`,
+
+    metaFallback: "تشاو",
+    metaTitle: (title: string) => `${title} — تشاو`,
+    metaVerified: "✓ موثّق من تشاو · ",
+    metaPrice: (price: string) => `${price}/ليلة · `,
+    metaTail: "احجز بعربون بسيط والباقي عند الوصول",
+    siteName: "Ciao — تشاو",
+  },
+  en: {
+    notFound: "This place is not available right now.",
+    browseSimilar: "Browse similar places",
+    backToSearch: "← Back to search",
+    photoAlt: (title: string, n: number) => `${title} — photo ${n}`,
+    photoCount: (n: number) => `📷 ${n} photos · shot by us — swipe for more`,
+
+    verifiedHeading: "✓ What does «Ciao verified» mean?",
+    verifiedService:
+      "Someone from Ciao met this provider in person, checked their business and their past work, and approved them — no provider goes live before we approve them ourselves. Verification is renewed every year.",
+    verifiedStay:
+      "Someone from Ciao visited this place, checked the owner and every facility, and took the photographs themselves — no place goes live before we approve it in person. Verification is renewed every year. The full inspection detail is in the facts table.",
+
+    serviceIncludes: "What the service includes",
+    factsTable: "The facts table",
+    checked: (when: string) => ` · checked ${when}`,
+    privacyScore: "🔒 Privacy score",
+    walledPool: " · walled pool",
+    notOverlooked: " · not overlooked by neighbours",
+
+    packages: "Packages",
+    packagesNote:
+      "Halls are viewed before they are booked — ask for a visit and we will arrange it.",
+
+    thingsToKnow: "Things to know",
+    cancellation: "🗓 Cancellation policy",
+    cancellationService:
+      "Agreed with the provider in the quote before you pay — no hidden conditions.",
+    tiers: {
+      flexible: "Flexible: full refund of the deposit up to 48 hours before check-in",
+      moderate: "Moderate: full refund up to 7 days before, half after that",
+      strict:
+        "Strict: the deposit that holds the date is non-refundable — you can pass the booking on through the Ciao exchange",
+    },
+    howService: "🔑 How the service works",
+    houseRules: "🔑 House rules",
+    howServiceBody:
+      "You agree the details with the provider through the Ciao team, and the price is fixed in writing before any payment.",
+    houseRulesDefault: "The host sets them at confirmation — ask them in the chat.",
+    locationPrivacy: "📍 Location and privacy",
+    locationService: (place: string) =>
+      `Area: ${place} — the provider's contact details reach you once the request is confirmed through the Ciao team.`,
+    locationStay: (place: string) =>
+      `Area: ${place} — the exact address and the host's number appear the moment the deposit is paid. That protects both sides.`,
+
+    guestRatings: "Guest ratings",
+    distribution: "Spread",
+    realStays: "Reviews from real stays",
+    hostReply: "↩ Host's reply:",
+    noReviews:
+      "Reviews are only accepted from guests who completed a stay they paid a deposit on — no fake reviews.",
+    allReviews: "⭐ All reviews and the complaints record",
+
+    similarServices: "Similar providers",
+    similarPlaces: "Similar places nearby",
+    verifiedShort: "✓ Verified",
+    perNight: (price: string) => ` · ${price}/night`,
+
+    metaFallback: "Ciao",
+    metaTitle: (title: string) => `${title} — Ciao`,
+    metaVerified: "✓ Ciao verified · ",
+    metaPrice: (price: string) => `${price}/night · `,
+    metaTail: "Book with a small deposit and pay the rest on arrival",
+    siteName: "Ciao — تشاو",
+  },
+} satisfies Record<Locale, unknown>;
 
 async function getListing(slug: string): Promise<PublicListing | null> {
   try {
@@ -23,95 +166,65 @@ async function getListing(slug: string): Promise<PublicListing | null> {
   }
 }
 
-/** WhatsApp/Instagram unfurl cards (§8.1(5)) — distribution IS social shares. */
+/**
+ * WhatsApp/Instagram unfurl cards (§8.1(5)) — distribution IS social shares.
+ *
+ * The card has to be in the language of the link that was forwarded: a Libyan
+ * in Manchester who shares `/en/l/…` into a family group should see the English
+ * card, and the Arabic link the Arabic one.
+ */
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale: raw, slug } = await params;
+  const locale = asLocale(raw);
+  const c = copy[locale];
   const l = await getListing(slug);
-  if (!l) return { title: "تشاو" };
-  const desc = `${l.verified ? "✓ موثّق من تشاو · " : ""}${
-    l.baseNightly > 0 ? `${Math.round(l.baseNightly / 1000)} د.ل/ليلة · ` : ""
-  }احجز بعربون بسيط والباقي عند الوصول`;
+  if (!l) return { title: c.metaFallback };
+  const title = listingTitle(locale, l).text;
+  const desc = `${l.verified ? c.metaVerified : ""}${
+    l.baseNightly > 0 ? c.metaPrice(fmtLyd(l.baseNightly, locale)) : ""
+  }${c.metaTail}`;
   return {
-    title: `${l.titleAr} — تشاو`,
+    title: c.metaTitle(title),
     description: desc,
     openGraph: {
-      title: l.titleAr,
+      title,
       description: desc,
       type: "website",
-      locale: "ar_LY",
-      siteName: "Ciao — تشاو",
+      locale: bcp47(locale).replace("-", "_"),
+      siteName: c.siteName,
     },
   };
 }
 
-const DIMENSION_AR: Record<string, string> = {
-  cleanliness: "النظافة",
-  accuracy: "المطابقة",
-  privacy: "الخصوصية والستر",
-  communication: "التواصل",
-  value: "القيمة",
-};
-
-const AMENITY_AR: Record<string, string> = {
-  // stays & halls
-  generator: "مولّد كهرباء",
-  water_tank: "خزان مياه",
-  pool: "مسبح",
-  bride_suite: "جناح العروس",
-  prayer_space: "مصلّى",
-  parking: "موقف سيارات",
-  kosha: "كوشة",
-  // services
-  tasting: "تذوق قبل التعاقد",
-  delivery_setup: "توصيل وتجهيز",
-  service_staff: "طاقم خدمة",
-  menu_fixed: "قائمة وأسعار مكتوبة",
-  photo_video: "تصوير فوتو وفيديو",
-  female_staff: "طاقم نسائي",
-  printed_album: "ألبوم مطبوع",
-  delivery_time: "مدة التسليم",
-  trial: "تجربة قبل الموعد",
-  home_visit: "خدمة في البيت",
-  original_products: "منتجات أصلية",
-  female_only: "نسائي بالكامل",
-  bridal: "تسريحات عرايس",
-  appointment: "بالموعد فقط",
-  privacy: "خصوصية تامة",
-  female_hours: "أوقات نسائية",
-  female_trainer: "مدربة سيدة",
-  equipment: "أجهزة حديثة",
-  membership: "اشتراكات",
-  tiered_cake: "كيك متعدد الطوابق",
-  custom_design: "تصميم حسب الطلب",
-};
-
 export default async function ListingPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }) {
-  const { slug } = await params;
+  const { locale: raw, slug } = await params;
+  const locale = asLocale(raw);
+  const c = copy[locale];
   const l = await getListing(slug);
   if (!l) {
     return (
       <main className="mx-auto max-w-3xl p-8 text-center">
-        <p>هذا المكان غير متاح حاليًا.</p>
+        <p>{c.notFound}</p>
         <Link className="btn-primary inline-block mt-4" href="/search">
-          تصفّح أماكن مشابهة
+          {c.browseSimilar}
         </Link>
       </main>
     );
   }
 
-  const tierAr = {
-    flexible: "مرنة: استرجاع كامل للعربون حتى ٤٨ ساعة قبل الوصول",
-    moderate: "متوسطة: استرجاع كامل قبل ٧ أيام، ونصفه بعد ذلك",
-    strict: "صارمة: عربون قفل التاريخ غير مسترجَع — والتنازل ممكن عبر بورصة تشاو",
-  }[l.cancellationTier];
+  const title = listingTitle(locale, l);
+  const description = listingDescription(locale, l);
+  const houseRules = listingDescription(locale, { descriptionAr: l.houseRulesAr });
+  const place = term(AREAS, locale, l.area) || term(CITIES, locale, l.city);
+  const tier = c.tiers[l.cancellationTier];
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-24">
@@ -129,9 +242,10 @@ export default async function ListingPage({
         <Link href="/">
           <Logo size={36} />
         </Link>
-        <Link href="/search" className="text-sm font-bold text-sea">
-          → رجوع للبحث
-        </Link>
+        <nav className="flex items-center gap-3 text-sm font-bold text-sea">
+          <Link href="/search">{c.backToSearch}</Link>
+          <LanguageToggle />
+        </nav>
       </header>
 
       {/* Photo carousel — our shots (§8.5); horizontal snap-scroll, lazy after first */}
@@ -147,7 +261,7 @@ export default async function ListingPage({
                   <img
                     key={m.url}
                     src={m.url}
-                    alt={`${l.titleAr} — صورة ${i + 1}`}
+                    alt={c.photoAlt(title.text, i + 1)}
                     loading={i === 0 ? "eager" : "lazy"}
                     fetchPriority={i === 0 ? "high" : undefined}
                     className="h-full w-full flex-shrink-0 snap-center object-cover"
@@ -168,9 +282,7 @@ export default async function ListingPage({
               />
             </div>
             {photos.length > 0 ? (
-              <div className="absolute top-3 end-3 chip-on-photo">
-                📷 {photos.length} صور · تصويرنا — اسحب للمزيد
-              </div>
+              <div className="absolute top-3 end-3 chip-on-photo">{c.photoCount(photos.length)}</div>
             ) : null}
           </div>
         );
@@ -179,28 +291,32 @@ export default async function ListingPage({
       <div className="grid lg:grid-cols-3 gap-6 mt-6">
         <div className="lg:col-span-2 space-y-6">
           <div>
-            <h1 className="font-bold text-2xl text-sea">{l.titleAr}</h1>
+            <h1 className="font-bold text-2xl text-sea" {...textProps(title)}>
+              {title.text}
+            </h1>
             <div className="mt-1">
               <TrustStars
                 listingId={l.id}
-                listingTitle={l.titleAr}
+                listingTitle={title.text}
                 rating={l.rating}
                 source={l.ratingSource}
                 count={l.reviewCount}
                 size="text-base"
               />
             </div>
-            <p className="text-muted mt-1">{l.descriptionAr}</p>
+            {description ? (
+              <p className="text-muted mt-1" {...textProps(description)}>
+                {description.text}
+              </p>
+            ) : null}
           </div>
 
           {/* Verification block (§8.5) — personal vetting, not spec-boasting */}
           {l.verified ? (
             <div className="card p-4 border-2 border-sea/15">
-              <h2 className="font-bold text-sea mb-2">✓ ماذا يعني «موثّق من تشاو»؟</h2>
+              <h2 className="font-bold text-sea mb-2">{c.verifiedHeading}</h2>
               <p className="text-sm text-sea/80">
-                {l.type === "service"
-                  ? "فريق تشاو قابل هذا المزوّد شخصيًا، تحقق من نشاطه ومن أعماله السابقة، واعتمده — لا يُنشر أي مزوّد قبل أن نعتمده بأنفسنا. والتوثيق يُجدَّد سنويًا."
-                  : "فريق تشاو زار هذا المكان بنفسه، تحقق من المالك ومن كل المرافق، والتقط الصور بنفسه — لا يُنشر أي مكان قبل أن نعتمده شخصيًا. والتوثيق يُجدَّد سنويًا. تفاصيل الفحص كاملة في جدول الحقائق."}
+                {l.type === "service" ? c.verifiedService : c.verifiedStay}
               </p>
             </div>
           ) : null}
@@ -209,33 +325,40 @@ export default async function ListingPage({
           {l.amenities.length > 0 || l.privacy ? (
           <div className="card p-4">
             <h2 className="font-bold text-sea mb-3">
-              {l.type === "service" ? "ماذا تشمل الخدمة" : "جدول الحقائق"}
+              {l.type === "service" ? c.serviceIncludes : c.factsTable}
             </h2>
             <ul className="divide-y divide-sand">
               {[...l.amenities]
                 .sort((a, b) => Number(b.present) - Number(a.present))
-                .map((a) => (
-                  <li key={a.key} className="py-2 flex items-start justify-between gap-3">
-                    <span
-                      className={
-                        a.present ? "font-bold" : "font-bold text-faint line-through"
-                      }
-                    >
-                      {a.present ? "✅" : "🚫"} {AMENITY_AR[a.key] ?? a.key}
-                    </span>
-                    <span className="text-sm text-muted text-start">
-                      {a.present ? a.detail : null}
-                      {a.present && a.verifiedAt ? ` · تحقق ${a.verifiedAt}` : ""}
-                    </span>
-                  </li>
-                ))}
+                .map((a) => {
+                  const detail = a.detail
+                    ? listingDescription(locale, { descriptionAr: a.detail })
+                    : null;
+                  return (
+                    <li key={a.key} className="py-2 flex items-start justify-between gap-3">
+                      <span
+                        className={
+                          a.present ? "font-bold" : "font-bold text-faint line-through"
+                        }
+                      >
+                        {a.present ? "✅" : "🚫"} {term(AMENITIES, locale, a.key)}
+                      </span>
+                      <span className="text-sm text-muted text-start">
+                        {a.present && detail ? <span {...textProps(detail)}>{detail.text}</span> : null}
+                        {a.present && a.verifiedAt
+                          ? c.checked(fmtDate(locale, a.verifiedAt, { month: "long", year: "numeric" }))
+                          : ""}
+                      </span>
+                    </li>
+                  );
+                })}
               {l.privacy ? (
                 <li className="py-2 flex justify-between">
-                  <span className="font-bold">🔒 درجة الستر</span>
+                  <span className="font-bold">{c.privacyScore}</span>
                   <span className="text-sm text-muted">
                     {l.privacy.score}/100
-                    {l.privacy.walledPool ? " · مسبح مسوَّر" : ""}
-                    {!l.privacy.overlooked ? " · غير مكشوف على الجيران" : ""}
+                    {l.privacy.walledPool ? c.walledPool : ""}
+                    {!l.privacy.overlooked ? c.notOverlooked : ""}
                   </span>
                 </li>
               ) : null}
@@ -246,58 +369,69 @@ export default async function ListingPage({
           {/* Hall packages — standardised comparable rows (§6.2) */}
           {l.type === "hall" && l.packages?.length ? (
             <div className="card p-4">
-              <h2 className="font-bold text-sea mb-3">الباقات</h2>
+              <h2 className="font-bold text-sea mb-3">{c.packages}</h2>
               <div className="grid sm:grid-cols-2 gap-4">
-                {l.packages.map((p) => (
-                  <div key={p.id} className="border border-sea/15 rounded-xl p-3">
-                    <h3 className="font-bold">{p.nameAr}</h3>
-                    <p className="text-link font-bold text-lg">{fmtLyd(p.totalPrice)}</p>
-                    <ul className="mt-2 space-y-1 text-sm">
-                      {p.lineItems.map((li) => (
-                        <li key={li.key}>
-                          {li.included ? "✅" : "➕"} {li.labelAr}
-                          {li.detailAr ? ` — ${li.detailAr}` : ""}
-                          {!li.included && li.extraPrice ? ` (+${fmtLyd(li.extraPrice)})` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+                {l.packages.map((p) => {
+                  // Package and line-item text is written by the host in Arabic
+                  // and has no English column yet — so it is shown as Arabic,
+                  // marked as Arabic, rather than machine-turned into English.
+                  const name = listingTitle(locale, { titleAr: p.nameAr });
+                  return (
+                    <div key={p.id} className="border border-sea/15 rounded-xl p-3">
+                      <h3 className="font-bold" {...textProps(name)}>{name.text}</h3>
+                      <p className="text-link font-bold text-lg">{fmtLyd(p.totalPrice, locale)}</p>
+                      <ul className="mt-2 space-y-1 text-sm">
+                        {p.lineItems.map((li) => {
+                          const label = listingTitle(locale, { titleAr: li.labelAr });
+                          const detail = li.detailAr
+                            ? listingTitle(locale, { titleAr: li.detailAr })
+                            : null;
+                          return (
+                            <li key={li.key}>
+                              {li.included ? "✅" : "➕"}{" "}
+                              <span {...textProps(label)}>{label.text}</span>
+                              {detail ? <span {...textProps(detail)}> — {detail.text}</span> : null}
+                              {!li.included && li.extraPrice
+                                ? ` (+${fmtLyd(li.extraPrice, locale)})`
+                                : ""}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                })}
               </div>
-              <p className="text-sm text-faint mt-3">
-                القاعات تُعاين قبل الحجز — اطلب موعد زيارة وسنرتب لك المعاينة.
-              </p>
+              <p className="text-sm text-faint mt-3">{c.packagesNote}</p>
             </div>
           ) : null}
 
           {/* أشياء تعرفها — Airbnb "Things to know" (3 columns) */}
           <div className="card p-4">
-            <h2 className="font-bold text-sea mb-3">أشياء تعرفها</h2>
+            <h2 className="font-bold text-sea mb-3">{c.thingsToKnow}</h2>
             <div className="grid sm:grid-cols-3 gap-4 text-sm">
               <div>
-                <p className="font-bold mb-1">🗓 سياسة الإلغاء</p>
+                <p className="font-bold mb-1">{c.cancellation}</p>
                 <p className="text-sea/80">
-                  {l.type === "service"
-                    ? "تُحدَّد مع المزوّد في عرض السعر قبل الدفع — بلا شروط مخفية."
-                    : tierAr}
+                  {l.type === "service" ? c.cancellationService : tier}
                 </p>
               </div>
               <div>
                 <p className="font-bold mb-1">
-                  {l.type === "service" ? "🔑 كيف تتم الخدمة" : "🔑 قواعد البيت"}
+                  {l.type === "service" ? c.howService : c.houseRules}
                 </p>
-                <p className="text-sea/80">
-                  {l.type === "service"
-                    ? "تتفق مع المزوّد على التفاصيل عبر فريق تشاو، ويُثبَّت السعر كتابيًا قبل أي دفع."
-                    : (l.houseRulesAr ?? "يحددها المضيف عند التأكيد — اسأله في المحادثة.")}
-                </p>
+                {l.type === "service" ? (
+                  <p className="text-sea/80">{c.howServiceBody}</p>
+                ) : houseRules ? (
+                  <p className="text-sea/80" {...textProps(houseRules)}>{houseRules.text}</p>
+                ) : (
+                  <p className="text-sea/80">{c.houseRulesDefault}</p>
+                )}
               </div>
               <div>
-                <p className="font-bold mb-1">📍 الموقع والخصوصية</p>
+                <p className="font-bold mb-1">{c.locationPrivacy}</p>
                 <p className="text-sea/80">
-                  {l.type === "service"
-                    ? `المنطقة: ${l.area ?? l.city} — بيانات التواصل مع المزوّد تصلك بعد تأكيد الطلب عبر فريق تشاو.`
-                    : `المنطقة: ${l.area ?? l.city} — العنوان الدقيق ورقم المضيف يظهران فور دفع العربون. هذا يحمي الطرفين.`}
+                  {l.type === "service" ? c.locationService(place) : c.locationStay(place)}
                 </p>
               </div>
             </div>
@@ -307,11 +441,11 @@ export default async function ListingPage({
           {l.dimensionAverages && l.ratingHistogram ? (
             <div className="card p-4">
               <h2 className="font-bold text-sea mb-3">
-                تقييم الضيوف {l.aggregateScore ? `— ${l.aggregateScore} ★` : ""}
+                {c.guestRatings} {l.aggregateScore ? `— ${l.aggregateScore} ★` : ""}
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                 <div className="col-span-2 sm:col-span-1">
-                  <p className="text-xs text-faint mb-1">التوزيع</p>
+                  <p className="text-xs text-faint mb-1">{c.distribution}</p>
                   {[5, 4, 3, 2, 1].map((n) => {
                     const counts = l.ratingHistogram!;
                     const max = Math.max(1, ...Object.values(counts));
@@ -330,7 +464,7 @@ export default async function ListingPage({
                 </div>
                 {Object.entries(l.dimensionAverages).map(([k, v]) => (
                   <div key={k}>
-                    <p className="text-xs text-faint">{DIMENSION_AR[k] ?? k}</p>
+                    <p className="text-xs text-faint">{term(REVIEW_DIMENSIONS, locale, k)}</p>
                     <p className="font-extrabold text-sea text-lg" dir="ltr">{v.toFixed(1)}</p>
                   </div>
                 ))}
@@ -342,61 +476,71 @@ export default async function ListingPage({
           {l.reviews?.length ? (
             <div className="card p-4">
               <h2 className="font-bold text-sea mb-2">
-                تقييمات من إقامات حقيقية
+                {c.realStays}
                 {l.aggregateScore ? ` — ${l.aggregateScore}/5` : ""}
               </h2>
               <ul className="space-y-3">
-                {l.reviews.slice(0, 5).map((r, i) => (
-                  <li key={i} className="border-b border-sand pb-2 text-sm">
-                    <p>{r.text}</p>
-                    {r.hostReply ? (
-                      <p className="mt-1 text-faint">↩ رد المضيف: {r.hostReply}</p>
-                    ) : null}
-                  </li>
-                ))}
+                {l.reviews.slice(0, 5).map((r, i) => {
+                  // Guests write in Arabic; we publish what they wrote.
+                  const text = r.text ? listingTitle(locale, { titleAr: r.text }) : null;
+                  const reply = r.hostReply
+                    ? listingTitle(locale, { titleAr: r.hostReply })
+                    : null;
+                  return (
+                    <li key={i} className="border-b border-sand pb-2 text-sm">
+                      {text ? <p {...textProps(text)}>{text.text}</p> : null}
+                      {reply ? (
+                        <p className="mt-1 text-faint" {...textProps(reply)}>
+                          {c.hostReply} {reply.text}
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ) : (
-            <p className="text-sm text-faint">
-              التقييمات تُقبل فقط من ضيوف أكملوا إقامة مدفوعة العربون — لا تقييمات مزيفة.
-            </p>
+            <p className="text-sm text-faint">{c.noReviews}</p>
           )}
 
           <TrustButton
             listingId={l.id}
-            listingTitle={l.titleAr}
+            listingTitle={title.text}
             rating={l.rating}
             className="btn-primary w-full sm:w-auto !py-2.5 text-sm"
           >
-            ⭐ كل التقييمات وسجل الشكاوى
+            {c.allReviews}
           </TrustButton>
 
           {/* أماكن مشابهة قريبة — Airbnb "More nearby" */}
           {l.similar?.length ? (
             <div>
-              <h2 className="font-bold text-sea text-lg mb-3">{l.type === "service" ? "مزوّدون مشابهون" : "أماكن مشابهة قريبة"}</h2>
+              <h2 className="font-bold text-sea text-lg mb-3">
+                {l.type === "service" ? c.similarServices : c.similarPlaces}
+              </h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {l.similar.map((sim) => {
                   const cover = sim.media.find((m) => m.kind === "photo");
+                  const simTitle = listingTitle(locale, sim);
                   return (
                     <Link key={sim.id} href={`/l/${sim.slug}`} className="card block hover:shadow-md">
                       <div className="relative aspect-[4/3] photo-placeholder">
                         {cover ? (
                           <img
                             src={cover.url}
-                            alt={sim.titleAr}
+                            alt={simTitle.text}
                             loading="lazy"
                             className="absolute inset-0 h-full w-full object-cover"
                           />
                         ) : null}
                       </div>
                       <div className="p-2">
-                        <p className="font-bold text-xs leading-snug">{sim.titleAr}</p>
+                        <p className="font-bold text-xs leading-snug" {...textProps(simTitle)}>
+                          {simTitle.text}
+                        </p>
                         <p className="text-[11px] text-faint mt-0.5">
-                          {sim.verified ? "✓ موثّق" : ""}
-                          {sim.baseNightly > 0
-                            ? ` · ${fmtLyd(sim.baseNightly)}/ليلة`
-                            : ""}
+                          {sim.verified ? c.verifiedShort : ""}
+                          {sim.baseNightly > 0 ? c.perNight(fmtLyd(sim.baseNightly, locale)) : ""}
                         </p>
                       </div>
                     </Link>

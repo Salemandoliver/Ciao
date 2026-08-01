@@ -4,32 +4,70 @@
  * (أين | متى | من + 🔍). Tap → expands the fields. Small emoji tabs above.
  */
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { SERVICE_CATEGORIES } from "@/lib/services";
+import { useRouter, useLocale } from "@/lib/locale";
+import { serviceCategories } from "@/lib/services";
+import { AREAS, CITIES, VERTICALS, term } from "@/lib/vocab";
+import type { Locale } from "@/lib/i18n";
 
-const CITIES: [string, string][] = [
-  ["tripoli", "طرابلس"],
-  ["misrata", "مصراتة"],
-  ["benghazi", "بنغازي"],
-];
-const AREAS: Record<string, [string, string][]> = {
-  tripoli: [
-    ["", "كل المناطق"],
-    ["janzour", "جنزور"],
-    ["tajoura", "تاجوراء"],
-    ["ain_zara", "عين زارة"],
-    ["airport_road", "طريق المطار"],
-  ],
-  misrata: [["", "كل المناطق"]],
-  benghazi: [["", "كل المناطق"]],
+/**
+ * Which areas belong to which city — keys only. The words come from vocab, so
+ * that a place is named the same here, on the card and on the listing page.
+ */
+const CITY_KEYS = ["tripoli", "misrata", "benghazi"];
+const AREA_KEYS: Record<string, string[]> = {
+  tripoli: ["janzour", "tajoura", "ain_zara", "airport_road"],
+  misrata: [],
+  benghazi: [],
 };
-const CITY_AR = Object.fromEntries(CITIES);
-const AREA_AR: Record<string, string> = {
-  janzour: "جنزور",
-  tajoura: "تاجوراء",
-  ain_zara: "عين زارة",
-  airport_road: "طريق المطار",
-};
+
+const copy = {
+  ar: {
+    allAreas: "كل المناطق",
+    anyDate: "أي تاريخ",
+    guestsPlaceholder: "العدد",
+    women: (n: string) => `${n} ضيفة`,
+    people: (n: string) => `${n} أشخاص`,
+    where: "أين؟",
+    when: "متى؟",
+    womenGuestsShort: "الضيفات؟",
+    serviceShort: "الخدمة؟",
+    who: "من؟",
+    allServices: "كل الخدمات",
+    search: "ابحث",
+    city: "المدينة",
+    area: "المنطقة",
+    checkIn: "الوصول",
+    checkOut: "المغادرة",
+    people_: "عدد الأشخاص",
+    peopleEg: "مثلًا 8",
+    serviceType: "نوع الخدمة",
+    womenCount: "عدد الضيفات (القاعة النسائية)",
+    womenEg: "مثلًا 400",
+  },
+  en: {
+    allAreas: "All areas",
+    anyDate: "Any dates",
+    guestsPlaceholder: "Guests",
+    women: (n: string) => `${n} women guests`,
+    people: (n: string) => `${n} people`,
+    where: "Where?",
+    when: "When?",
+    womenGuestsShort: "How many?",
+    serviceShort: "Service?",
+    who: "Who?",
+    allServices: "All services",
+    search: "Search",
+    city: "City",
+    area: "Area",
+    checkIn: "Check-in",
+    checkOut: "Check-out",
+    people_: "Number of people",
+    peopleEg: "e.g. 8",
+    serviceType: "Type of service",
+    womenCount: "Women guests (the women's hall)",
+    womenEg: "e.g. 400",
+  },
+} satisfies Record<Locale, unknown>;
 
 export function HeroSearch({
   initial,
@@ -41,6 +79,8 @@ export function HeroSearch({
   compact?: boolean;
 }) {
   const router = useRouter();
+  const locale = useLocale();
+  const c = copy[locale];
   const [type, setType] = useState(
     initial?.type === "hall" ? "hall" : initial?.type === "service" ? "service" : "coast",
   );
@@ -52,6 +92,7 @@ export function HeroSearch({
   const [guests, setGuests] = useState(initial?.guests ?? "");
   const [open, setOpen] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
+  const categories = serviceCategories(locale);
 
   function submit() {
     const q = new URLSearchParams({ type, city });
@@ -66,10 +107,14 @@ export function HeroSearch({
     router.push(`/search?${q}`);
   }
 
-  const whereLabel = area ? AREA_AR[area] ?? area : CITY_AR[city] ?? city;
+  const whereLabel = area ? term(AREAS, locale, area) : term(CITIES, locale, city);
   const whenLabel =
-    checkIn && checkOut ? `${checkIn.slice(5)} → ${checkOut.slice(5)}` : "أي تاريخ";
-  const whoLabel = guests ? `${guests} ${type === "hall" ? "ضيفة" : "أشخاص"}` : "العدد";
+    checkIn && checkOut ? `${checkIn.slice(5)} → ${checkOut.slice(5)}` : c.anyDate;
+  const whoLabel = guests
+    ? type === "hall"
+      ? c.women(guests)
+      : c.people(guests)
+    : c.guestsPlaceholder;
 
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -77,11 +122,11 @@ export function HeroSearch({
       <div className="flex justify-center gap-2 mb-2">
         {(
           [
-            ["coast", "🏖", "شاليهات واستراحات"],
-            ["hall", "💍", "قاعات أفراح"],
-            ["service", "🛎", "خدمات"],
+            ["coast", "🏖"],
+            ["hall", "💍"],
+            ["service", "🛎"],
           ] as const
-        ).map(([t, emoji, label]) => (
+        ).map(([t, emoji]) => (
           <button
             key={t}
             onClick={() => setType(t)}
@@ -101,7 +146,7 @@ export function HeroSearch({
                   : "tab-on-photo"
             }`}
           >
-            <span aria-hidden>{emoji}</span> {label}
+            <span aria-hidden>{emoji}</span> {term(VERTICALS, locale, t)}
           </button>
         ))}
       </div>
@@ -124,7 +169,7 @@ export function HeroSearch({
           className="flex-1 min-w-0 flex items-baseline gap-1.5 text-start ps-4 py-1.5 rounded-full hover:bg-sand/40"
           onClick={() => setOpen((o) => !o)}
         >
-          <span className="text-[11px] font-bold text-faint shrink-0">أين؟</span>
+          <span className="text-[11px] font-bold text-faint shrink-0">{c.where}</span>
           <span className="font-bold text-sea truncate">{whereLabel}</span>
         </button>
         <span className="w-px h-5 bg-sea/15 shrink-0" aria-hidden />
@@ -133,7 +178,7 @@ export function HeroSearch({
           onClick={() => setOpen((o) => !o)}
         >
           <span className="text-[11px] font-bold text-faint shrink-0">
-            {type === "hall" ? "الضيفات؟" : type === "service" ? "الخدمة؟" : "متى؟"}
+            {type === "hall" ? c.womenGuestsShort : type === "service" ? c.serviceShort : c.when}
           </span>
           <span
             className="font-bold text-sea truncate"
@@ -142,7 +187,7 @@ export function HeroSearch({
             {type === "hall"
               ? whoLabel
               : type === "service"
-                ? (SERVICE_CATEGORIES.find(([k]) => k === category)?.[2] ?? "كل الخدمات")
+                ? (categories.find(([k]) => k === category)?.[2] ?? c.allServices)
                 : whenLabel}
           </span>
         </button>
@@ -153,7 +198,7 @@ export function HeroSearch({
               className="flex-1 min-w-0 items-baseline gap-1.5 text-start ps-3 py-1.5 hidden sm:flex hover:bg-sand/40"
               onClick={() => setOpen((o) => !o)}
             >
-              <span className="text-[11px] font-bold text-faint shrink-0">من؟</span>
+              <span className="text-[11px] font-bold text-faint shrink-0">{c.who}</span>
               <span className="font-bold text-sea truncate">{whoLabel}</span>
             </button>
           </>
@@ -161,7 +206,7 @@ export function HeroSearch({
         <button
           className="m-1 shrink-0 w-8 h-8 rounded-full bg-amber text-sea-dark flex items-center justify-center text-sm active:bg-amber-dark"
           onClick={() => (open ? submit() : setOpen(true))}
-          aria-label="ابحث"
+          aria-label={c.search}
         >
           🔍
         </button>
@@ -172,7 +217,7 @@ export function HeroSearch({
         <div className="card mt-2 p-3 space-y-2 shadow-lg text-sm">
           <div className="grid grid-cols-2 gap-2">
             <label className="block text-xs font-bold text-muted">
-              المدينة
+              {c.city}
               <select
                 className="input !py-2 mt-1"
                 value={city}
@@ -181,27 +226,28 @@ export function HeroSearch({
                   setArea("");
                 }}
               >
-                {CITIES.map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
+                {CITY_KEYS.map((k) => (
+                  <option key={k} value={k}>{term(CITIES, locale, k)}</option>
                 ))}
               </select>
             </label>
             <label className="block text-xs font-bold text-muted">
-              المنطقة
+              {c.area}
               <select
                 className="input !py-2 mt-1"
                 value={area}
                 onChange={(e) => setArea(e.target.value)}
               >
-                {(AREAS[city] ?? [["", "كل المناطق"]]).map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
+                <option value="">{c.allAreas}</option>
+                {(AREA_KEYS[city] ?? []).map((k) => (
+                  <option key={k} value={k}>{term(AREAS, locale, k)}</option>
                 ))}
               </select>
             </label>
             {type === "coast" ? (
               <>
                 <label className="block text-xs font-bold text-muted">
-                  الوصول
+                  {c.checkIn}
                   <input
                     type="date"
                     min={today}
@@ -211,7 +257,7 @@ export function HeroSearch({
                   />
                 </label>
                 <label className="block text-xs font-bold text-muted">
-                  المغادرة
+                  {c.checkOut}
                   <input
                     type="date"
                     min={checkIn || today}
@@ -221,12 +267,12 @@ export function HeroSearch({
                   />
                 </label>
                 <label className="block text-xs font-bold text-muted col-span-2">
-                  عدد الأشخاص
+                  {c.people_}
                   <input
                     type="number"
                     inputMode="numeric"
                     min={1}
-                    placeholder="مثلًا 8"
+                    placeholder={c.peopleEg}
                     className="input !py-2 mt-1"
                     value={guests}
                     onChange={(e) => setGuests(e.target.value)}
@@ -235,27 +281,27 @@ export function HeroSearch({
               </>
             ) : type === "service" ? (
               <label className="block text-xs font-bold text-muted col-span-2">
-                نوع الخدمة
+                {c.serviceType}
                 <select
                   className="input !py-2 mt-1"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                 >
-                  <option value="">كل الخدمات</option>
-                  {SERVICE_CATEGORIES.map(([k, e2, l]) => (
+                  <option value="">{c.allServices}</option>
+                  {categories.map(([k, e2, l]) => (
                     <option key={k} value={k}>{e2} {l}</option>
                   ))}
                 </select>
               </label>
             ) : (
               <label className="block text-xs font-bold text-muted col-span-2">
-                عدد الضيفات (القاعة النسائية)
+                {c.womenCount}
                 <input
                   type="number"
                   inputMode="numeric"
                   min={50}
                   step={50}
-                  placeholder="مثلًا 400"
+                  placeholder={c.womenEg}
                   className="input !py-2 mt-1"
                   value={guests}
                   onChange={(e) => setGuests(e.target.value)}
@@ -264,7 +310,7 @@ export function HeroSearch({
             )}
           </div>
           <button className="btn-amber w-full !py-2 text-sm" onClick={submit}>
-            🔍 ابحث
+            🔍 {c.search}
           </button>
         </div>
       ) : null}

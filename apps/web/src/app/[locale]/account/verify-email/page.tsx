@@ -7,12 +7,37 @@
  * left is where to go next.
  */
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Link, useLocale } from "@/lib/locale";
 import { Logo } from "@/components/logo";
 import { api, ensureSession } from "@/lib/api";
+import { fmtNum } from "@/lib/vocab";
+import type { Locale } from "@/lib/i18n";
+
+const copy = {
+  ar: {
+    working: "جارٍ توثيق بريدك…",
+    done: "تم توثيق بريدك ✅",
+    earned: (pts: string) => `كسبت ${pts} نقطة.`,
+    openAccount: "افتح حسابك",
+    failedTitle: "الرابط منتهي أو مستخدم من قبل",
+    failedBody: "افتح إعدادات حسابك واطلب رابط توثيق جديدًا.",
+    settings: "إعدادات الحساب",
+  },
+  en: {
+    working: "Verifying your email…",
+    done: "Your email is verified ✅",
+    earned: (pts: string) => `You earned ${pts} points.`,
+    openAccount: "Open your account",
+    failedTitle: "That link has expired or has already been used",
+    failedBody: "Open your account preferences and ask for a fresh verification link.",
+    settings: "Account preferences",
+  },
+} satisfies Record<Locale, unknown>;
 
 function Verify() {
+  const locale = useLocale();
+  const c = copy[locale];
   const params = useSearchParams();
   const [state, setState] = useState<"working" | "done" | "failed">("working");
   const [points, setPoints] = useState(0);
@@ -41,25 +66,26 @@ function Verify() {
       </Link>
       <div className="card p-6">
         {state === "working" ? (
-          <p className="text-muted">جارٍ توثيق بريدك…</p>
+          <p className="text-muted">{c.working}</p>
         ) : state === "done" ? (
           <>
-            <p className="font-bold text-sea text-lg">تم توثيق بريدك ✅</p>
+            <p className="font-bold text-sea text-lg">{c.done}</p>
             {points > 0 ? (
-              <p className="text-sm text-muted mt-2">كسبت {points} نقطة.</p>
+              <p className="text-sm text-muted mt-2">{c.earned(fmtNum(locale, points))}</p>
             ) : null}
             <Link href="/account" className="btn-primary !py-2 !text-sm inline-block mt-4">
-              افتح حسابك
+              {c.openAccount}
             </Link>
           </>
         ) : (
           <>
-            <p className="font-bold text-sea">الرابط منتهي أو مستخدم من قبل</p>
-            <p className="text-sm text-muted mt-2">
-              افتح إعدادات حسابك واطلب رابط توثيق جديدًا.
-            </p>
-            <Link href="/account?tab=settings" className="btn-primary !py-2 !text-sm inline-block mt-4">
-              إعدادات الحساب
+            <p className="font-bold text-sea">{c.failedTitle}</p>
+            <p className="text-sm text-muted mt-2">{c.failedBody}</p>
+            <Link
+              href="/account?tab=settings"
+              className="btn-primary !py-2 !text-sm inline-block mt-4"
+            >
+              {c.settings}
             </Link>
           </>
         )}

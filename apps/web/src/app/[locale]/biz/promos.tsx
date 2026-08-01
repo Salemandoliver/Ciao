@@ -9,9 +9,16 @@
  *
  * Creating a code is admin-only, because spending margin is the same class of
  * decision as changing the commission rate.
+ *
+ * The English states that rule in the same words and with the same force. It
+ * is the one paragraph on this screen that stops an operator giving away money
+ * that is not ours to give.
  */
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api, fmtLyd } from "@/lib/api";
+import { useLocale } from "@/lib/locale";
+import { CITIES, VERTICALS, fmtNum, term } from "@/lib/vocab";
+import type { Locale } from "@/lib/i18n";
 import { Money, Pill, Section } from "./lib";
 
 interface Promo {
@@ -33,11 +40,8 @@ interface Promo {
   discountGiven: number;
 }
 
-const KIND_AR: Record<string, string> = {
-  percent: "نسبة مئوية",
-  fixed: "مبلغ ثابت",
-  points: "نقاط مكافأة",
-};
+const KIND_KEYS = ["percent", "fixed", "points"] as const;
+const VERTICAL_KEYS = ["coast", "hall", "service"];
 
 const EMPTY = {
   code: "",
@@ -53,7 +57,130 @@ const EMPTY = {
   perUserLimit: "1",
 };
 
+const copy = {
+  ar: {
+    kinds: {
+      percent: "نسبة مئوية",
+      fixed: "مبلغ ثابت",
+      points: "نقاط مكافأة",
+    } as Record<string, string>,
+    loadFailed: "تعذر تحميل الأكواد",
+    created: (code: string) => `✅ أُنشئ الكود ${code}`,
+    codeExists: "هذا الكود مستخدم بالفعل",
+    adminOnly: "إنشاء الأكواد للمدير فقط",
+    createFailed: "تعذر الإنشاء",
+    toggleFailed: "تعذر التغيير — التعديل للمدير فقط",
+    points: (n: number) => `${n} نقطة`,
+    stPaused: "موقوف",
+    stExpired: "منتهي",
+    stFull: "اكتمل",
+    stActive: "ساري",
+
+    ruleTitle: "كيف تعمل أكواد الخصم عندنا",
+    ruleBody:
+      "الخصم يُموَّل من عمولة تشاو ولا يتجاوزها أبدًا. لو أنشأت كود ٥٠٪ على حجز عمولتنا فيه ١٠٪، سيحصل الضيف على ١٠٪ — لأن حصة المضيف وعدٌ قطعناه له، وليست ميزانية تسويق. النظام يقصّ الخصم تلقائيًا عند هذا الحد.",
+
+    codesTitle: (n: number) => `الأكواد (${n})`,
+    newCode: "+ كود جديد",
+    cancel: "إلغاء",
+    readOnly: "للقراءة فقط",
+
+    fCode: "الكود",
+    fKind: "النوع",
+    fPercent: "النسبة (٪)",
+    fAmount: "المبلغ (د.ل)",
+    fPoints: "النقاط",
+    fMaxDiscount: "أقصى خصم (د.ل)",
+    optional: "اختياري",
+    fVertical: "القطاع",
+    allVerticals: "كل الأقسام",
+    fCity: "المدينة",
+    cityPlaceholder: "tripoli (اختياري)",
+    fMinSpend: "أقل قيمة حجز (د.ل)",
+    fEndsAt: "ينتهي في",
+    fMaxRedemptions: "أقصى عدد استخدامات",
+    noLimit: "بلا حد",
+    fPerUser: "الحد لكل مستخدم",
+    fDescription: "وصف يظهر للضيف عند تطبيق الكود",
+    createCode: "أنشئ الكود",
+
+    thCode: "الكود",
+    thValue: "القيمة",
+    thScope: "النطاق",
+    thUsage: "الاستخدام",
+    thCost: "كلّفنا",
+    thStatus: "الحالة",
+    scopeAll: "الكل",
+    fromSpend: (amount: string) => ` · من ${amount}`,
+    perMember: (n: number) => `لكل عضو ${n}`,
+    pause: "إيقاف",
+    activate: "تفعيل",
+    noCodes: "لا أكواد بعد",
+  },
+  en: {
+    kinds: {
+      percent: "Percentage",
+      fixed: "Fixed amount",
+      points: "Reward points",
+    } as Record<string, string>,
+    loadFailed: "Could not load the codes",
+    created: (code: string) => `✅ Code ${code} created`,
+    codeExists: "That code is already in use",
+    adminOnly: "Only an admin can create codes",
+    createFailed: "Could not create the code",
+    toggleFailed: "Could not change that — only an admin can",
+    points: (n: number) => `${n} points`,
+    stPaused: "Paused",
+    stExpired: "Expired",
+    stFull: "Fully used",
+    stActive: "Active",
+
+    ruleTitle: "How discount codes work here",
+    ruleBody:
+      "A discount is funded out of Ciao's commission and never exceeds it. Create a 50% code and use it on a booking we earn 10% on, and the guest gets 10% — because the host's share is a promise we made them, not a marketing budget. The system trims the discount to that limit automatically.",
+
+    codesTitle: (n: number) => `Codes (${n})`,
+    newCode: "+ New code",
+    cancel: "Cancel",
+    readOnly: "Read-only",
+
+    fCode: "Code",
+    fKind: "Type",
+    fPercent: "Percentage (%)",
+    fAmount: "Amount (LYD)",
+    fPoints: "Points",
+    fMaxDiscount: "Maximum discount (LYD)",
+    optional: "Optional",
+    fVertical: "Vertical",
+    allVerticals: "All verticals",
+    fCity: "City",
+    cityPlaceholder: "tripoli (optional)",
+    fMinSpend: "Minimum booking value (LYD)",
+    fEndsAt: "Ends on",
+    fMaxRedemptions: "Maximum redemptions",
+    noLimit: "No limit",
+    fPerUser: "Limit per user",
+    fDescription: "Description shown to the guest when the code is applied",
+    createCode: "Create the code",
+
+    thCode: "Code",
+    thValue: "Value",
+    thScope: "Scope",
+    thUsage: "Redemptions",
+    thCost: "Cost to us",
+    thStatus: "Status",
+    scopeAll: "All",
+    fromSpend: (amount: string) => ` · from ${amount}`,
+    perMember: (n: number) => `${n} per member`,
+    pause: "Pause",
+    activate: "Activate",
+    noCodes: "No codes yet",
+  },
+} satisfies Record<Locale, unknown>;
+
 export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
+  const locale = useLocale();
+  const t = copy[locale];
   const [items, setItems] = useState<Promo[]>([]);
   const [form, setForm] = useState(EMPTY);
   const [adding, setAdding] = useState(false);
@@ -64,9 +191,9 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
     try {
       setItems((await api<{ items: Promo[] }>("/v1/biz/promos")).items);
     } catch {
-      setMsg("تعذر تحميل الأكواد");
+      setMsg(t.loadFailed);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -100,7 +227,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setMsg(`✅ أُنشئ الكود ${res.code}`);
+      setMsg(t.created(res.code));
       setForm(EMPTY);
       setAdding(false);
       await load();
@@ -108,10 +235,10 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
       const m = e instanceof ApiError ? e.message : "";
       setMsg(
         m.includes("code_exists")
-          ? "هذا الكود مستخدم بالفعل"
+          ? t.codeExists
           : e instanceof ApiError && e.status === 403
-            ? "إنشاء الأكواد للمدير فقط"
-            : "تعذر الإنشاء",
+            ? t.adminOnly
+            : t.createFailed,
       );
     } finally {
       setBusy(false);
@@ -126,22 +253,29 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
       });
       await load();
     } catch {
-      setMsg("تعذر التغيير — التعديل للمدير فقط");
+      setMsg(t.toggleFailed);
     }
   }
 
   function describe(p: Promo): string {
-    if (p.kind === "percent") return `${(p.value / 100).toFixed(p.value % 100 ? 1 : 0)}٪`;
-    if (p.kind === "fixed") return fmtLyd(p.value);
-    return `${p.value} نقطة`;
+    if (p.kind === "percent") {
+      const digits = p.value % 100 ? 1 : 0;
+      const pct = fmtNum(locale, p.value / 100, {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      });
+      return locale === "en" ? `${pct}%` : `${pct}٪`;
+    }
+    if (p.kind === "fixed") return fmtLyd(p.value, locale);
+    return t.points(p.value);
   }
 
   function status(p: Promo): { label: string; tone: string } {
-    if (!p.active) return { label: "موقوف", tone: "slate" };
-    if (p.endsAt && new Date(p.endsAt) < new Date()) return { label: "منتهي", tone: "slate" };
+    if (!p.active) return { label: t.stPaused, tone: "slate" };
+    if (p.endsAt && new Date(p.endsAt) < new Date()) return { label: t.stExpired, tone: "slate" };
     if (p.maxRedemptions != null && p.timesUsed >= p.maxRedemptions)
-      return { label: "اكتمل", tone: "slate" };
-    return { label: "ساري", tone: "green" };
+      return { label: t.stFull, tone: "slate" };
+    return { label: t.stActive, tone: "green" };
   }
 
   return (
@@ -149,30 +283,26 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
       {msg ? <p className="mb-3 text-sm font-bold text-sea">{msg}</p> : null}
 
       <div className="card p-4">
-        <h3 className="font-bold text-sea text-sm">كيف تعمل أكواد الخصم عندنا</h3>
-        <p className="text-xs text-muted mt-1 leading-relaxed">
-          الخصم يُموَّل من عمولة تشاو ولا يتجاوزها أبدًا. لو أنشأت كود ٥٠٪ على حجز عمولتنا فيه
-          ١٠٪، سيحصل الضيف على ١٠٪ — لأن حصة المضيف وعدٌ قطعناه له، وليست ميزانية تسويق. النظام
-          يقصّ الخصم تلقائيًا عند هذا الحد.
-        </p>
+        <h3 className="font-bold text-sea text-sm">{t.ruleTitle}</h3>
+        <p className="text-xs text-muted mt-1 leading-relaxed">{t.ruleBody}</p>
       </div>
 
       <Section
-        title={`الأكواد (${items.length})`}
+        title={t.codesTitle(items.length)}
         action={
           isAdmin ? (
             <button className="chip" onClick={() => setAdding((a) => !a)}>
-              {adding ? "إلغاء" : "+ كود جديد"}
+              {adding ? t.cancel : t.newCode}
             </button>
           ) : (
-            <Pill tone="slate">للقراءة فقط</Pill>
+            <Pill tone="slate">{t.readOnly}</Pill>
           )
         }
       >
         {adding ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
             <label className="text-xs font-bold text-muted">
-              الكود
+              {t.fCode}
               <input
                 className="input !py-2 !text-sm mt-1"
                 dir="ltr"
@@ -182,19 +312,19 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
               />
             </label>
             <label className="text-xs font-bold text-muted">
-              النوع
+              {t.fKind}
               <select
                 className="input !py-2 !text-sm mt-1"
                 value={form.kind}
                 onChange={(e) => setForm({ ...form, kind: e.target.value as typeof form.kind })}
               >
-                {Object.entries(KIND_AR).map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
+                {KIND_KEYS.map((k) => (
+                  <option key={k} value={k}>{t.kinds[k]}</option>
                 ))}
               </select>
             </label>
             <label className="text-xs font-bold text-muted">
-              {form.kind === "percent" ? "النسبة (٪)" : form.kind === "fixed" ? "المبلغ (د.ل)" : "النقاط"}
+              {form.kind === "percent" ? t.fPercent : form.kind === "fixed" ? t.fAmount : t.fPoints}
               <input
                 className="input !py-2 !text-sm mt-1"
                 inputMode="decimal"
@@ -203,40 +333,40 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
               />
             </label>
             <label className="text-xs font-bold text-muted">
-              أقصى خصم (د.ل)
+              {t.fMaxDiscount}
               <input
                 className="input !py-2 !text-sm mt-1"
                 inputMode="numeric"
-                placeholder="اختياري"
+                placeholder={t.optional}
                 value={form.maxDiscount}
                 onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })}
               />
             </label>
             <label className="text-xs font-bold text-muted">
-              القطاع
+              {t.fVertical}
               <select
                 className="input !py-2 !text-sm mt-1"
                 value={form.vertical}
                 onChange={(e) => setForm({ ...form, vertical: e.target.value })}
               >
-                <option value="">كل الأقسام</option>
-                <option value="coast">شاليهات واستراحات</option>
-                <option value="hall">قاعات أفراح</option>
-                <option value="service">خدمات</option>
+                <option value="">{t.allVerticals}</option>
+                {VERTICAL_KEYS.map((k) => (
+                  <option key={k} value={k}>{term(VERTICALS, locale, k)}</option>
+                ))}
               </select>
             </label>
             <label className="text-xs font-bold text-muted">
-              المدينة
+              {t.fCity}
               <input
                 className="input !py-2 !text-sm mt-1"
                 dir="ltr"
-                placeholder="tripoli (اختياري)"
+                placeholder={t.cityPlaceholder}
                 value={form.city}
                 onChange={(e) => setForm({ ...form, city: e.target.value })}
               />
             </label>
             <label className="text-xs font-bold text-muted">
-              أقل قيمة حجز (د.ل)
+              {t.fMinSpend}
               <input
                 className="input !py-2 !text-sm mt-1"
                 inputMode="numeric"
@@ -246,7 +376,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
               />
             </label>
             <label className="text-xs font-bold text-muted">
-              ينتهي في
+              {t.fEndsAt}
               <input
                 type="date"
                 className="input !py-2 !text-sm mt-1"
@@ -255,17 +385,17 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
               />
             </label>
             <label className="text-xs font-bold text-muted">
-              أقصى عدد استخدامات
+              {t.fMaxRedemptions}
               <input
                 className="input !py-2 !text-sm mt-1"
                 inputMode="numeric"
-                placeholder="بلا حد"
+                placeholder={t.noLimit}
                 value={form.maxRedemptions}
                 onChange={(e) => setForm({ ...form, maxRedemptions: e.target.value })}
               />
             </label>
             <label className="text-xs font-bold text-muted">
-              الحد لكل مستخدم
+              {t.fPerUser}
               <input
                 className="input !py-2 !text-sm mt-1"
                 inputMode="numeric"
@@ -275,7 +405,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
             </label>
             <input
               className="input !py-2 !text-sm sm:col-span-2"
-              placeholder="وصف يظهر للضيف عند تطبيق الكود"
+              placeholder={t.fDescription}
               value={form.descriptionAr}
               onChange={(e) => setForm({ ...form, descriptionAr: e.target.value })}
             />
@@ -284,7 +414,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
               disabled={busy || form.code.length < 3}
               onClick={create}
             >
-              {busy ? "…" : "أنشئ الكود"}
+              {busy ? "…" : t.createCode}
             </button>
           </div>
         ) : null}
@@ -293,12 +423,12 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
           <table className="w-full text-xs">
             <thead className="text-faint">
               <tr>
-                <th className="text-start py-1">الكود</th>
-                <th className="text-start py-1">القيمة</th>
-                <th className="text-start py-1">النطاق</th>
-                <th className="text-start py-1">الاستخدام</th>
-                <th className="text-start py-1">كلّفنا</th>
-                <th className="text-start py-1">الحالة</th>
+                <th className="text-start py-1">{t.thCode}</th>
+                <th className="text-start py-1">{t.thValue}</th>
+                <th className="text-start py-1">{t.thScope}</th>
+                <th className="text-start py-1">{t.thUsage}</th>
+                <th className="text-start py-1">{t.thCost}</th>
+                <th className="text-start py-1">{t.thStatus}</th>
               </tr>
             </thead>
             <tbody>
@@ -314,16 +444,14 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                     </td>
                     <td className="py-2 font-bold text-sea">{describe(p)}</td>
                     <td className="py-2 text-muted">
-                      {p.vertical
-                        ? { coast: "شاليهات", hall: "قاعات", service: "خدمات" }[p.vertical]
-                        : "الكل"}
-                      {p.city ? ` · ${p.city}` : ""}
-                      {p.minSpend > 0 ? ` · من ${fmtLyd(p.minSpend)}` : ""}
+                      {p.vertical ? term(VERTICALS, locale, p.vertical) : t.scopeAll}
+                      {p.city ? ` · ${term(CITIES, locale, p.city)}` : ""}
+                      {p.minSpend > 0 ? t.fromSpend(fmtLyd(p.minSpend, locale)) : ""}
                     </td>
                     <td className="py-2 tabular-nums">
                       {p.timesUsed}
                       {p.maxRedemptions != null ? `/${p.maxRedemptions}` : ""}
-                      <div className="text-[11px] text-faint">لكل عضو {p.perUserLimit}</div>
+                      <div className="text-[11px] text-faint">{t.perMember(p.perUserLimit)}</div>
                     </td>
                     <td className="py-2">
                       <Money dirhams={p.discountGiven} />
@@ -335,7 +463,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                           className="chip !text-[11px] mt-1"
                           onClick={() => toggle(p)}
                         >
-                          {p.active ? "إيقاف" : "تفعيل"}
+                          {p.active ? t.pause : t.activate}
                         </button>
                       ) : null}
                     </td>
@@ -345,7 +473,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
               {items.length === 0 ? (
                 <tr>
                   <td className="p-3 text-faint" colSpan={6}>
-                    لا أكواد بعد
+                    {t.noCodes}
                   </td>
                 </tr>
               ) : null}

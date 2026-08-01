@@ -117,7 +117,7 @@ export default async function RootLayout({
       <body className={`${locale === "ar" ? "font-almarai" : "font-inter"} min-h-dvh`}>
         <LocaleProvider locale={locale}>
           <OfflineBanner />
-          <AnnouncementBar />
+          <AnnouncementBar locale={locale} />
           <PageViews />
           {children}
           <SwRegister />

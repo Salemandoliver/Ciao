@@ -81,6 +81,7 @@ export async function wishlistRoutes(app: FastifyInstance) {
         id: listing.id,
         slug: listing.slug,
         titleAr: listing.titleAr,
+        titleEn: listing.titleEn,
         city: venue.city,
         area: venue.area,
         baseNightly: listing.baseNightly,

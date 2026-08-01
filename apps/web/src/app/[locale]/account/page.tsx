@@ -12,10 +12,13 @@
  * navigation is another round trip on Libyan 3G (§12.3).
  */
 import { Suspense, useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { Link, useHref, useLocale, useRouter } from "@/lib/locale";
 import { Logo } from "@/components/logo";
+import { LanguageToggle } from "@/components/language-toggle";
 import { ApiError, api, ensureSession, fmtLyd, fmtLydPrecise } from "@/lib/api";
+import { fmtDate, fmtNum } from "@/lib/vocab";
+import type { Locale } from "@/lib/i18n";
 import { WalletTab } from "./wallet";
 import { PointsTab } from "./points";
 import { InboxTab } from "./inbox";
@@ -53,17 +56,111 @@ export interface AccountData {
 }
 
 const TABS = [
-  ["overview", "🪪", "حسابي"],
-  ["wallet", "👛", "المحفظة"],
-  ["points", "⭐", "النقاط والدعوات"],
-  ["inbox", "✉️", "الرسائل"],
-  ["security", "🔐", "الأمان"],
-  ["settings", "⚙️", "التفضيلات"],
+  ["overview", "🪪"],
+  ["wallet", "👛"],
+  ["points", "⭐"],
+  ["inbox", "✉️"],
+  ["security", "🔐"],
+  ["settings", "⚙️"],
 ] as const;
 
 type TabKey = (typeof TABS)[number][0];
 
+const copy = {
+  ar: {
+    myBookings: "حجوزاتي",
+    wishlist: "المفضلة",
+    loadFailed: "تعذر تحميل الحساب",
+    offline: "تعذر الاتصال",
+    loading: "جارٍ التحميل…",
+    welcome: "أهلًا بك في تشاو",
+    tabs: {
+      overview: "حسابي",
+      wallet: "المحفظة",
+      points: "النقاط والدعوات",
+      inbox: "الرسائل",
+      security: "الأمان",
+      settings: "التفضيلات",
+    } as Record<TabKey, string>,
+    walletBalance: "رصيد المحفظة",
+    yourPoints: "نقاطك",
+    staysDone: "إقامات مكتملة",
+    emailTitle: "وثّق بريدك الإلكتروني",
+    emailBody: (pts: number) =>
+      `قناة تصلك حتى لو غيّرت رقمك أو ضاعت شريحتك — واكسب ${pts} نقطة.`,
+    emailAction: "أضف البريد",
+    passkeyTitle: "فعّل الدخول بالبصمة",
+    passkeyBody:
+      "بدل انتظار رمز يصل برسالة — البصمة تشتغل حتى بدون شبكة، وهي أأمن لمحفظتك.",
+    passkeyAction: "فعّل البصمة",
+    redeemTitle: "نقاطك تكفي للتحويل",
+    redeemBody: (points: string, worth: string) =>
+      `عندك ${points} نقطة — تساوي ${worth} رصيدًا في محفظتك.`,
+    redeemAction: "حوّل النقاط",
+    unreadTitle: (n: number) => `عندك ${n} رسالة غير مقروءة`,
+    unreadBody: "رسائل من المضيفين أو من فريق تشاو.",
+    unreadAction: "افتح الرسائل",
+    doneTitle: "حسابك مكتمل ✅",
+    doneBody: (since: string) =>
+      `البصمة مفعّلة، بريدك موثّق، ولا رسائل تنتظرك. عضويتك منذ ${since}.`,
+    earnTitle: "كيف تكسب النقاط",
+    earnStay: "إتمام إقامة",
+    earnReview: "كتابة تقييم بعد الإقامة",
+    earnReferral: "صديق دعوته أتمّ أول حجز",
+    earnEmail: "توثيق البريد الإلكتروني",
+    earnNote:
+      "كل ١٠٠٠ نقطة = ١ د.ل رصيد. النقاط تُكتسب بما تفعله فعلًا — لا نمنح نقاطًا مقابل التسجيل وحده حتى لا تُستغل بحسابات وهمية.",
+  },
+  en: {
+    myBookings: "My bookings",
+    wishlist: "Saved",
+    loadFailed: "Could not load your account",
+    offline: "Could not connect",
+    loading: "Loading…",
+    welcome: "Welcome to Ciao",
+    tabs: {
+      overview: "Account",
+      wallet: "Wallet",
+      points: "Points & invites",
+      inbox: "Messages",
+      security: "Security",
+      settings: "Preferences",
+    } as Record<TabKey, string>,
+    walletBalance: "Wallet balance",
+    yourPoints: "Your points",
+    staysDone: "Completed stays",
+    emailTitle: "Verify your email",
+    emailBody: (pts: number) =>
+      `A way to reach you even if you change your number or lose your SIM — and it earns you ${pts} points.`,
+    emailAction: "Add email",
+    passkeyTitle: "Turn on fingerprint sign-in",
+    passkeyBody:
+      "No waiting for a code by message — a fingerprint works with no signal at all, and it is safer for your wallet.",
+    passkeyAction: "Turn it on",
+    redeemTitle: "You have enough points to convert",
+    redeemBody: (points: string, worth: string) =>
+      `You have ${points} points — worth ${worth} of credit in your wallet.`,
+    redeemAction: "Convert points",
+    unreadTitle: (n: number) => `You have ${n} unread message${n === 1 ? "" : "s"}`,
+    unreadBody: "Messages from hosts or from the Ciao team.",
+    unreadAction: "Open messages",
+    doneTitle: "Your account is all set ✅",
+    doneBody: (since: string) =>
+      `Fingerprint on, email verified, nothing waiting for you. A member since ${since}.`,
+    earnTitle: "How you earn points",
+    earnStay: "Completing a stay",
+    earnReview: "Writing a review after your stay",
+    earnReferral: "A friend you invited finishes their first booking",
+    earnEmail: "Verifying your email",
+    earnNote:
+      "Every 1,000 points = 1 LYD of credit. Points come from things you actually do — signing up on its own earns nothing, so the scheme cannot be farmed with fake accounts.",
+  },
+} satisfies Record<Locale, unknown>;
+
 function AccountScreen() {
+  const locale = useLocale();
+  const c = copy[locale];
+  const href = useHref();
   const router = useRouter();
   const params = useSearchParams();
   const [tab, setTab] = useState<TabKey>((params.get("tab") as TabKey) ?? "overview");
@@ -74,9 +171,9 @@ function AccountScreen() {
     try {
       setData(await api<AccountData>("/v1/me/account"));
     } catch (e) {
-      setErr(e instanceof ApiError ? "تعذر تحميل الحساب" : "تعذر الاتصال");
+      setErr(e instanceof ApiError ? c.loadFailed : c.offline);
     }
-  }, []);
+  }, [c]);
 
   useEffect(() => {
     ensureSession().then((ok) => {
@@ -87,7 +184,9 @@ function AccountScreen() {
 
   function go(next: TabKey) {
     setTab(next);
-    window.history.replaceState(null, "", `/account?tab=${next}`);
+    // Hand-written URL, so it needs the locale prefix put back on: a shared
+    // English link that drops the `/en` sends the reader into Arabic.
+    window.history.replaceState(null, "", href(`/account?tab=${next}`));
   }
 
   return (
@@ -97,32 +196,34 @@ function AccountScreen() {
           <Logo size={34} />
         </Link>
         <nav className="flex items-center gap-2 text-xs font-bold text-sea">
-          <Link href="/my" className="chip">حجوزاتي</Link>
-          <Link href="/wishlist" className="chip">المفضلة</Link>
+          <Link href="/my" className="chip">{c.myBookings}</Link>
+          <Link href="/wishlist" className="chip">{c.wishlist}</Link>
+          <LanguageToggle className="!text-xs" />
         </nav>
       </header>
 
       {err ? <p className="p-4 text-danger font-bold">{err}</p> : null}
-      {!data && !err ? <p className="p-4 text-faint">جارٍ التحميل…</p> : null}
+      {!data && !err ? <p className="p-4 text-faint">{c.loading}</p> : null}
 
       {data ? (
         <>
           <div className="card p-4 mb-3">
-            <h1 className="font-bold text-lg text-sea">
-              {data.displayName || "أهلًا بك في تشاو"}
-            </h1>
+            <h1 className="font-bold text-lg text-sea">{data.displayName || c.welcome}</h1>
             <p className="text-xs text-faint mt-0.5" dir="ltr">
               {data.phone}
             </p>
             <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-              <MiniStat label="رصيد المحفظة" value={fmtLyd(data.wallet.creditBalance)} />
-              <MiniStat label="نقاطك" value={data.loyalty.points.toLocaleString("ar-LY")} />
-              <MiniStat label="إقامات مكتملة" value={String(data.completedStays)} />
+              <MiniStat
+                label={c.walletBalance}
+                value={fmtLyd(data.wallet.creditBalance, locale)}
+              />
+              <MiniStat label={c.yourPoints} value={fmtNum(locale, data.loyalty.points)} />
+              <MiniStat label={c.staysDone} value={fmtNum(locale, data.completedStays)} />
             </div>
           </div>
 
           <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
-            {TABS.map(([key, emoji, label]) => (
+            {TABS.map(([key, emoji]) => (
               <button
                 key={key}
                 onClick={() => go(key)}
@@ -131,7 +232,7 @@ function AccountScreen() {
                 }`}
               >
                 <span aria-hidden>{emoji}</span>
-                {label}
+                {c.tabs[key]}
                 {key === "inbox" && data.unreadMessages ? (
                   <span className="rounded-full bg-amber text-sea-dark px-1.5 text-[10px]">
                     {data.unreadMessages}
@@ -166,36 +267,39 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 
 /** The overview earns its place by telling you what to do next, not by repeating numbers. */
 function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void }) {
+  const locale = useLocale();
+  const c = copy[locale];
   const todo: { title: string; body: string; action: string; go: TabKey }[] = [];
 
   if (!data.email || !data.emailVerified)
     todo.push({
-      title: "وثّق بريدك الإلكتروني",
-      body: `قناة تصلك حتى لو غيّرت رقمك أو ضاعت شريحتك — واكسب ${data.loyalty.rules.email_verified} نقطة.`,
-      action: "أضف البريد",
+      title: c.emailTitle,
+      body: c.emailBody(data.loyalty.rules.email_verified),
+      action: c.emailAction,
       go: "settings",
     });
   if (data.passkeys === 0)
     todo.push({
-      title: "فعّل الدخول بالبصمة",
-      body: "بدل انتظار رمز يصل برسالة — البصمة تشتغل حتى بدون شبكة، وهي أأمن لمحفظتك.",
-      action: "فعّل البصمة",
+      title: c.passkeyTitle,
+      body: c.passkeyBody,
+      action: c.passkeyAction,
       go: "security",
     });
   if (data.loyalty.points >= data.loyalty.minRedeem)
     todo.push({
-      title: "نقاطك تكفي للتحويل",
-      body: `عندك ${data.loyalty.points.toLocaleString("ar-LY")} نقطة — تساوي ${fmtLydPrecise(
-        data.loyalty.worthDirhams,
-      )} رصيدًا في محفظتك.`,
-      action: "حوّل النقاط",
+      title: c.redeemTitle,
+      body: c.redeemBody(
+        fmtNum(locale, data.loyalty.points),
+        fmtLydPrecise(data.loyalty.worthDirhams, locale),
+      ),
+      action: c.redeemAction,
       go: "points",
     });
   if (data.unreadMessages)
     todo.push({
-      title: `عندك ${data.unreadMessages} رسالة غير مقروءة`,
-      body: "رسائل من المضيفين أو من فريق تشاو.",
-      action: "افتح الرسائل",
+      title: c.unreadTitle(data.unreadMessages),
+      body: c.unreadBody,
+      action: c.unreadAction,
       go: "inbox",
     });
 
@@ -215,22 +319,19 @@ function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void
         ))
       ) : (
         <div className="card p-4">
-          <p className="font-bold text-sea text-sm">حسابك مكتمل ✅</p>
-          <p className="text-xs text-muted mt-1">
-            البصمة مفعّلة، بريدك موثّق، ولا رسائل تنتظرك. عضويتك منذ{" "}
-            {new Date(data.memberSince).toLocaleDateString("ar-LY")}.
-          </p>
+          <p className="font-bold text-sea text-sm">{c.doneTitle}</p>
+          <p className="text-xs text-muted mt-1">{c.doneBody(fmtDate(locale, data.memberSince))}</p>
         </div>
       )}
 
       <div className="card p-4">
-        <h3 className="font-bold text-sea text-sm">كيف تكسب النقاط</h3>
+        <h3 className="font-bold text-sea text-sm">{c.earnTitle}</h3>
         <ul className="text-xs text-muted mt-2 space-y-1">
           {[
-            ["إتمام إقامة", data.loyalty.rules.stay_completed],
-            ["كتابة تقييم بعد الإقامة", data.loyalty.rules.review_written],
-            ["صديق دعوته أتمّ أول حجز", data.loyalty.rules.referral_qualified],
-            ["توثيق البريد الإلكتروني", data.loyalty.rules.email_verified],
+            [c.earnStay, data.loyalty.rules.stay_completed],
+            [c.earnReview, data.loyalty.rules.review_written],
+            [c.earnReferral, data.loyalty.rules.referral_qualified],
+            [c.earnEmail, data.loyalty.rules.email_verified],
           ].map(([label, pts]) => (
             <li key={String(label)} className="flex items-center justify-between">
               <span>{label}</span>
@@ -238,10 +339,7 @@ function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void
             </li>
           ))}
         </ul>
-        <p className="text-[11px] text-faint mt-2 leading-relaxed">
-          كل ١٠٠٠ نقطة = ١ د.ل رصيد. النقاط تُكتسب بما تفعله فعلًا — لا نمنح نقاطًا مقابل التسجيل
-          وحده حتى لا تُستغل بحسابات وهمية.
-        </p>
+        <p className="text-[11px] text-faint mt-2 leading-relaxed">{c.earnNote}</p>
       </div>
     </div>
   );

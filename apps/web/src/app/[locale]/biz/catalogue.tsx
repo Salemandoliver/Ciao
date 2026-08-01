@@ -7,16 +7,33 @@
  * is the kind of orphan record that costs a supply team a whole afternoon.
  * The listing lands as a draft — publishing is deliberate and requires a
  * field visit plus photos (§11.2, §8.3).
+ *
+ * The intake form stays Arabic-only on purpose. Everything typed into it is
+ * content for Libyan guests, written by the person who visited the place; a
+ * bilingual intake form would invite an operator to write the listing itself
+ * in English, which is not what the public site needs. English copy is added
+ * afterwards, per listing, in the editor below.
  */
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api } from "@/lib/api";
-import { Money, Pill, STATUS_AR, Section, VERTICAL_AR } from "./lib";
+import { useLocale } from "@/lib/locale";
+import type { Locale } from "@/lib/i18n";
+import {
+  AREAS,
+  CITIES,
+  LISTING_STATUS,
+  SERVICE_CATEGORY_LABELS,
+  VERTICALS,
+  term,
+} from "@/lib/vocab";
+import { Money, Pill, Section } from "./lib";
 import { MediaManager } from "./media";
 
 export interface BizListing {
   listingId: string;
   slug: string;
   titleAr: string;
+  titleEn: string | null;
   status: string;
   vertical: string;
   serviceCategory: string | null;
@@ -33,6 +50,10 @@ export interface BizListing {
   reviewCount: number;
   disputeCount: number;
 }
+
+const CITY_KEYS = ["tripoli", "misrata", "benghazi", "zawiya", "khoms"] as const;
+const SERVICE_KEYS = ["catering", "photography", "makeup", "hair", "cakes", "gym"] as const;
+const STATUS_KEYS = ["draft", "live", "paused", "delisted"] as const;
 
 const EMPTY_FORM = {
   vertical: "coast" as "coast" | "hall" | "service",
@@ -54,7 +75,148 @@ const EMPTY_FORM = {
   cancellationTier: "moderate" as "flexible" | "moderate" | "strict",
 };
 
+const copy = {
+  ar: {
+    all: "الكل",
+    allStatuses: "كل الحالات",
+    searchPlaceholder: "بحث بالاسم أو الرمز",
+    cancel: "إلغاء",
+    addBusiness: "+ إضافة نشاط",
+    loadFailed: "تعذر تحميل القائمة",
+    added: (slug: string, next: string) => `✅ أُضيف «${slug}» كمسودة — ${next}`,
+    addFailed: (why: string) => `تعذر الإضافة: ${why}`,
+    addFailedPlain: "تعذر الإضافة",
+    unverified: "لا يمكن النشر قبل المعاينة الميدانية واعتماد المكان (§11.2)",
+    needsMedia: "لا يمكن النشر بدون صور — أضف الصور أولًا",
+    statusFailed: "تعذر تغيير الحالة",
+    addTitle: "إضافة نشاط جديد",
+    addIntro:
+      "يُنشأ حساب المضيف والمكان والإعلان معًا. يبدأ الإعلان كمسودة — لا يُنشر إلا بعد المعاينة الميدانية وإضافة الصور.",
+    fType: "نوع النشاط",
+    tCoast: "شاليه / استراحة",
+    tHall: "قاعة أفراح",
+    tService: "خدمة",
+    fServiceCategory: "فئة الخدمة",
+    fCancellation: "سياسة الإلغاء",
+    flexible: "مرنة",
+    moderate: "متوسطة",
+    strict: "صارمة",
+    fHostPhone: "هاتف المضيف",
+    fHostName: "اسم المضيف",
+    fVenueName: "اسم المكان",
+    fCity: "المدينة",
+    fArea: "المنطقة",
+    fTitleAr: "عنوان الإعلان (عربي)",
+    fSlug: "الرمز في الرابط",
+    suggest: "اقترح",
+    fBasePrice: "السعر الأساسي (د.ل)",
+    fWomensCapacity: "سعة القسم النسائي",
+    fMaxGuests: "أقصى عدد ضيوف",
+    fBedrooms: "عدد الغرف",
+    fDescription: "الوصف",
+    familyOnly: "عائلات فقط",
+    saving: "جارٍ الحفظ…",
+    saveDraft: "أضف كمسودة",
+    colBusiness: "النشاط",
+    colType: "النوع",
+    colStatus: "الحالة",
+    colPhotos: "الصور",
+    colBookings: "حجوزات",
+    colValue: "القيمة",
+    colReviews: "التقييمات",
+    noHost: " · بلا مضيف",
+    notVerified: "غير موثّق",
+    disputes: (n: number) => ` · ${n} شكوى`,
+    noResults: "لا نتائج",
+    englishSet: "EN ✓",
+    englishMissing: "EN —",
+    englishTitleFor: (name: string) => `النص الإنجليزي: ${name}`,
+    editorIntro:
+      "اختياري. يظهر هذا النص لزوار النسخة الإنجليزية فقط. إن تركته فارغًا شافوا العربي كما هو، مكتوبًا بلغته — وهذا مقبول تمامًا، أفضل من ترجمة آلية غير مراجعة.",
+    arabicNow: "العربي المنشور حاليًا",
+    fTitleEn: "العنوان بالإنجليزية (اختياري)",
+    fDescriptionEn: "الوصف بالإنجليزية (اختياري)",
+    editorLoadFailed: "تعذر تحميل الإعلان",
+    editorSaved: "✅ حُفظ النص الإنجليزي",
+    editorCleared: "✅ حُذف النص الإنجليزي — الزوار الإنجليز يشوفون العربي",
+    editorSaveFailed: "تعذر الحفظ",
+    save: "حفظ",
+    close: "إغلاق",
+    loading: "جارٍ التحميل…",
+  },
+  en: {
+    all: "All",
+    allStatuses: "All statuses",
+    searchPlaceholder: "Search by name or slug",
+    cancel: "Cancel",
+    addBusiness: "+ Add business",
+    loadFailed: "Could not load the list",
+    added: (slug: string, next: string) => `✅ Added "${slug}" as a draft — ${next}`,
+    addFailed: (why: string) => `Could not add: ${why}`,
+    addFailedPlain: "Could not add",
+    unverified: "Cannot publish before the field visit and venue sign-off (§11.2)",
+    needsMedia: "Cannot publish without photos — add photos first",
+    statusFailed: "Could not change the status",
+    addTitle: "Add a business",
+    addIntro:
+      "The host account, the venue and the listing are created together. The listing starts as a draft — it only goes live after the field visit and photos.",
+    fType: "Type",
+    tCoast: "Chalet / estiraha",
+    tHall: "Wedding hall",
+    tService: "Service",
+    fServiceCategory: "Service category",
+    fCancellation: "Cancellation policy",
+    flexible: "Flexible",
+    moderate: "Moderate",
+    strict: "Strict",
+    fHostPhone: "Host phone",
+    fHostName: "Host name",
+    fVenueName: "Venue name",
+    fCity: "City",
+    fArea: "Area",
+    fTitleAr: "Listing title (Arabic)",
+    fSlug: "URL slug",
+    suggest: "Suggest",
+    fBasePrice: "Base price (LYD)",
+    fWomensCapacity: "Women's section capacity",
+    fMaxGuests: "Maximum guests",
+    fBedrooms: "Bedrooms",
+    fDescription: "Description",
+    familyOnly: "Families only",
+    saving: "Saving…",
+    saveDraft: "Add as draft",
+    colBusiness: "Business",
+    colType: "Type",
+    colStatus: "Status",
+    colPhotos: "Photos",
+    colBookings: "Bookings",
+    colValue: "Value",
+    colReviews: "Reviews",
+    noHost: " · no host",
+    notVerified: "Not verified",
+    disputes: (n: number) => ` · ${n} disputes`,
+    noResults: "No results",
+    englishSet: "EN ✓",
+    englishMissing: "EN —",
+    englishTitleFor: (name: string) => `English copy: ${name}`,
+    editorIntro:
+      "Optional. This text is shown to visitors reading the English site only. Leave it empty and they see the Arabic as written, marked as Arabic — which is fine, and better than an unreviewed machine translation.",
+    arabicNow: "Arabic currently published",
+    fTitleEn: "English title (optional)",
+    fDescriptionEn: "English description (optional)",
+    editorLoadFailed: "Could not load the listing",
+    editorSaved: "✅ English copy saved",
+    editorCleared: "✅ English copy cleared — English visitors will see the Arabic",
+    editorSaveFailed: "Could not save",
+    save: "Save",
+    close: "Close",
+    loading: "Loading…",
+  },
+} satisfies Record<Locale, unknown>;
+
 export function CatalogueTab() {
+  const locale = useLocale();
+  const c = copy[locale];
   const [items, setItems] = useState<BizListing[]>([]);
   const [type, setType] = useState<"all" | "coast" | "hall" | "service">("all");
   const [status, setStatus] = useState<"all" | "draft" | "live" | "paused" | "delisted">("all");
@@ -63,6 +225,7 @@ export function CatalogueTab() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [mediaFor, setMediaFor] = useState<BizListing | null>(null);
+  const [englishFor, setEnglishFor] = useState<BizListing | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -71,9 +234,9 @@ export function CatalogueTab() {
     try {
       setItems((await api<{ items: BizListing[] }>(`/v1/biz/businesses?${q}`)).items);
     } catch {
-      setMsg("تعذر تحميل القائمة");
+      setMsg(copy[locale].loadFailed);
     }
-  }, [type, status, search]);
+  }, [type, status, search, locale]);
 
   useEffect(() => {
     void load();
@@ -117,12 +280,12 @@ export function CatalogueTab() {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setMsg(`✅ أُضيف «${res.slug}» كمسودة — ${res.next}`);
+      setMsg(c.added(res.slug, res.next));
       setForm(EMPTY_FORM);
       setAdding(false);
       await load();
     } catch (e) {
-      setMsg(e instanceof ApiError ? `تعذر الإضافة: ${e.message}` : "تعذر الإضافة");
+      setMsg(e instanceof ApiError ? c.addFailed(e.message) : c.addFailedPlain);
     } finally {
       setBusy(false);
     }
@@ -140,10 +303,10 @@ export function CatalogueTab() {
       const code = e instanceof ApiError ? e.message : "";
       setMsg(
         code.includes("unverified")
-          ? "لا يمكن النشر قبل المعاينة الميدانية واعتماد المكان (§11.2)"
+          ? c.unverified
           : code.includes("media")
-            ? "لا يمكن النشر بدون صور — أضف الصور أولًا"
-            : "تعذر تغيير الحالة",
+            ? c.needsMedia
+            : c.statusFailed,
       );
     }
   }
@@ -157,7 +320,7 @@ export function CatalogueTab() {
             onClick={() => setType(t)}
             className={`chip ${type === t ? "!bg-sea !text-white" : ""}`}
           >
-            {t === "all" ? "الكل" : VERTICAL_AR[t]}
+            {t === "all" ? c.all : term(VERTICALS, locale, t)}
           </button>
         ))}
         <select
@@ -165,62 +328,60 @@ export function CatalogueTab() {
           value={status}
           onChange={(e) => setStatus(e.target.value as typeof status)}
         >
-          <option value="all">كل الحالات</option>
-          {Object.entries(STATUS_AR).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+          <option value="all">{c.allStatuses}</option>
+          {STATUS_KEYS.map((k) => (
+            <option key={k} value={k}>
+              {term(LISTING_STATUS, locale, k)}
+            </option>
           ))}
         </select>
         <input
           className="input !py-1.5 !text-sm max-w-[200px]"
-          placeholder="بحث بالاسم أو الرمز"
+          placeholder={c.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <button className="btn-amber !py-1.5 !px-4 !text-sm" onClick={() => setAdding((a) => !a)}>
-          {adding ? "إلغاء" : "+ إضافة نشاط"}
+          {adding ? c.cancel : c.addBusiness}
         </button>
       </div>
 
       {msg ? <p className="mb-3 text-sm font-bold text-sea">{msg}</p> : null}
 
       {adding ? (
-        <Section title="إضافة نشاط جديد">
-          <p className="text-xs text-faint mb-3">
-            يُنشأ حساب المضيف والمكان والإعلان معًا. يبدأ الإعلان كمسودة — لا يُنشر إلا بعد
-            المعاينة الميدانية وإضافة الصور.
-          </p>
+        <Section title={c.addTitle}>
+          <p className="text-xs text-faint mb-3">{c.addIntro}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <label className="block text-xs font-bold text-muted">
-              نوع النشاط
+              {c.fType}
               <select
                 className="input !py-2 !text-sm mt-1"
                 value={form.vertical}
                 onChange={(e) => set("vertical", e.target.value as typeof form.vertical)}
               >
-                <option value="coast">شاليه / استراحة</option>
-                <option value="hall">قاعة أفراح</option>
-                <option value="service">خدمة</option>
+                <option value="coast">{c.tCoast}</option>
+                <option value="hall">{c.tHall}</option>
+                <option value="service">{c.tService}</option>
               </select>
             </label>
             {form.vertical === "service" ? (
               <label className="block text-xs font-bold text-muted">
-                فئة الخدمة
+                {c.fServiceCategory}
                 <select
                   className="input !py-2 !text-sm mt-1"
                   value={form.serviceCategory}
                   onChange={(e) => set("serviceCategory", e.target.value)}
                 >
-                  <option value="catering">ضيافة وطعام</option>
-                  <option value="photography">تصوير</option>
-                  <option value="makeup">مكياج</option>
-                  <option value="hair">تصفيف شعر</option>
-                  <option value="cakes">كعك وحلويات</option>
-                  <option value="gym">نادي رياضي</option>
+                  {SERVICE_KEYS.map((k) => (
+                    <option key={k} value={k}>
+                      {term(SERVICE_CATEGORY_LABELS, locale, k)}
+                    </option>
+                  ))}
                 </select>
               </label>
             ) : (
               <label className="block text-xs font-bold text-muted">
-                سياسة الإلغاء
+                {c.fCancellation}
                 <select
                   className="input !py-2 !text-sm mt-1"
                   value={form.cancellationTier}
@@ -228,14 +389,14 @@ export function CatalogueTab() {
                     set("cancellationTier", e.target.value as typeof form.cancellationTier)
                   }
                 >
-                  <option value="flexible">مرنة</option>
-                  <option value="moderate">متوسطة</option>
-                  <option value="strict">صارمة</option>
+                  <option value="flexible">{c.flexible}</option>
+                  <option value="moderate">{c.moderate}</option>
+                  <option value="strict">{c.strict}</option>
                 </select>
               </label>
             )}
             <label className="block text-xs font-bold text-muted">
-              هاتف المضيف
+              {c.fHostPhone}
               <input
                 className="input !py-2 !text-sm mt-1"
                 dir="ltr"
@@ -245,7 +406,7 @@ export function CatalogueTab() {
               />
             </label>
             <label className="block text-xs font-bold text-muted">
-              اسم المضيف
+              {c.fHostName}
               <input
                 className="input !py-2 !text-sm mt-1"
                 value={form.hostName}
@@ -253,29 +414,31 @@ export function CatalogueTab() {
               />
             </label>
             <label className="block text-xs font-bold text-muted">
-              اسم المكان
+              {c.fVenueName}
               <input
                 className="input !py-2 !text-sm mt-1"
+                dir="rtl"
+                lang="ar"
                 value={form.venueNameAr}
                 onChange={(e) => set("venueNameAr", e.target.value)}
               />
             </label>
             <label className="block text-xs font-bold text-muted">
-              المدينة
+              {c.fCity}
               <select
                 className="input !py-2 !text-sm mt-1"
                 value={form.city}
                 onChange={(e) => set("city", e.target.value)}
               >
-                <option value="tripoli">طرابلس</option>
-                <option value="misrata">مصراتة</option>
-                <option value="benghazi">بنغازي</option>
-                <option value="zawiya">الزاوية</option>
-                <option value="khoms">الخمس</option>
+                {CITY_KEYS.map((k) => (
+                  <option key={k} value={k}>
+                    {term(CITIES, locale, k)}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="block text-xs font-bold text-muted">
-              المنطقة
+              {c.fArea}
               <input
                 className="input !py-2 !text-sm mt-1"
                 placeholder="janzour"
@@ -285,15 +448,17 @@ export function CatalogueTab() {
               />
             </label>
             <label className="block text-xs font-bold text-muted">
-              عنوان الإعلان (عربي)
+              {c.fTitleAr}
               <input
                 className="input !py-2 !text-sm mt-1"
+                dir="rtl"
+                lang="ar"
                 value={form.titleAr}
                 onChange={(e) => set("titleAr", e.target.value)}
               />
             </label>
             <label className="block text-xs font-bold text-muted">
-              الرمز في الرابط
+              {c.fSlug}
               <div className="flex gap-1 mt-1">
                 <input
                   className="input !py-2 !text-sm"
@@ -303,12 +468,12 @@ export function CatalogueTab() {
                   onChange={(e) => set("slug", e.target.value)}
                 />
                 <button className="chip shrink-0" onClick={suggestSlug} type="button">
-                  اقترح
+                  {c.suggest}
                 </button>
               </div>
             </label>
             <label className="block text-xs font-bold text-muted">
-              السعر الأساسي (د.ل)
+              {c.fBasePrice}
               <input
                 className="input !py-2 !text-sm mt-1"
                 inputMode="numeric"
@@ -318,7 +483,7 @@ export function CatalogueTab() {
             </label>
             {form.vertical === "hall" ? (
               <label className="block text-xs font-bold text-muted">
-                سعة القسم النسائي
+                {c.fWomensCapacity}
                 <input
                   className="input !py-2 !text-sm mt-1"
                   inputMode="numeric"
@@ -329,7 +494,7 @@ export function CatalogueTab() {
             ) : form.vertical === "coast" ? (
               <>
                 <label className="block text-xs font-bold text-muted">
-                  أقصى عدد ضيوف
+                  {c.fMaxGuests}
                   <input
                     className="input !py-2 !text-sm mt-1"
                     inputMode="numeric"
@@ -338,7 +503,7 @@ export function CatalogueTab() {
                   />
                 </label>
                 <label className="block text-xs font-bold text-muted">
-                  عدد الغرف
+                  {c.fBedrooms}
                   <input
                     className="input !py-2 !text-sm mt-1"
                     inputMode="numeric"
@@ -349,9 +514,11 @@ export function CatalogueTab() {
               </>
             ) : null}
             <label className="block text-xs font-bold text-muted sm:col-span-2">
-              الوصف
+              {c.fDescription}
               <textarea
                 className="input !py-2 !text-sm mt-1 h-20"
+                dir="rtl"
+                lang="ar"
                 value={form.descriptionAr}
                 onChange={(e) => set("descriptionAr", e.target.value)}
               />
@@ -363,7 +530,7 @@ export function CatalogueTab() {
                   checked={form.familyOnly}
                   onChange={(e) => set("familyOnly", e.target.checked)}
                 />
-                عائلات فقط
+                {c.familyOnly}
               </label>
             ) : null}
           </div>
@@ -372,7 +539,7 @@ export function CatalogueTab() {
             disabled={busy || !form.hostPhone || !form.slug || !form.titleAr || !form.venueNameAr}
             onClick={submit}
           >
-            {busy ? "جارٍ الحفظ…" : "أضف كمسودة"}
+            {busy ? c.saving : c.saveDraft}
           </button>
         </Section>
       ) : null}
@@ -381,13 +548,13 @@ export function CatalogueTab() {
         <table className="w-full text-xs">
           <thead className="bg-sand/60 text-muted">
             <tr>
-              <th className="text-start p-2">النشاط</th>
-              <th className="text-start p-2">النوع</th>
-              <th className="text-start p-2">الحالة</th>
-              <th className="text-start p-2">الصور</th>
-              <th className="text-start p-2">حجوزات</th>
-              <th className="text-start p-2">القيمة</th>
-              <th className="text-start p-2">التقييمات</th>
+              <th className="text-start p-2">{c.colBusiness}</th>
+              <th className="text-start p-2">{c.colType}</th>
+              <th className="text-start p-2">{c.colStatus}</th>
+              <th className="text-start p-2">{c.colPhotos}</th>
+              <th className="text-start p-2">{c.colBookings}</th>
+              <th className="text-start p-2">{c.colValue}</th>
+              <th className="text-start p-2">{c.colReviews}</th>
               <th className="text-start p-2"></th>
             </tr>
           </thead>
@@ -395,24 +562,32 @@ export function CatalogueTab() {
             {items.map((l) => (
               <tr key={l.listingId} className="border-t border-sand align-top">
                 <td className="p-2">
-                  <div className="font-bold text-sea">{l.titleAr}</div>
+                  {/* The listing title is Arabic content even on the English
+                      console — tag it so it renders and is read correctly. */}
+                  <div className="font-bold text-sea" lang="ar" dir="rtl">
+                    {l.titleAr}
+                  </div>
+                  {l.titleEn ? (
+                    <div className="text-[11px] text-muted" lang="en" dir="ltr">
+                      {l.titleEn}
+                    </div>
+                  ) : null}
                   <div className="text-[11px] text-faint">
-                    {l.venueNameAr} · {l.area ?? l.city}
-                    {l.host ? ` · ${l.host.name ?? l.host.phone}` : " · بلا مضيف"}
+                    {l.venueNameAr} ·{" "}
+                    {l.area ? term(AREAS, locale, l.area) : term(CITIES, locale, l.city)}
+                    {l.host ? ` · ${l.host.name ?? l.host.phone}` : c.noHost}
                   </div>
                 </td>
-                <td className="p-2">{VERTICAL_AR[l.vertical] ?? l.vertical}</td>
+                <td className="p-2">{term(VERTICALS, locale, l.vertical)}</td>
                 <td className="p-2">
                   <Pill
-                    tone={
-                      l.status === "live" ? "green" : l.status === "draft" ? "sand" : "slate"
-                    }
+                    tone={l.status === "live" ? "green" : l.status === "draft" ? "sand" : "slate"}
                   >
-                    {STATUS_AR[l.status] ?? l.status}
+                    {term(LISTING_STATUS, locale, l.status)}
                   </Pill>
                   {!l.verified ? (
                     <div className="mt-1">
-                      <Pill tone="red">غير موثّق</Pill>
+                      <Pill tone="red">{c.notVerified}</Pill>
                     </div>
                   ) : null}
                 </td>
@@ -431,26 +606,37 @@ export function CatalogueTab() {
                 <td className="p-2 tabular-nums">
                   {l.reviewCount}
                   {l.disputeCount ? (
-                    <span className="text-danger"> · {l.disputeCount} شكوى</span>
+                    <span className="text-danger">{c.disputes(l.disputeCount)}</span>
                   ) : null}
                 </td>
                 <td className="p-2">
-                  <select
-                    className="chip !text-[11px] !py-0.5"
-                    value={l.status}
-                    onChange={(e) => setStatusOf(l, e.target.value)}
-                  >
-                    {Object.entries(STATUS_AR).map(([k, v]) => (
-                      <option key={k} value={k}>{v}</option>
-                    ))}
-                  </select>
+                  <div className="flex flex-col gap-1 items-start">
+                    <select
+                      className="chip !text-[11px] !py-0.5"
+                      value={l.status}
+                      onChange={(e) => setStatusOf(l, e.target.value)}
+                    >
+                      {STATUS_KEYS.map((k) => (
+                        <option key={k} value={k}>
+                          {term(LISTING_STATUS, locale, k)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="chip !text-[11px] !py-0.5"
+                      onClick={() => setEnglishFor(l)}
+                      dir="ltr"
+                    >
+                      {l.titleEn ? c.englishSet : c.englishMissing}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
             {items.length === 0 ? (
               <tr>
                 <td className="p-4 text-faint" colSpan={8}>
-                  لا نتائج
+                  {c.noResults}
                 </td>
               </tr>
             ) : null}
@@ -466,6 +652,165 @@ export function CatalogueTab() {
           onSaved={load}
         />
       ) : null}
+
+      {englishFor ? (
+        <EnglishEditor listing={englishFor} onClose={() => setEnglishFor(null)} onSaved={load} />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The English copy for one listing.
+ *
+ * Kept deliberately small and separate from the intake form: this is a
+ * translation desk, not a listing editor, and the Arabic it is rendered
+ * against is shown read-only beside it so whoever writes the English is
+ * looking at the sentence they are answering. Empty is a legitimate final
+ * state — the public site falls back to the Arabic and marks it as Arabic —
+ * so nothing here is required and clearing a field is an ordinary save.
+ */
+function EnglishEditor({
+  listing,
+  onClose,
+  onSaved,
+}: {
+  listing: BizListing;
+  onClose: () => void;
+  onSaved?: () => void | Promise<void>;
+}) {
+  const locale = useLocale();
+  const c = copy[locale];
+  const [titleEn, setTitleEn] = useState("");
+  const [descriptionEn, setDescriptionEn] = useState("");
+  const [descriptionAr, setDescriptionAr] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      try {
+        const res = await api<{
+          listing: { titleEn: string | null; descriptionAr: string | null; descriptionEn: string | null };
+        }>(`/v1/biz/businesses/${listing.listingId}`);
+        if (!live) return;
+        setTitleEn(res.listing.titleEn ?? "");
+        setDescriptionEn(res.listing.descriptionEn ?? "");
+        setDescriptionAr(res.listing.descriptionAr ?? "");
+        setLoaded(true);
+      } catch {
+        if (live) setMsg(copy[locale].editorLoadFailed);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [listing.listingId, locale]);
+
+  async function save() {
+    setBusy(true);
+    setMsg("");
+    const title = titleEn.trim();
+    const description = descriptionEn.trim();
+    try {
+      await api(`/v1/biz/listings/${listing.listingId}`, {
+        method: "PATCH",
+        // Null, not "", so "never written" stays distinguishable from
+        // "written and then emptied" for anyone auditing coverage.
+        body: JSON.stringify({
+          titleEn: title || null,
+          descriptionEn: description || null,
+        }),
+      });
+      setMsg(title || description ? c.editorSaved : c.editorCleared);
+      await onSaved?.();
+    } catch {
+      setMsg(c.editorSaveFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-sea-dark/60 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-surface w-full sm:max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-bubble shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-surface/95 backdrop-blur border-b border-sand px-4 py-3 flex items-center justify-between gap-2">
+          <h2 className="font-bold text-sea truncate text-sm">
+            {c.englishTitleFor(listing.titleAr)}
+          </h2>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              className="btn-primary !py-1.5 !px-4 !text-sm disabled:opacity-40"
+              disabled={!loaded || busy}
+              onClick={save}
+            >
+              {busy ? "…" : c.save}
+            </button>
+            <button
+              onClick={onClose}
+              aria-label={c.close}
+              className="w-8 h-8 rounded-full bg-sand text-sea font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4">
+          {msg ? <p className="mb-3 text-sm font-bold text-sea">{msg}</p> : null}
+          <p className="text-xs text-faint mb-3 leading-relaxed">{c.editorIntro}</p>
+
+          {!loaded ? (
+            <p className="text-sm text-faint">{c.loading}</p>
+          ) : (
+            <>
+              <div className="rounded-2xl bg-sand p-3 mb-3">
+                <div className="text-[11px] font-bold text-muted mb-1">{c.arabicNow}</div>
+                <div className="text-sm font-bold text-sea" lang="ar" dir="rtl">
+                  {listing.titleAr}
+                </div>
+                {descriptionAr ? (
+                  <p className="text-xs text-muted mt-1 leading-relaxed" lang="ar" dir="rtl">
+                    {descriptionAr}
+                  </p>
+                ) : null}
+              </div>
+
+              <label className="block text-xs font-bold text-muted">
+                {c.fTitleEn}
+                <input
+                  className="input !py-2 !text-sm mt-1"
+                  dir="ltr"
+                  lang="en"
+                  value={titleEn}
+                  onChange={(e) => setTitleEn(e.target.value)}
+                />
+              </label>
+
+              <label className="block text-xs font-bold text-muted mt-3">
+                {c.fDescriptionEn}
+                <textarea
+                  className="input !py-2 !text-sm mt-1 h-32"
+                  dir="ltr"
+                  lang="en"
+                  value={descriptionEn}
+                  onChange={(e) => setDescriptionEn(e.target.value)}
+                />
+              </label>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -14,10 +14,50 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, hasSession } from "@/lib/api";
 import { trackClient } from "@/lib/tracker";
+import { useLocale } from "@/lib/locale";
+import { fmtNum } from "@/lib/vocab";
+import type { Locale } from "@/lib/i18n";
 
 const DISMISS_KEY = "ciao_join_dismissed";
 
+const copy = {
+  ar: {
+    joinFailed: "تعذر إنشاء العضوية",
+    connectFailed: "تعذر الاتصال",
+    welcome: "أهلًا بك في عضوية تشاو 🎉",
+    earned: (points: string) => `كسبت ${points} نقطة. كودك للدعوات`,
+    earnedTail: "— كل صديق يكمل أول حجز يكسبك نقاطًا أكثر.",
+    openAccount: "افتح حسابك",
+    title: "تحب نحفظ لك كل هذا؟",
+    booked: "حجزك مؤكد. ",
+    body: "العضوية مجانية: محفظة يدخلها أي استرجاع، نقاط على كل إقامة وتقييم، رسائل المضيفين محفوظة، ودخول ببصمتك بدل انتظار الرمز.",
+    later: "لاحقًا",
+    namePlaceholder: "اسمك (اختياري)",
+    codePlaceholder: "كود دعوة (اختياري)",
+    join: "أنشئ عضويتي",
+    note: "الحجز لا يحتاج عضوية أبدًا — هذه إضافة، لا شرط.",
+  },
+  en: {
+    joinFailed: "Could not create the membership",
+    connectFailed: "Could not connect",
+    welcome: "Welcome to Ciao membership 🎉",
+    earned: (points: string) => `You earned ${points} points. Your invite code is`,
+    earnedTail: "— every friend who completes a first booking earns you more.",
+    openAccount: "Open your account",
+    title: "Shall we keep all this for you?",
+    booked: "Your booking is confirmed. ",
+    body: "Membership is free: a wallet any refund goes into, points on every stay and review, host messages kept, and sign-in with your fingerprint instead of waiting for a code.",
+    later: "Later",
+    namePlaceholder: "Your name (optional)",
+    codePlaceholder: "Invite code (optional)",
+    join: "Create my membership",
+    note: "Booking never needs a membership — this is an extra, not a requirement.",
+  },
+} satisfies Record<Locale, unknown>;
+
 export function JoinPrompt({ bookingCode }: { bookingCode?: string }) {
+  const locale = useLocale();
+  const c = copy[locale];
   const [show, setShow] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -72,7 +112,7 @@ export function JoinPrompt({ bookingCode }: { bookingCode?: string }) {
       setDone({ points: res.pointsEarned, referralCode: res.referralCode });
       trackClient("account.joined", { withReferral: Boolean(code) });
     } catch (e) {
-      setErr(e instanceof ApiError ? "تعذر إنشاء العضوية" : "تعذر الاتصال");
+      setErr(e instanceof ApiError ? c.joinFailed : c.connectFailed);
     } finally {
       setBusy(false);
     }
@@ -83,13 +123,13 @@ export function JoinPrompt({ bookingCode }: { bookingCode?: string }) {
   if (done)
     return (
       <div className="card p-4 mt-4 bg-amber/15 ring-1 ring-amber">
-        <h3 className="font-bold text-sea">أهلًا بك في عضوية تشاو 🎉</h3>
+        <h3 className="font-bold text-sea">{c.welcome}</h3>
         <p className="text-sm text-muted mt-1 leading-relaxed">
-          كسبت {done.points} نقطة. كودك للدعوات{" "}
-          <strong dir="ltr">{done.referralCode}</strong> — كل صديق يكمل أول حجز يكسبك نقاطًا أكثر.
+          {c.earned(fmtNum(locale, done.points))}{" "}
+          <strong dir="ltr">{done.referralCode}</strong> {c.earnedTail}
         </p>
         <a href="/account" className="btn-primary !py-2 !text-sm inline-block mt-3">
-          افتح حسابك
+          {c.openAccount}
         </a>
       </div>
     );
@@ -98,16 +138,15 @@ export function JoinPrompt({ bookingCode }: { bookingCode?: string }) {
     <div className="card p-4 mt-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="font-bold text-sea">تحب نحفظ لك كل هذا؟</h3>
+          <h3 className="font-bold text-sea">{c.title}</h3>
           <p className="text-sm text-muted mt-1 leading-relaxed">
-            {bookingCode ? "حجزك مؤكد. " : ""}
-            العضوية مجانية: محفظة يدخلها أي استرجاع، نقاط على كل إقامة وتقييم، رسائل المضيفين
-            محفوظة، ودخول ببصمتك بدل انتظار الرمز.
+            {bookingCode ? c.booked : ""}
+            {c.body}
           </p>
         </div>
         <button
           onClick={dismiss}
-          aria-label="لاحقًا"
+          aria-label={c.later}
           className="w-7 h-7 rounded-full bg-sand text-sea font-bold shrink-0"
         >
           ✕
@@ -119,29 +158,27 @@ export function JoinPrompt({ bookingCode }: { bookingCode?: string }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
         <input
           className="input !py-2 !text-sm"
-          placeholder="اسمك (اختياري)"
+          placeholder={c.namePlaceholder}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <input
           className="input !py-2 !text-sm"
           dir="ltr"
-          placeholder="كود دعوة (اختياري)"
+          placeholder={c.codePlaceholder}
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
         />
       </div>
       <div className="flex items-center gap-2 mt-3">
         <button className="btn-primary !py-2 !text-sm" onClick={join} disabled={busy}>
-          {busy ? "…" : "أنشئ عضويتي"}
+          {busy ? "…" : c.join}
         </button>
         <button className="chip" onClick={dismiss}>
-          لاحقًا
+          {c.later}
         </button>
       </div>
-      <p className="text-[11px] text-faint mt-2">
-        الحجز لا يحتاج عضوية أبدًا — هذه إضافة، لا شرط.
-      </p>
+      <p className="text-[11px] text-faint mt-2">{c.note}</p>
     </div>
   );
 }

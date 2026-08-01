@@ -29,6 +29,7 @@ export async function hostRoutes(app: FastifyInstance) {
         id: listing.id,
         slug: listing.slug,
         titleAr: listing.titleAr,
+        titleEn: listing.titleEn,
         status: listing.status,
         baseNightly: listing.baseNightly,
         verified: Boolean(venue.verifiedAt) && !venue.badgeRevoked,

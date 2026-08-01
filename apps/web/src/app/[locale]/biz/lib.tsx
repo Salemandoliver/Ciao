@@ -2,6 +2,8 @@
 /** Shared primitives for the Ciao Business console. */
 import type { ReactNode } from "react";
 import { fmtLyd } from "@/lib/api";
+import { useLocale } from "@/lib/locale";
+import { UI, term } from "@/lib/vocab";
 
 /** A headline number. Money is always shown in LYD, never raw dirhams. */
 export function Stat({
@@ -32,7 +34,8 @@ export function Stat({
 }
 
 export function Money({ dirhams }: { dirhams: number }) {
-  return <span className="tabular-nums">{fmtLyd(dirhams)}</span>;
+  const locale = useLocale();
+  return <span className="tabular-nums">{fmtLyd(dirhams, locale)}</span>;
 }
 
 export function Section({
@@ -67,8 +70,10 @@ export function Bars({
   rows: { label: string; value: number }[];
   format?: (n: number) => string;
 }) {
+  const locale = useLocale();
   const max = Math.max(1, ...rows.map((r) => r.value));
-  if (rows.length === 0) return <p className="text-sm text-faint">لا بيانات بعد</p>;
+  if (rows.length === 0)
+    return <p className="text-sm text-faint">{term(UI, locale, "noData")}</p>;
   return (
     <div className="space-y-1.5">
       {rows.map((r) => (
@@ -104,39 +109,11 @@ export function Pill({ children, tone = "sand" }: { children: ReactNode; tone?: 
   );
 }
 
-export const STATUS_AR: Record<string, string> = {
-  draft: "مسودة",
-  live: "منشور",
-  paused: "موقوف مؤقتًا",
-  delisted: "مسحوب",
-};
-
-export const VERTICAL_AR: Record<string, string> = {
-  coast: "شاليهات واستراحات",
-  hall: "قاعات أفراح",
-  service: "خدمات",
-};
-
-export const ROLE_AR: Record<string, string> = {
-  guest: "ضيف",
-  host: "مضيف",
-  agent: "مندوب ميداني",
-  ops: "عمليات",
-  admin: "مدير",
-};
-
-export const ACCOUNT_AR: Record<string, string> = {
-  platform_revenue: "إيرادات تشاو",
-  guest_deposits_held: "عرابين محتجزة",
-  host_payables: "مستحقات المضيفين",
-  guest_credit: "رصيد الضيوف",
-  refund_reserve: "احتياطي الاسترجاع",
-};
-
-export function accountLabel(account: string): string {
-  if (ACCOUNT_AR[account]) return ACCOUNT_AR[account]!;
-  if (account.startsWith("rail_settlement_pending:"))
-    return `تحت التسوية · ${account.split(":")[1]}`;
-  if (account.startsWith("guest_credit:")) return "رصيد ضيف";
-  return account;
-}
+/*
+ * Listing status, verticals, roles and ledger accounts used to be duplicated
+ * here as Arabic-only maps. They now live in `@/lib/vocab` alongside every
+ * other shared term, in both languages: read them with
+ * `term(LISTING_STATUS, locale, k)`, `term(VERTICALS, …)`, `term(ROLES, …)`
+ * and `accountLabel(locale, account)`. A status that reads one way in the
+ * console and another way in the guest app is how people stop trusting it.
+ */

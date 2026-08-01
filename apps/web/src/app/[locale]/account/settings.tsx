@@ -11,29 +11,104 @@
  * always send; offers are marketing and are off until asked for (Law 6/2022).
  */
 import { useEffect, useState } from "react";
+import NextLink from "next/link";
 import { ApiError, api } from "@/lib/api";
+import { useBarePath, useLocale } from "@/lib/locale";
+import { localePath, LOCALES, type Locale } from "@/lib/i18n";
+import { AREAS, PAYMENT_RAILS, term } from "@/lib/vocab";
 import type { AccountData } from "./page";
 
-const RAILS: [string, string][] = [
-  ["sadad", "سداد"],
-  ["adfali", "أضفلي"],
-  ["local_card", "بطاقة محلية"],
-  ["tlync", "T-Lync"],
-  ["cash", "نقدًا عند الوصول"],
-];
+/** The rails a guest can be defaulted to; labels live in the shared vocab. */
+const RAILS = ["sadad", "adfali", "local_card", "tlync", "cash"];
 
-const AREAS: [string, string][] = [
-  ["janzour", "جنزور"],
-  ["tajoura", "تاجوراء"],
-  ["ain_zara", "عين زارة"],
-  ["airport_road", "طريق المطار"],
-];
+const AREA_KEYS = ["janzour", "tajoura", "ain_zara", "airport_road"];
 
-const THEMES: [string, string][] = [
-  ["system", "حسب الجهاز"],
-  ["light", "فاتح"],
-  ["dark", "داكن"],
-];
+const THEMES = ["system", "light", "dark"];
+
+/** Each language names itself, so it is legible to the person who needs it. */
+const LANGUAGE_NAMES: Record<Locale, string> = { ar: "العربية", en: "English" };
+
+const copy = {
+  ar: {
+    saveFailed: "تعذر الحفظ — حاول مرة أخرى",
+    emailInUse: "هذا البريد مستخدم في حساب آخر",
+    emailFailed: "تعذر حفظ البريد",
+    exportFailed: "تعذر التصدير",
+    langAndLook: "اللغة والمظهر",
+    language: "اللغة",
+    languageHint: "تنطبق فورًا على هذا الجهاز، وتتبعك إلى أي جهاز تدخل منه.",
+    appearance: "المظهر",
+    themes: { system: "حسب الجهاز", light: "فاتح", dark: "داكن" } as Record<string, string>,
+    payment: "الدفع",
+    paymentIntro: "نختار لك هذه الوسيلة تلقائيًا عند الحجز — تقدر تغيّرها في كل مرة.",
+    paymentNote: "لا نحفظ أرقام بطاقتك أبدًا — ذلك عند مزوّد الدفع وحده.",
+    notifications: "التنبيهات",
+    whatsapp: "واتساب",
+    whatsappHint: "تأكيدات الحجز والتذكيرات — القناة الأهم",
+    sms: "رسائل SMS",
+    smsHint: "تصلك حين يتعذّر واتساب",
+    inApp: "داخل التطبيق",
+    inAppHint: "نسخة محفوظة من كل رسالة",
+    marketing: "العروض والتخفيضات",
+    marketingHint: "اختياري تمامًا — تأكيدات حجزك تصلك دائمًا بغض النظر",
+    earlyAccess: "الإعلان المبكر عن الأماكن الجديدة",
+    earlyAccessHint: "نخبرك قبل غيرك حين نعتمد مكانًا في مناطقك المفضّلة",
+    areas: "مناطقك المفضّلة",
+    areasIntro: "اخترها بنفسك — لا نستنتجها عنك. نستخدمها للترتيب وللإعلان المبكر فقط.",
+    email: "البريد الإلكتروني",
+    emailIntro: (tail: string) => `اختياري. فائدته أنه يبقى معك لو تغيّر رقمك — و${tail}.`,
+    emailVerified: "بريدك موثّق ✅",
+    emailEarns: "توثيقه يمنحك نقاطًا",
+    verifiedBtn: "موثّق",
+    sendVerification: "أرسل التوثيق",
+    devLink: "رابط التوثيق (وضع تجريبي) ←",
+    yourData: "بياناتك",
+    yourDataBody:
+      "نتعلّم من استخدامك داخل التطبيق فقط. لا نشتري بياناتك ولا نجمع حساباتك على مواقع التواصل، ولا نبيعها لأي جهة.",
+    download: "⬇ نزّل نسخة من بياناتي",
+  },
+  en: {
+    saveFailed: "Could not save — try again",
+    emailInUse: "That email is already on another account",
+    emailFailed: "Could not save your email",
+    exportFailed: "Could not export your data",
+    langAndLook: "Language & appearance",
+    language: "Language",
+    languageHint: "Applies straight away on this device, and follows you to any device you sign in on.",
+    appearance: "Appearance",
+    themes: { system: "Match device", light: "Light", dark: "Dark" } as Record<string, string>,
+    payment: "Payment",
+    paymentIntro: "We pick this method for you at checkout — you can change it every time.",
+    paymentNote: "We never store your card numbers — those stay with the payment provider alone.",
+    notifications: "Notifications",
+    whatsapp: "WhatsApp",
+    whatsappHint: "Booking confirmations and reminders — the channel that matters most",
+    sms: "SMS",
+    smsHint: "Reaches you when WhatsApp cannot",
+    inApp: "In the app",
+    inAppHint: "A saved copy of every message",
+    marketing: "Offers and discounts",
+    marketingHint: "Entirely optional — your booking confirmations reach you either way",
+    earlyAccess: "Early word on new places",
+    earlyAccessHint:
+      "We tell you before anyone else when we approve a place in your favourite areas",
+    areas: "Your favourite areas",
+    areasIntro:
+      "You pick these — we do not infer them. They are used for ordering results and for early word, nothing else.",
+    email: "Email",
+    emailIntro: (tail: string) =>
+      `Optional. It stays with you if your number ever changes — and ${tail}.`,
+    emailVerified: "your email is verified ✅",
+    emailEarns: "verifying it earns you points",
+    verifiedBtn: "Verified",
+    sendVerification: "Send verification",
+    devLink: "Verification link (demo mode) →",
+    yourData: "Your data",
+    yourDataBody:
+      "We learn from how you use the app, and nothing else. We do not buy data about you, we do not gather your social accounts, and we do not sell anything to anyone.",
+    download: "⬇ Download a copy of my data",
+  },
+} satisfies Record<Locale, unknown>;
 
 export function SettingsTab({
   data,
@@ -42,6 +117,9 @@ export function SettingsTab({
   data: AccountData;
   onChange: () => void | Promise<void>;
 }) {
+  const locale = useLocale();
+  const c = copy[locale];
+  const bare = useBarePath();
   const [prefs, setPrefs] = useState(data.preferences);
   const [email, setEmail] = useState(data.email ?? "");
   const [msg, setMsg] = useState("");
@@ -76,7 +154,7 @@ export function SettingsTab({
       await api("/v1/me/preferences", { method: "PATCH", body: JSON.stringify(patch) });
       await onChange();
     } catch {
-      setMsg("تعذر الحفظ — حاول مرة أخرى");
+      setMsg(c.saveFailed);
     }
   }
 
@@ -94,9 +172,7 @@ export function SettingsTab({
       await onChange();
     } catch (e) {
       setMsg(
-        e instanceof ApiError && e.message.includes("email_in_use")
-          ? "هذا البريد مستخدم في حساب آخر"
-          : "تعذر حفظ البريد",
+        e instanceof ApiError && e.message.includes("email_in_use") ? c.emailInUse : c.emailFailed,
       );
     } finally {
       setBusy(false);
@@ -117,7 +193,7 @@ export function SettingsTab({
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      setMsg("تعذر التصدير");
+      setMsg(c.exportFailed);
     }
   }
 
@@ -125,90 +201,116 @@ export function SettingsTab({
     <div className="space-y-3">
       {msg ? <p className="text-sm font-bold text-sea">{msg}</p> : null}
 
-      <Card title="اللغة والمظهر">
-        <Row label="اللغة">
-          <select
-            className="chip !py-1"
-            value={prefs.locale}
-            onChange={(e) => save({ locale: e.target.value })}
-          >
-            <option value="ar">العربية</option>
-            <option value="en">English</option>
-          </select>
+      <Card title={c.langAndLook}>
+        {/*
+          Language is a link per language, not a <select>: choosing one has to
+          both record the preference and move the reader to the same page in
+          that language, and a control that saves without navigating leaves an
+          English reader looking at an Arabic screen that claims to be English.
+          Raw next/link on purpose — this is the one place that must *leave*
+          the current locale.
+        */}
+        <Row label={c.language}>
+          <div className="flex gap-1.5">
+            {LOCALES.map((l) => (
+              <NextLink
+                key={l}
+                // `?tab=settings` so the reader lands back on this screen in
+                // the other language rather than on the account overview.
+                href={localePath(`${bare}?tab=settings`, l)}
+                hrefLang={l}
+                lang={l}
+                aria-current={l === locale ? "true" : undefined}
+                className={`chip !py-1 ${l === locale ? "!bg-sea !text-white" : ""}`}
+                onClick={() => {
+                  try {
+                    localStorage.setItem("ciao_locale", l);
+                  } catch {
+                    /* private mode — the URL still carries the language */
+                  }
+                  // Best effort, and deliberately not `save()`: this component
+                  // is about to be replaced by the other language's render, so
+                  // a failed write must not try to set state or block the
+                  // navigation the user just asked for.
+                  void api("/v1/me/preferences", {
+                    method: "PATCH",
+                    body: JSON.stringify({ locale: l }),
+                  }).catch(() => {});
+                }}
+              >
+                {LANGUAGE_NAMES[l]}
+              </NextLink>
+            ))}
+          </div>
         </Row>
-        <Row label="المظهر">
+        <p className="text-[11px] text-faint -mt-1 mb-1">{c.languageHint}</p>
+        <Row label={c.appearance}>
           <select
             className="chip !py-1"
             value={prefs.theme}
             onChange={(e) => save({ theme: e.target.value })}
           >
-            {THEMES.map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
+            {THEMES.map((v) => (
+              <option key={v} value={v}>{c.themes[v]}</option>
             ))}
           </select>
         </Row>
       </Card>
 
-      <Card title="الدفع">
-        <p className="text-xs text-faint mb-2">
-          نختار لك هذه الوسيلة تلقائيًا عند الحجز — تقدر تغيّرها في كل مرة.
-        </p>
+      <Card title={c.payment}>
+        <p className="text-xs text-faint mb-2">{c.paymentIntro}</p>
         <div className="flex flex-wrap gap-1.5">
-          {RAILS.map(([v, l]) => (
+          {RAILS.map((v) => (
             <button
               key={v}
               className={`chip ${prefs.preferredRail === v ? "!bg-sea !text-white" : ""}`}
               onClick={() => save({ preferredRail: prefs.preferredRail === v ? null : v })}
             >
-              {l}
+              {term(PAYMENT_RAILS, locale, v)}
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-faint mt-2">
-          لا نحفظ أرقام بطاقتك أبدًا — ذلك عند مزوّد الدفع وحده.
-        </p>
+        <p className="text-[11px] text-faint mt-2">{c.paymentNote}</p>
       </Card>
 
-      <Card title="التنبيهات">
+      <Card title={c.notifications}>
         <Toggle
-          label="واتساب"
-          hint="تأكيدات الحجز والتذكيرات — القناة الأهم"
+          label={c.whatsapp}
+          hint={c.whatsappHint}
           on={prefs.notifyWhatsapp}
           onChange={(v) => save({ notifyWhatsapp: v })}
         />
         <Toggle
-          label="رسائل SMS"
-          hint="تصلك حين يتعذّر واتساب"
+          label={c.sms}
+          hint={c.smsHint}
           on={prefs.notifySms}
           onChange={(v) => save({ notifySms: v })}
         />
         <Toggle
-          label="داخل التطبيق"
-          hint="نسخة محفوظة من كل رسالة"
+          label={c.inApp}
+          hint={c.inAppHint}
           on={prefs.notifyInApp}
           onChange={(v) => save({ notifyInApp: v })}
         />
         <div className="h-px bg-sand my-2" />
         <Toggle
-          label="العروض والتخفيضات"
-          hint="اختياري تمامًا — تأكيدات حجزك تصلك دائمًا بغض النظر"
+          label={c.marketing}
+          hint={c.marketingHint}
           on={prefs.marketingOptIn}
           onChange={(v) => save({ marketingOptIn: v })}
         />
         <Toggle
-          label="الإعلان المبكر عن الأماكن الجديدة"
-          hint="نخبرك قبل غيرك حين نعتمد مكانًا في مناطقك المفضّلة"
+          label={c.earlyAccess}
+          hint={c.earlyAccessHint}
           on={prefs.earlyAccessOptIn}
           onChange={(v) => save({ earlyAccessOptIn: v })}
         />
       </Card>
 
-      <Card title="مناطقك المفضّلة">
-        <p className="text-xs text-faint mb-2">
-          اخترها بنفسك — لا نستنتجها عنك. نستخدمها للترتيب وللإعلان المبكر فقط.
-        </p>
+      <Card title={c.areas}>
+        <p className="text-xs text-faint mb-2">{c.areasIntro}</p>
         <div className="flex flex-wrap gap-1.5">
-          {AREAS.map(([v, l]) => {
+          {AREA_KEYS.map((v) => {
             const on = prefs.favouriteAreas.includes(v);
             return (
               <button
@@ -222,17 +324,16 @@ export function SettingsTab({
                   })
                 }
               >
-                {l}
+                {term(AREAS, locale, v)}
               </button>
             );
           })}
         </div>
       </Card>
 
-      <Card title="البريد الإلكتروني">
+      <Card title={c.email}>
         <p className="text-xs text-faint mb-2">
-          اختياري. فائدته أنه يبقى معك لو تغيّر رقمك — و
-          {data.emailVerified ? "بريدك موثّق ✅" : "توثيقه يمنحك نقاطًا"}.
+          {c.emailIntro(data.emailVerified ? c.emailVerified : c.emailEarns)}
         </p>
         <div className="flex gap-2">
           <input
@@ -244,23 +345,20 @@ export function SettingsTab({
             onChange={(e) => setEmail(e.target.value)}
           />
           <button className="chip shrink-0" onClick={saveEmail} disabled={busy || !email}>
-            {data.emailVerified && email === data.email ? "موثّق" : "أرسل التوثيق"}
+            {data.emailVerified && email === data.email ? c.verifiedBtn : c.sendVerification}
           </button>
         </div>
         {devLink ? (
           <a className="text-xs text-link font-bold mt-2 inline-block break-all" href={devLink}>
-            رابط التوثيق (وضع تجريبي) ←
+            {c.devLink}
           </a>
         ) : null}
       </Card>
 
-      <Card title="بياناتك">
-        <p className="text-xs text-muted leading-relaxed">
-          نتعلّم من استخدامك داخل التطبيق فقط. لا نشتري بياناتك ولا نجمع حساباتك على مواقع
-          التواصل، ولا نبيعها لأي جهة.
-        </p>
+      <Card title={c.yourData}>
+        <p className="text-xs text-muted leading-relaxed">{c.yourDataBody}</p>
         <button className="chip mt-2" onClick={exportData}>
-          ⬇ نزّل نسخة من بياناتي
+          {c.download}
         </button>
       </Card>
     </div>
