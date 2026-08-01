@@ -55,21 +55,83 @@ export async function paymentRoutes(app: FastifyInstance) {
 
   // ---- Mock checkout pages for dev/staging (never mounted in prod) ----
   if (config.paymentProvider === "mock") {
+    /** HTML-escape anything reflected back into the page. */
+    const esc = (s: string) =>
+      s.replace(/[&<>"']/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+      );
+
+    /**
+     * Only ever bounce back to our own web app. `return` arrives as a query
+     * parameter, so without this the mock gateway is an open redirect that a
+     * phishing link could point anywhere — and "it's only the dev provider"
+     * stops being true the moment a demo URL gets shared.
+     */
+    const safeReturn = (raw: string): string => {
+      try {
+        const url = new URL(raw, config.webBaseUrl);
+        const base = new URL(config.webBaseUrl);
+        return url.origin === base.origin ? url.toString() : config.webBaseUrl;
+      } catch {
+        return config.webBaseUrl;
+      }
+    };
+
     app.get("/v1/payments/mock/checkout", async (req, reply) => {
-      const q = z.object({ ref: z.string(), return: z.string() }).parse(req.query);
-      reply.type("text/html");
-      return reply.send(`<!doctype html><html dir="rtl" lang="ar"><body style="font-family:sans-serif;padding:2rem;text-align:center">
-<h2>بوابة دفع تجريبية</h2><p>المرجع: ${q.ref}</p>
-<form method="post" action="/v1/payments/mock/complete">
-<input type="hidden" name="ref" value="${q.ref}"/><input type="hidden" name="return" value="${q.return}"/>
-<button name="outcome" value="success" style="padding:1rem 2rem;background:#1B4F72;color:white;border:0;border-radius:8px">ادفع الآن (نجاح)</button>
-<button name="outcome" value="fail" style="padding:1rem 2rem;margin-right:1rem">فشل الدفع</button>
-</form></body></html>`);
+      const q = z.object({ ref: z.string().max(64), return: z.string().max(500) }).parse(req.query);
+      const ref = esc(q.ref);
+      const back = esc(safeReturn(q.return));
+      // The charset matters: without it the browser guesses Latin-1 and every
+      // Arabic character on this page renders as mojibake.
+      reply.type("text/html; charset=utf-8");
+      return reply.send(`<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>بوابة دفع تجريبية — تشاو</title>
+<style>
+  :root { --sea:#1B4F72; --sand:#F5EFE3; --amber:#E8A33D; }
+  body { margin:0; min-height:100dvh; display:grid; place-items:center; background:var(--sand);
+         color:#1a2a36; font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif; padding:1.5rem; }
+  .card { background:#fff; border-radius:1.25rem; box-shadow:0 1px 3px rgb(0 0 0 / .08);
+          padding:1.75rem; max-width:26rem; width:100%; text-align:center; }
+  h1 { color:var(--sea); font-size:1.15rem; margin:0 0 .25rem; }
+  .note { background:#FDF3E0; color:#8a5a12; border-radius:.75rem; padding:.6rem .8rem;
+          font-size:.8rem; line-height:1.6; margin:1rem 0; }
+  .ref { font-size:.75rem; color:#5a6b78; word-break:break-all; margin:.25rem 0 0; }
+  button { font:inherit; font-weight:700; border:0; border-radius:1rem; padding:.9rem 1.25rem;
+           width:100%; cursor:pointer; }
+  .pay { background:var(--sea); color:#fff; margin-top:1rem; }
+  .fail { background:transparent; color:#5a6b78; text-decoration:underline; margin-top:.5rem; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <h1>بوابة دفع تجريبية</h1>
+    <p class="ref">المرجع: ${ref}</p>
+    <p class="note">
+      هذه محاكاة لبوابة الدفع ولا يُخصم منك أي مبلغ حقيقي. عند ربط مزوّد الدفع ستفتح هنا صفحة
+      سداد أو أضفلي أو بطاقتك المصرفية.
+    </p>
+    <form method="post" action="/v1/payments/mock/complete">
+      <input type="hidden" name="ref" value="${ref}"/>
+      <input type="hidden" name="return" value="${back}"/>
+      <button class="pay" name="outcome" value="success">تأكيد الدفع (محاكاة نجاح)</button>
+      <button class="fail" name="outcome" value="fail">محاكاة فشل الدفع</button>
+    </form>
+  </main>
+</body>
+</html>`);
     });
 
     app.post("/v1/payments/mock/complete", async (req, reply) => {
       const body = z
-        .object({ ref: z.string(), return: z.string(), outcome: z.enum(["success", "fail"]) })
+        .object({
+          ref: z.string().max(64),
+          return: z.string().max(500),
+          outcome: z.enum(["success", "fail"]),
+        })
         .parse(req.body);
       const invoiceNo = body.ref.replace(/^mock_/, "");
       const [intent] = await db
@@ -84,7 +146,9 @@ export async function paymentRoutes(app: FastifyInstance) {
         amount: intent?.amount ?? 0,
       });
       await ingestWebhook("mock", { "x-signature": signMockWebhook(payload) }, payload);
-      return reply.redirect(body.return);
+      // Same guard on the way out: the POST body is as attacker-controllable
+      // as the query string was.
+      return reply.redirect(safeReturn(body.return));
     });
   }
 }
