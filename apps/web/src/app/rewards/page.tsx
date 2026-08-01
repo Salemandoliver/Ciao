@@ -92,15 +92,15 @@ export default async function RewardsPage() {
 
       <section className="card p-5">
         <h1 className="font-baloo font-extrabold text-2xl text-sea">نقاط تشاو</h1>
-        <p className="text-sm text-sea/75 mt-2 leading-relaxed">
+        <p className="text-sm text-muted mt-2 leading-relaxed">
           تكسب نقاطًا حين تستخدم تشاو فعلًا — لا مقابل التسجيل وحده. تحوّلها إلى رصيد يخصم من
           عربون حجزك القادم، أو تصرفها عند أحد شركائنا: مقهى داخل المنتجع، مخبز، أو مطعم قريب.
         </p>
-        <p className="text-sm text-sea/75 mt-2 leading-relaxed">
+        <p className="text-sm text-muted mt-2 leading-relaxed">
           وضعنا القيم على قاعدة بسيطة: <strong className="text-sea">إقامة واحدة مكتملة تكفي
           لقهوة عند أحد شركائنا</strong>. النقاط التي لا تتحول إلى شيء ملموس ليست مكافأة.
         </p>
-        <p className="text-xs text-sea/55 mt-3 leading-relaxed">
+        <p className="text-xs text-faint mt-3 leading-relaxed">
           الأرقام في هذه الصفحة تُقرأ مباشرة من نظامنا، فهي دائمًا مطابقة لما يحسبه التطبيق فعلًا.
         </p>
       </section>
@@ -154,7 +154,7 @@ export default async function RewardsPage() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-sea/55 mt-2 leading-relaxed">
+        <p className="text-xs text-faint mt-2 leading-relaxed">
           مكافأة الدعوة تُصرف حين يُتمّ صديقك أول حجز فعليًا، لا عند تسجيله — حتى لا يُستغل
           البرنامج بحسابات وهمية. لكل حساب دعوة واحدة فقط، ولا يمكنك استخدام كودك أنت.
         </p>
@@ -165,7 +165,7 @@ export default async function RewardsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="card p-4">
             <h3 className="font-bold text-sea">١. رصيد داخل تشاو</h3>
-            <p className="text-sm text-sea/75 mt-1 leading-relaxed">
+            <p className="text-sm text-muted mt-1 leading-relaxed">
               كل <strong className="text-sea">{perDinar}</strong> نقطة = ١ دينار رصيد، يُخصم
               تلقائيًا من عربون حجزك القادم. أقل مبلغ للتحويل{" "}
               <strong className="text-sea">{cfg.minRedeem}</strong> نقطة (
@@ -174,13 +174,13 @@ export default async function RewardsPage() {
           </div>
           <div className="card p-4">
             <h3 className="font-bold text-sea">٢. عند شركائنا</h3>
-            <p className="text-sm text-sea/75 mt-1 leading-relaxed">
+            <p className="text-sm text-muted mt-1 leading-relaxed">
               {cfg.partnersEnabled
                 ? "اختر شريكًا وقيمة القسيمة، فتظهر لك بكود قصير تعرضه عند الكاشير. تُخصم النقاط فور إصدار القسيمة، وإن لم تستخدمها خلال مدتها تعود نقاطك إليك تلقائيًا."
                 : "الصرف عند الشركاء غير مفعّل حاليًا."}
             </p>
             {cfg.partnersEnabled ? (
-              <Link href="/rewards/partners" className="text-amber-dark font-bold text-sm mt-2 inline-block">
+              <Link href="/rewards/partners" className="text-link font-bold text-sm mt-2 inline-block">
                 شاهد الشركاء ←
               </Link>
             ) : null}
@@ -223,7 +223,7 @@ export default async function RewardsPage() {
             إيقافه بإشعار مسبق معقول. عند الإيقاف، تبقى النقاط التي في رصيدك قابلة للتحويل خلال
             المدة التي نعلنها.
           </p>
-          <p className="text-xs text-sea/55">
+          <p className="text-xs text-faint">
             هذه الشروط جزء من شروط استخدام تشاو، وتخضع للقانون الليبي. آخر تحديث: أغسطس ٢٠٢٦.
           </p>
         </div>
@@ -240,7 +240,7 @@ export default async function RewardsPage() {
         ) : null}
       </div>
 
-      <footer className="mt-12 text-center text-sm text-sea/60">
+      <footer className="mt-12 text-center text-sm text-faint">
         <p>تشاو — ciao.ly · طرابلس، ليبيا</p>
       </footer>
     </main>

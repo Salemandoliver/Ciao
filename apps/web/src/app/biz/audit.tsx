@@ -65,7 +65,7 @@ export function AuditTab() {
     void load();
   }, [load]);
 
-  if (err) return <p className="p-4 text-red-700 font-bold">{err}</p>;
+  if (err) return <p className="p-4 text-danger font-bold">{err}</p>;
 
   return (
     <div>
@@ -83,7 +83,7 @@ export function AuditTab() {
 
       <div className="card overflow-x-auto">
         <table className="w-full text-xs">
-          <thead className="bg-sand/60 text-sea/70">
+          <thead className="bg-sand/60 text-muted">
             <tr>
               <th className="text-start p-2">الإجراء</th>
               <th className="text-start p-2">المنفّذ</th>
@@ -101,23 +101,23 @@ export function AuditTab() {
                   </Pill>
                 </td>
                 <td className="p-2 font-bold text-sea">{r.actor}</td>
-                <td className="p-2 text-sea/60 font-mono text-[10px]">
+                <td className="p-2 text-faint font-mono text-[10px]">
                   {r.targetType ? `${r.targetType}:` : ""}
                   {r.targetId?.slice(0, 12) ?? "—"}
                 </td>
-                <td className="p-2 text-sea/70 max-w-[320px]">
+                <td className="p-2 text-muted max-w-[320px]">
                   <code className="text-[10px] break-all">
                     {r.detail ? JSON.stringify(r.detail).slice(0, 180) : "—"}
                   </code>
                 </td>
-                <td className="p-2 text-sea/55 whitespace-nowrap" dir="ltr">
+                <td className="p-2 text-faint whitespace-nowrap" dir="ltr">
                   {new Date(r.at).toLocaleString("ar-LY")}
                 </td>
               </tr>
             ))}
             {items.length === 0 ? (
               <tr>
-                <td className="p-4 text-sea/50" colSpan={5}>
+                <td className="p-4 text-faint" colSpan={5}>
                   لا سجلات
                 </td>
               </tr>
@@ -126,7 +126,7 @@ export function AuditTab() {
         </table>
       </div>
 
-      <p className="text-[11px] text-sea/45 mt-3">
+      <p className="text-[11px] text-faint mt-3">
         السجل للقراءة فقط — لا يوجد في المنظومة أي مسار يعدّل أو يحذف سطرًا منه.
       </p>
     </div>

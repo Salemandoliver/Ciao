@@ -141,7 +141,7 @@ export default async function ListingPage({
           .sort((a, b) => a.order - b.order);
         return (
           <div className="card relative">
-            <div className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth aspect-[16/9] bg-gradient-to-b from-sea-light/40 to-sea/70">
+            <div className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth aspect-[16/9] photo-placeholder">
               {photos.length > 0 ? (
                 photos.map((m, i) => (
                   <img
@@ -168,7 +168,7 @@ export default async function ListingPage({
               />
             </div>
             {photos.length > 0 ? (
-              <div className="absolute top-3 end-3 chip bg-white/90">
+              <div className="absolute top-3 end-3 chip-on-photo">
                 📷 {photos.length} صور · تصويرنا — اسحب للمزيد
               </div>
             ) : null}
@@ -190,7 +190,7 @@ export default async function ListingPage({
                 size="text-base"
               />
             </div>
-            <p className="text-sea/70 mt-1">{l.descriptionAr}</p>
+            <p className="text-muted mt-1">{l.descriptionAr}</p>
           </div>
 
           {/* Verification block (§8.5) — personal vetting, not spec-boasting */}
@@ -218,12 +218,12 @@ export default async function ListingPage({
                   <li key={a.key} className="py-2 flex items-start justify-between gap-3">
                     <span
                       className={
-                        a.present ? "font-bold" : "font-bold text-sea/40 line-through"
+                        a.present ? "font-bold" : "font-bold text-faint line-through"
                       }
                     >
                       {a.present ? "✅" : "🚫"} {AMENITY_AR[a.key] ?? a.key}
                     </span>
-                    <span className="text-sm text-sea/70 text-start">
+                    <span className="text-sm text-muted text-start">
                       {a.present ? a.detail : null}
                       {a.present && a.verifiedAt ? ` · تحقق ${a.verifiedAt}` : ""}
                     </span>
@@ -232,7 +232,7 @@ export default async function ListingPage({
               {l.privacy ? (
                 <li className="py-2 flex justify-between">
                   <span className="font-bold">🔒 درجة الستر</span>
-                  <span className="text-sm text-sea/70">
+                  <span className="text-sm text-muted">
                     {l.privacy.score}/100
                     {l.privacy.walledPool ? " · مسبح مسوَّر" : ""}
                     {!l.privacy.overlooked ? " · غير مكشوف على الجيران" : ""}
@@ -251,7 +251,7 @@ export default async function ListingPage({
                 {l.packages.map((p) => (
                   <div key={p.id} className="border border-sea/15 rounded-xl p-3">
                     <h3 className="font-bold">{p.nameAr}</h3>
-                    <p className="text-amber-dark font-bold text-lg">{fmtLyd(p.totalPrice)}</p>
+                    <p className="text-link font-bold text-lg">{fmtLyd(p.totalPrice)}</p>
                     <ul className="mt-2 space-y-1 text-sm">
                       {p.lineItems.map((li) => (
                         <li key={li.key}>
@@ -264,7 +264,7 @@ export default async function ListingPage({
                   </div>
                 ))}
               </div>
-              <p className="text-sm text-sea/60 mt-3">
+              <p className="text-sm text-faint mt-3">
                 القاعات تُعاين قبل الحجز — اطلب موعد زيارة وسنرتب لك المعاينة.
               </p>
             </div>
@@ -311,13 +311,13 @@ export default async function ListingPage({
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                 <div className="col-span-2 sm:col-span-1">
-                  <p className="text-xs text-sea/60 mb-1">التوزيع</p>
+                  <p className="text-xs text-faint mb-1">التوزيع</p>
                   {[5, 4, 3, 2, 1].map((n) => {
                     const counts = l.ratingHistogram!;
                     const max = Math.max(1, ...Object.values(counts));
                     return (
                       <div key={n} className="flex items-center gap-1.5 text-xs">
-                        <span className="w-3 text-sea/60">{n}</span>
+                        <span className="w-3 text-faint">{n}</span>
                         <div className="flex-1 h-1.5 bg-sand rounded-sm overflow-hidden">
                           <div
                             className="h-full bg-sea"
@@ -330,7 +330,7 @@ export default async function ListingPage({
                 </div>
                 {Object.entries(l.dimensionAverages).map(([k, v]) => (
                   <div key={k}>
-                    <p className="text-xs text-sea/60">{DIMENSION_AR[k] ?? k}</p>
+                    <p className="text-xs text-faint">{DIMENSION_AR[k] ?? k}</p>
                     <p className="font-extrabold text-sea text-lg" dir="ltr">{v.toFixed(1)}</p>
                   </div>
                 ))}
@@ -350,14 +350,14 @@ export default async function ListingPage({
                   <li key={i} className="border-b border-sand pb-2 text-sm">
                     <p>{r.text}</p>
                     {r.hostReply ? (
-                      <p className="mt-1 text-sea/60">↩ رد المضيف: {r.hostReply}</p>
+                      <p className="mt-1 text-faint">↩ رد المضيف: {r.hostReply}</p>
                     ) : null}
                   </li>
                 ))}
               </ul>
             </div>
           ) : (
-            <p className="text-sm text-sea/50">
+            <p className="text-sm text-faint">
               التقييمات تُقبل فقط من ضيوف أكملوا إقامة مدفوعة العربون — لا تقييمات مزيفة.
             </p>
           )}
@@ -380,7 +380,7 @@ export default async function ListingPage({
                   const cover = sim.media.find((m) => m.kind === "photo");
                   return (
                     <Link key={sim.id} href={`/l/${sim.slug}`} className="card block hover:shadow-md">
-                      <div className="relative aspect-[4/3] bg-gradient-to-b from-sea-light/30 to-sea/60">
+                      <div className="relative aspect-[4/3] photo-placeholder">
                         {cover ? (
                           <img
                             src={cover.url}
@@ -392,7 +392,7 @@ export default async function ListingPage({
                       </div>
                       <div className="p-2">
                         <p className="font-bold text-xs leading-snug">{sim.titleAr}</p>
-                        <p className="text-[11px] text-sea/60 mt-0.5">
+                        <p className="text-[11px] text-faint mt-0.5">
                           {sim.verified ? "✓ موثّق" : ""}
                           {sim.baseNightly > 0
                             ? ` · ${fmtLyd(sim.baseNightly)}/ليلة`

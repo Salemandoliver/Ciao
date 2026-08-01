@@ -47,7 +47,7 @@ export function RecsStrip() {
               </div>
               <div className="p-3">
                 <h3 className="font-bold text-sm">{r.titleAr}</h3>
-                <p className="text-xs text-amber-dark font-bold mt-0.5">{r.because}</p>
+                <p className="text-xs text-link font-bold mt-0.5">{r.because}</p>
                 {r.baseNightly > 0 ? (
                   <p className="text-sm text-sea font-bold mt-1">{fmtLyd(r.baseNightly)} / ليلة</p>
                 ) : null}

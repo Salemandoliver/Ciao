@@ -7,7 +7,7 @@ export function ServiceTiles() {
     <section className="mt-8">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-bold text-xl text-sea">خدمات المناسبات 🛎</h2>
-        <Link href="/search?type=service" className="text-amber-dark font-bold text-sm">
+        <Link href="/search?type=service" className="text-link font-bold text-sm">
           عرض الكل ←
         </Link>
       </div>

@@ -152,8 +152,8 @@ export default async function AboutPage() {
       {/* ── Opening: the problem, stated plainly ───────────────────────── */}
       <section className="card relative overflow-hidden text-white">
         <HeroRotator images={hero} intervalMs={7000} />
-        <div className="absolute inset-0 bg-gradient-to-t from-sea/90 via-sea/55 to-sea/25" aria-hidden />
-        <div className="relative p-6 sm:p-10">
+        <div className="absolute inset-0 photo-scrim-strong" aria-hidden />
+        <div className="relative p-6 sm:p-10" data-on-photo>
           <p className="text-amber font-bold text-sm mb-2">من نحن</p>
           <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight drop-shadow">
             بنينا تشاو لأن الحجز في ليبيا مبني على الثقة — والثقة كانت مفقودة
@@ -174,7 +174,7 @@ export default async function AboutPage() {
       {/* ── Proof, not adjectives ──────────────────────────────────────── */}
       <section className="mt-6">
         <h2 className="font-bold text-xl text-sea mb-1">ما يمكننا إثباته</h2>
-        <p className="text-sm text-sea/60 mb-3">
+        <p className="text-sm text-faint mb-3">
           هذه الأرقام تُقرأ مباشرة من نظامنا وتتحدث تلقائيًا — ليست نصًا كتبناه في صفحة.
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -201,7 +201,7 @@ export default async function AboutPage() {
           <h3 className="font-bold text-sea">سجلّ الشكاوى — كما هو</h3>
           {hasHistory && t ? (
             <>
-              <p className="text-sm text-sea/75 mt-2 leading-relaxed">
+              <p className="text-sm text-muted mt-2 leading-relaxed">
                 فُتحت <strong className="text-sea">{t.disputesOpened}</strong> شكوى مقابل{" "}
                 <strong className="text-sea">{t.deliveredBookings}</strong> حجز منفَّذ.
                 {t.disputesResolved > 0 ? (
@@ -219,13 +219,13 @@ export default async function AboutPage() {
                   </>
                 ) : null}
               </p>
-              <p className="text-xs text-sea/55 mt-2 leading-relaxed">
+              <p className="text-xs text-faint mt-2 leading-relaxed">
                 ننشر العدد والنتيجة والمقام معًا. نص الشكوى وهوية أصحابها لا يُنشران أبدًا — ذلك
                 شأن بين الطرفين وفريقنا وحدهم.
               </p>
             </>
           ) : (
-            <p className="text-sm text-sea/70 mt-2 leading-relaxed">
+            <p className="text-sm text-muted mt-2 leading-relaxed">
               لم تُسجَّل شكاوى بعد لأن المنصّة في بدايتها. حين تُسجَّل، ستظهر هنا وفي صفحة كل مكان
               بالعدد والنتيجة ومدة الحل — سواء كانت في صالحنا أو لا.
             </p>
@@ -236,7 +236,7 @@ export default async function AboutPage() {
       {/* ── How the badge is earned ────────────────────────────────────── */}
       <section className="mt-8">
         <h2 className="font-bold text-xl text-sea">كيف يُعتمد المكان</h2>
-        <p className="text-sm text-sea/60 mt-1 mb-3">
+        <p className="text-sm text-faint mt-1 mb-3">
           شارة «موثّق من تشاو» ليست خانة نضع فيها علامة — هذه خطواتها الأربع، وكلها ميدانية.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -247,7 +247,7 @@ export default async function AboutPage() {
               </span>
               <div>
                 <h3 className="font-bold text-sea">{title}</h3>
-                <p className="text-sm text-sea/70 mt-1 leading-relaxed">{body}</p>
+                <p className="text-sm text-muted mt-1 leading-relaxed">{body}</p>
               </div>
             </div>
           ))}
@@ -264,7 +264,7 @@ export default async function AboutPage() {
                 <span aria-hidden className="me-1.5">{emoji}</span>
                 {title}
               </h3>
-              <p className="text-sm text-sea/70 mt-1.5 leading-relaxed">{body}</p>
+              <p className="text-sm text-muted mt-1.5 leading-relaxed">{body}</p>
             </div>
           ))}
         </div>
@@ -277,12 +277,12 @@ export default async function AboutPage() {
       <section className="mt-8">
         <h2 className="font-bold text-xl text-sea">بياناتك</h2>
         <div className="card p-4 mt-3">
-          <p className="text-sm text-sea/75 leading-relaxed">
+          <p className="text-sm text-muted leading-relaxed">
             نتعلّم من استخدامك للتطبيق داخل التطبيق فقط — ما تبحث عنه، وما تحفظه، وما تحجزه — لنعرض
             لك ما يناسبك فعلًا. لا نشتري بياناتك من أحد، ولا نجمع حساباتك على مواقع التواصل، ولا
             نستنتج شيئًا عن عائلتك أو معتقدك. ولا نبيع بياناتك لأي جهة — لا اليوم ولا لاحقًا.
           </p>
-          <p className="text-sm text-sea/75 leading-relaxed mt-2">
+          <p className="text-sm text-muted leading-relaxed mt-2">
             العنوان الدقيق للمكان لا يظهر قبل دفع العربون، حمايةً للمضيف وللمكان. وأسماء الضيوف
             تظهر بالأحرف الأولى فقط في التقييمات العامة.
           </p>
@@ -293,12 +293,12 @@ export default async function AboutPage() {
       <section className="mt-8">
         <h2 className="font-bold text-xl text-sea">من يقف خلف تشاو</h2>
         <div className="card p-4 mt-3">
-          <p className="text-sm text-sea/75 leading-relaxed">
+          <p className="text-sm text-muted leading-relaxed">
             تشاو فريق ليبي صغير يبدأ من طرابلس: مندوبون ميدانيون يزورون الأماكن ويصوّرونها، ودعم
             يردّ على واتساب، وفريق يبني المنتج. نبدأ بشريط ساحلي واحد وعدد محدود من الأماكن نعرفها
             واحدًا واحدًا، لأن عمق التغطية في منطقة واحدة أنفع من قائمة طويلة لا نعرف نصفها.
           </p>
-          <p className="text-sm text-sea/75 leading-relaxed mt-2">
+          <p className="text-sm text-muted leading-relaxed mt-2">
             اسم «تشاو» من الكلمة التي يقولها الليبيون كل يوم — ومنها جاءت فكرتنا:{" "}
             <strong className="text-sea">قول تشاو</strong> للحجز بالمكالمات، وللتاريخ المحجوز
             مرتين، وللعربون بلا إيصال.
@@ -310,21 +310,21 @@ export default async function AboutPage() {
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-8">
         <Link href="/search?type=coast" className="card p-5 hover:shadow-md transition-shadow">
           <h3 className="font-bold text-sea">تبحث عن مكان؟</h3>
-          <p className="text-sm text-sea/70 mt-1">
+          <p className="text-sm text-muted mt-1">
             شاليهات واستراحات وقاعات أفراح وخدمات مناسبات — كلها موثّقة ميدانيًا.
           </p>
-          <span className="inline-block mt-3 text-amber-dark font-bold text-sm">ابدأ التصفّح ←</span>
+          <span className="inline-block mt-3 text-link font-bold text-sm">ابدأ التصفّح ←</span>
         </Link>
         <Link href="/host" className="card p-5 hover:shadow-md transition-shadow">
           <h3 className="font-bold text-sea">عندك مكان أو خدمة؟</h3>
-          <p className="text-sm text-sea/70 mt-1">
+          <p className="text-sm text-muted mt-1">
             نزورك، نصوّر مكانك مجانًا، ونجيب لك ضيوفًا دفعوا عربونًا — لا مكالمات بلا نتيجة.
           </p>
-          <span className="inline-block mt-3 text-amber-dark font-bold text-sm">سجّل مكانك ←</span>
+          <span className="inline-block mt-3 text-link font-bold text-sm">سجّل مكانك ←</span>
         </Link>
       </section>
 
-      <footer className="mt-12 text-center text-sm text-sea/60 space-y-1">
+      <footer className="mt-12 text-center text-sm text-faint space-y-1">
         <p>تشاو — ciao.ly · طرابلس، ليبيا</p>
         <p>الأسعار كلها بالدينار الليبي. العربون فقط أونلاين والباقي عند الوصول.</p>
       </footer>
@@ -348,8 +348,8 @@ function Proof({ value, label, sub }: { value: number; label: string; sub?: stri
   return (
     <div className="card p-4 text-center">
       <div className="text-3xl font-extrabold text-sea tabular-nums">{value}</div>
-      <div className="text-xs font-bold text-sea/70 mt-1 leading-snug">{label}</div>
-      {sub ? <div className="text-[11px] text-sea/50 mt-0.5">{sub}</div> : null}
+      <div className="text-xs font-bold text-muted mt-1 leading-snug">{label}</div>
+      {sub ? <div className="text-[11px] text-faint mt-0.5">{sub}</div> : null}
     </div>
   );
 }
@@ -380,7 +380,7 @@ async function PaymentSection() {
   return (
     <section className="mt-8">
       <h2 className="font-bold text-xl text-sea">طرق الدفع</h2>
-      <p className="text-sm text-sea/60 mt-1 mb-3">
+      <p className="text-sm text-faint mt-1 mb-3">
         العربون فقط يُدفع أونلاين — والباقي نقدًا عند الوصول. لا ندفع بك إلى الدفع الكامل مقدمًا،
         ولا نطلب منك بطاقة لتتصفّح.
       </p>
@@ -396,7 +396,7 @@ async function PaymentSection() {
         })}
       </div>
       {demoMode ? (
-        <p className="text-xs text-sea/55 mt-3 leading-relaxed">
+        <p className="text-xs text-faint mt-3 leading-relaxed">
           المنصّة حاليًا في مرحلة العرض التجريبي: قنوات الدفع معروضة كما ستعمل، وتُفعَّل فعليًا مع
           اعتماد مزوّد الدفع. نفضّل أن نقول هذا بوضوح على أن نعرض شعارات لا تعمل بعد.
         </p>

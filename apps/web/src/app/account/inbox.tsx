@@ -48,8 +48,8 @@ export function InboxTab({ onRead }: { onRead: () => void | Promise<void> }) {
     await onRead();
   }
 
-  if (err) return <p className="p-4 text-red-700 font-bold">{err}</p>;
-  if (!data) return <p className="p-4 text-sea/60">جارٍ التحميل…</p>;
+  if (err) return <p className="p-4 text-danger font-bold">{err}</p>;
+  if (!data) return <p className="p-4 text-faint">جارٍ التحميل…</p>;
 
   return (
     <div className="space-y-3">
@@ -62,7 +62,7 @@ export function InboxTab({ onRead }: { onRead: () => void | Promise<void> }) {
       {data.items.length === 0 ? (
         <div className="card p-5 text-center">
           <p className="font-bold text-sea text-sm">لا رسائل بعد</p>
-          <p className="text-xs text-sea/60 mt-1 leading-relaxed">
+          <p className="text-xs text-faint mt-1 leading-relaxed">
             هنا تصلك رسائل المضيفين ومزوّدي الخدمات وفريق تشاو. التأكيدات المهمة تصلك أيضًا على
             واتساب — هذه نسخة محفوظة لا تضيع لو تغيّر هاتفك.
           </p>
@@ -76,7 +76,7 @@ export function InboxTab({ onRead }: { onRead: () => void | Promise<void> }) {
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="font-bold text-sea text-sm">{m.from}</span>
-                <span className="text-[11px] text-sea/50" dir="ltr">
+                <span className="text-[11px] text-faint" dir="ltr">
                   {new Date(m.at).toLocaleString("ar-LY")}
                 </span>
               </div>
@@ -89,7 +89,7 @@ export function InboxTab({ onRead }: { onRead: () => void | Promise<void> }) {
                 {m.body}
               </p>
               {m.body.includes("•••") ? (
-                <p className="text-[11px] text-sea/45 mt-1">
+                <p className="text-[11px] text-faint mt-1">
                   الأرقام والروابط مخفية إلى أن يُدفع العربون — حمايةً للطرفين.
                 </p>
               ) : null}

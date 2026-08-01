@@ -112,11 +112,11 @@ export function TrustDialog({
       aria-modal="true"
     >
       <div
-        className="bg-white w-full sm:max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-bubble shadow-xl"
+        className="bg-surface w-full sm:max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-bubble shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* header */}
-        <div className="sticky top-0 bg-white/95 backdrop-blur border-b border-sand px-5 py-3 flex items-center justify-between">
+        <div className="sticky top-0 bg-surface/95 backdrop-blur border-b border-sand px-5 py-3 flex items-center justify-between">
           <h2 className="font-bold text-sea truncate">{listingTitle}</h2>
           <button
             onClick={onClose}
@@ -127,8 +127,8 @@ export function TrustDialog({
           </button>
         </div>
 
-        {err ? <p className="p-5 text-red-700 font-bold text-sm">{err}</p> : null}
-        {!data && !err ? <p className="p-5 text-sea/60 text-sm">جارٍ التحميل…</p> : null}
+        {err ? <p className="p-5 text-danger font-bold text-sm">{err}</p> : null}
+        {!data && !err ? <p className="p-5 text-faint text-sm">جارٍ التحميل…</p> : null}
 
         {data ? (
           <div className="p-5 space-y-6">
@@ -137,13 +137,13 @@ export function TrustDialog({
               <p className="text-4xl font-extrabold text-sea" dir="ltr">
                 {headline ? headline.toFixed(1) : "—"}
               </p>
-              <p className="text-amber-dark text-lg" dir="ltr" aria-hidden>
+              <p className="text-link text-lg" dir="ltr" aria-hidden>
                 {"★".repeat(Math.min(5, Math.floor((headline ?? 0) + 0.25)))}
                 <span className="opacity-25">
                   {"★".repeat(5 - Math.min(5, Math.floor((headline ?? 0) + 0.25)))}
                 </span>
               </p>
-              <p className="text-sm text-sea/70 mt-1">
+              <p className="text-sm text-muted mt-1">
                 {isGuestRating
                   ? `${total} تقييم من ضيوف أكملوا الحجز`
                   : "تقييم تشاو من الفحص الميداني — لا تقييمات ضيوف بعد"}
@@ -158,7 +158,7 @@ export function TrustDialog({
                   const pct = total > 0 ? Math.round((c / total) * 100) : 0;
                   return (
                     <div key={n} className="flex items-center gap-2 text-sm">
-                      <span className="w-12 shrink-0 text-sea/70 text-xs">{n} نجوم</span>
+                      <span className="w-12 shrink-0 text-muted text-xs">{n} نجوم</span>
                       <div className="flex-1 h-3 bg-sand rounded-sm overflow-hidden">
                         <div
                           className="h-full bg-amber rounded-e-[3px]"
@@ -179,7 +179,7 @@ export function TrustDialog({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {Object.entries(data.rating.dimensions).map(([k, v]) => (
                   <div key={k} className="rounded-xl bg-sand p-2.5">
-                    <p className="text-[11px] text-sea/60">{DIMENSION_AR[k] ?? k}</p>
+                    <p className="text-[11px] text-faint">{DIMENSION_AR[k] ?? k}</p>
                     <p className="font-extrabold text-sea" dir="ltr">{v.toFixed(1)}</p>
                   </div>
                 ))}
@@ -189,7 +189,7 @@ export function TrustDialog({
             {/* dispute record — the differentiator */}
             <div className="rounded-bubble border-2 border-sea/15 p-4">
               <h3 className="font-bold text-sea mb-1">🛡 سجل الشكاوى والحلول</h3>
-              <p className="text-xs text-sea/60 mb-3">
+              <p className="text-xs text-faint mb-3">
                 نعرض عدد الشكاوى ونتائجها فقط — نص الشكوى وبيانات أصحابها لا تُنشر أبدًا.
               </p>
               {data.disputes.opened === 0 ? (
@@ -204,21 +204,21 @@ export function TrustDialog({
                       <p className="font-extrabold text-sea text-lg" dir="ltr">
                         {data.disputes.opened}
                       </p>
-                      <p className="text-[11px] text-sea/60">
+                      <p className="text-[11px] text-faint">
                         شكاوى من {data.disputes.deliveredBookings} حجز
                       </p>
                     </div>
                     <div className="rounded-xl bg-sand p-2">
-                      <p className="font-extrabold text-green-700 text-lg" dir="ltr">
+                      <p className="font-extrabold text-success text-lg" dir="ltr">
                         {data.disputes.resolved}
                       </p>
-                      <p className="text-[11px] text-sea/60">تم حلّها</p>
+                      <p className="text-[11px] text-faint">تم حلّها</p>
                     </div>
                     <div className="rounded-xl bg-sand p-2">
                       <p className="font-extrabold text-sea text-lg" dir="ltr">
                         {data.disputes.medianHours != null ? `${data.disputes.medianHours}س` : "—"}
                       </p>
-                      <p className="text-[11px] text-sea/60">وسيط زمن الحل</p>
+                      <p className="text-[11px] text-faint">وسيط زمن الحل</p>
                     </div>
                   </div>
                   {data.disputes.resolvedWithinSla > 0 ? (
@@ -236,7 +236,7 @@ export function TrustDialog({
                     </div>
                   ) : null}
                   {data.disputes.open > 0 ? (
-                    <p className="text-amber-dark font-bold">
+                    <p className="text-link font-bold">
                       ⏳ {data.disputes.open} شكوى قيد المعالجة الآن.
                     </p>
                   ) : null}
@@ -265,7 +265,7 @@ export function TrustDialog({
                   </Link>
                 </>
               ) : (
-                <p className="text-sm text-sea/70">
+                <p className="text-sm text-muted">
                   {data.canReview.reason === "sign_in"
                     ? "سجّل دخولك لتكتب تقييمًا — التقييم متاح فقط لمن أكمل حجزًا هنا."
                     : "التقييمات تُقبل فقط ممن أكمل حجزًا مدفوع العربون على تشاو — لهذا لا توجد تقييمات مزيفة."}
@@ -283,7 +283,7 @@ export function TrustDialog({
                       <span className="font-bold text-sm text-sea">{r.author}</span>
                       {/* Always five glyphs so the rows read as one scale, not
                           ragged lines of different lengths. */}
-                      <span className="text-amber-dark text-xs" dir="ltr">
+                      <span className="text-link text-xs" dir="ltr">
                         {"★".repeat(Math.min(5, Math.round(r.overall)))}
                         <span className="opacity-25">
                           {"★".repeat(5 - Math.min(5, Math.round(r.overall)))}
@@ -293,7 +293,7 @@ export function TrustDialog({
                     </div>
                     {r.text ? <p className="text-sm mt-1 text-sea/85">{r.text}</p> : null}
                     {r.hostReply ? (
-                      <p className="text-xs mt-1.5 text-sea/60 border-s-2 border-sand ps-2">
+                      <p className="text-xs mt-1.5 text-faint border-s-2 border-sand ps-2">
                         ↩ رد المضيف: {r.hostReply}
                       </p>
                     ) : null}
@@ -365,12 +365,12 @@ export function TrustStars({
         onClick={() => setOpen(true)}
         className={`inline-flex items-center gap-1 ${size} hover:underline`}
       >
-        <span className="text-amber-dark tracking-tight" dir="ltr" aria-hidden>
+        <span className="text-link tracking-tight" dir="ltr" aria-hidden>
           {"★".repeat(full)}
           <span className="opacity-25">{"★".repeat(5 - full)}</span>
         </span>
         <span className="font-bold text-sea">{rating.toFixed(1)}</span>
-        <span className="text-sea/60 text-xs">
+        <span className="text-faint text-xs">
           {count && count > 0
             ? `· ${count} ${source === "guests" ? "تقييم" : "تقييم تشاو"}`
             : "· تقييم تشاو"}

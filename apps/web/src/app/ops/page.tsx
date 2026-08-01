@@ -118,7 +118,7 @@ export default function OpsPage() {
             <button
               key={r.rail}
               onClick={() => toggleRail(r)}
-              className={`chip ${r.healthy ? "!bg-green-100 !text-green-800" : "!bg-red-100 !text-red-800"}`}
+              className={`chip ${r.healthy ? "badge-success" : "badge-danger"}`}
             >
               {r.healthy ? "🟢" : "🔴"} {r.rail}
             </button>
@@ -132,9 +132,9 @@ export default function OpsPage() {
           <h2 className="font-bold text-lg text-sea mb-2">
             التسوية اليومية{" "}
             {recon.unbalancedTransactions === 0 ? (
-              <span className="text-green-700 text-sm">— متوازنة ✓</span>
+              <span className="text-success text-sm">— متوازنة ✓</span>
             ) : (
-              <span className="text-red-700 text-sm">
+              <span className="text-danger text-sm">
                 — {recon.unbalancedTransactions} قيود غير متوازنة!
               </span>
             )}

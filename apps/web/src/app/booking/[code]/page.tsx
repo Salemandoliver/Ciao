@@ -14,7 +14,7 @@ import type { BookingDetail } from "@/lib/types";
 const STATE_AR: Record<string, { label: string; tone: string; hint?: string }> = {
   payment_pending: {
     label: "بانتظار دفع العربون",
-    tone: "bg-amber/20 text-amber-dark",
+    tone: "bg-amber/20 text-link",
     hint: "حجزك محجوز مؤقتًا — أكمل الدفع لقفل التاريخ.",
   },
   payment_held: {
@@ -22,23 +22,23 @@ const STATE_AR: Record<string, { label: string; tone: string; hint?: string }> =
     tone: "bg-sea/10 text-sea",
     hint: "أرسلنا للمضيف واتساب و SMS. لو ما ردّش في المهلة، عربونك يرجع كاملًا فورًا.",
   },
-  confirmed: { label: "✅ الحجز مؤكد", tone: "bg-green-100 text-green-800" },
-  pre_arrival_reconfirmed: { label: "✅ مؤكد — والمكان جاهز", tone: "bg-green-100 text-green-800" },
+  confirmed: { label: "✅ الحجز مؤكد", tone: "badge-success" },
+  pre_arrival_reconfirmed: { label: "✅ مؤكد — والمكان جاهز", tone: "badge-success" },
   checked_in: { label: "🏖 إقامة جارية", tone: "bg-sea/10 text-sea" },
   completed: { label: "اكتملت الإقامة — قيّم تجربتك", tone: "bg-sand text-sea" },
   reviewed: { label: "شكرًا على تقييمك!", tone: "bg-sand text-sea" },
   host_declined: {
     label: "اعتذر المضيف — العربون راجع كاملًا",
-    tone: "bg-red-100 text-red-800",
+    tone: "badge-danger",
   },
   host_timeout: {
     label: "انتهت مهلة المضيف — العربون راجع + هدية ٥٪",
-    tone: "bg-red-100 text-red-800",
+    tone: "badge-danger",
   },
-  payment_failed: { label: "لم يكتمل الدفع", tone: "bg-red-100 text-red-800" },
-  cancelled_by_guest: { label: "ألغيتَ الحجز", tone: "bg-sand text-sea/70" },
-  cancelled_by_host: { label: "ألغى المضيف — تعويض كامل + رصيد", tone: "bg-red-100 text-red-800" },
-  expired: { label: "انتهت صلاحية الطلب", tone: "bg-sand text-sea/70" },
+  payment_failed: { label: "لم يكتمل الدفع", tone: "badge-danger" },
+  cancelled_by_guest: { label: "ألغيتَ الحجز", tone: "bg-sand text-muted" },
+  cancelled_by_host: { label: "ألغى المضيف — تعويض كامل + رصيد", tone: "badge-danger" },
+  expired: { label: "انتهت صلاحية الطلب", tone: "bg-sand text-muted" },
 };
 
 export default function BookingPage({ params }: { params: Promise<{ code: string }> }) {
@@ -79,7 +79,7 @@ export default function BookingPage({ params }: { params: Promise<{ code: string
     );
   }
 
-  if (!b) return <Shell><p className="text-center py-12 text-sea/60">جارٍ التحميل…</p></Shell>;
+  if (!b) return <Shell><p className="text-center py-12 text-faint">جارٍ التحميل…</p></Shell>;
 
   const st = STATE_AR[b.state] ?? { label: b.state, tone: "bg-sand" };
   const showVoucher = ["confirmed", "pre_arrival_reconfirmed", "checked_in"].includes(b.state);
@@ -144,7 +144,7 @@ export default function BookingPage({ params }: { params: Promise<{ code: string
         {/* Timeline */}
         <div className="card p-4">
           <h2 className="font-bold text-sea mb-2 text-sm">سجل الحجز</h2>
-          <ol className="space-y-1 text-sm text-sea/70">
+          <ol className="space-y-1 text-sm text-muted">
             {b.timeline.map((e) => (
               <li key={e.seq}>
                 {new Date(e.at).toLocaleString("ar-LY", { timeZone: "Africa/Tripoli" })} —{" "}
@@ -158,7 +158,7 @@ export default function BookingPage({ params }: { params: Promise<{ code: string
             asking before the booking works would be a toll gate (§6.1). */}
         {showVoucher ? <JoinPrompt bookingCode={b.code} /> : null}
 
-        {err ? <p className="text-amber-dark text-sm text-center">{err}</p> : null}
+        {err ? <p className="text-link text-sm text-center">{err}</p> : null}
       </div>
     </Shell>
   );
@@ -179,7 +179,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-sea/50 text-xs">{label}</p>
+      <p className="text-faint text-xs">{label}</p>
       <p className="font-bold">{value}</p>
     </div>
   );

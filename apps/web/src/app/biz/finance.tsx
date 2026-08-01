@@ -106,8 +106,8 @@ export function FinanceTab() {
     URL.revokeObjectURL(url);
   }
 
-  if (err) return <p className="p-4 text-red-700 font-bold">{err}</p>;
-  if (!data) return <p className="p-4 text-sea/60">جارٍ التحميل…</p>;
+  if (err) return <p className="p-4 text-danger font-bold">{err}</p>;
+  if (!data) return <p className="p-4 text-faint">جارٍ التحميل…</p>;
 
   return (
     <div>
@@ -127,11 +127,11 @@ export function FinanceTab() {
       </div>
 
       {!data.ledger.balanced ? (
-        <div className="rounded-2xl bg-red-50 ring-1 ring-red-300 p-3 mb-3">
-          <p className="font-bold text-red-800 text-sm">
+        <div className="rounded-2xl tone-warn p-3 mb-3">
+          <p className="font-bold text-danger text-sm">
             ⚠ دفتر الأستاذ غير متوازن — فرق {fmtLyd(Math.abs(data.ledger.drift))}
           </p>
-          <p className="text-xs text-red-700 mt-1">
+          <p className="text-xs text-danger/80 mt-1">
             لا تعتمد على الأرقام أدناه قبل تسوية القيود. راجع صفحة المطابقة في لوحة العمليات.
           </p>
         </div>
@@ -154,7 +154,7 @@ export function FinanceTab() {
       <Section title="ميزان المراجعة">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="text-sea/60">
+            <thead className="text-faint">
               <tr>
                 <th className="text-start py-1">الحساب</th>
                 <th className="text-start py-1">مدين</th>
@@ -178,7 +178,7 @@ export function FinanceTab() {
                     <td className="py-1.5 font-bold">
                       <Money dirhams={a.net} />
                     </td>
-                    <td className="py-1.5 tabular-nums text-sea/60">{a.n}</td>
+                    <td className="py-1.5 tabular-nums text-faint">{a.n}</td>
                   </tr>
                 ))}
               <tr className="border-t-2 border-sea/20 font-bold">
@@ -202,7 +202,7 @@ export function FinanceTab() {
         {data.monthly.length ? (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="text-sea/60">
+              <thead className="text-faint">
                 <tr>
                   <th className="text-start py-1">الشهر</th>
                   <th className="text-start py-1">حجوزات</th>
@@ -229,7 +229,7 @@ export function FinanceTab() {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-sea/50">لا بيانات بعد</p>
+          <p className="text-sm text-faint">لا بيانات بعد</p>
         )}
       </Section>
 
@@ -254,7 +254,7 @@ export function FinanceTab() {
               format={(n) => fmtLyd(n)}
             />
           ) : (
-            <p className="text-sm text-sea/50">لا مستحقات بعد</p>
+            <p className="text-sm text-faint">لا مستحقات بعد</p>
           )}
         </Section>
         <Section title="الاسترجاعات">
@@ -267,15 +267,15 @@ export function FinanceTab() {
               format={(n) => fmtLyd(n)}
             />
           ) : (
-            <p className="text-sm text-sea/50">لا استرجاعات</p>
+            <p className="text-sm text-faint">لا استرجاعات</p>
           )}
         </Section>
       </div>
 
-      <Section title="الأداء حسب النشاط" action={<span className="text-[11px] text-sea/50">الأعلى قيمة أولًا</span>}>
+      <Section title="الأداء حسب النشاط" action={<span className="text-[11px] text-faint">الأعلى قيمة أولًا</span>}>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="text-sea/60">
+            <thead className="text-faint">
               <tr>
                 <th className="text-start py-1">النشاط</th>
                 <th className="text-start py-1">القطاع</th>
@@ -289,7 +289,7 @@ export function FinanceTab() {
                 <tr key={i.listingId} className="border-t border-sand">
                   <td className="py-1.5">
                     <div className="font-bold text-sea">{i.titleAr}</div>
-                    <div className="text-[11px] text-sea/50">{i.hostName ?? "—"}</div>
+                    <div className="text-[11px] text-faint">{i.hostName ?? "—"}</div>
                   </td>
                   <td className="py-1.5">{VERTICAL_AR[i.vertical] ?? i.vertical}</td>
                   <td className="py-1.5 tabular-nums">{i.bookings}</td>

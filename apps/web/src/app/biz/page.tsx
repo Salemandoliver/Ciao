@@ -78,7 +78,7 @@ function BizConsole() {
           </Link>
           <div>
             <h1 className="font-bold text-sea leading-tight">تشاو بزنس</h1>
-            <p className="text-[11px] text-sea/55">النظام الداخلي لإدارة المنصّة</p>
+            <p className="text-[11px] text-faint">النظام الداخلي لإدارة المنصّة</p>
           </div>
         </div>
         <nav className="flex items-center gap-2 text-xs font-bold text-sea">
@@ -92,12 +92,12 @@ function BizConsole() {
       </header>
 
       {state === "loading" ? (
-        <p className="p-4 text-sea/60">جارٍ التحقق من الصلاحية…</p>
+        <p className="p-4 text-faint">جارٍ التحقق من الصلاحية…</p>
       ) : state === "denied" ? (
         <div className="card p-6 text-center max-w-lg mx-auto">
           <p className="font-bold text-sea">هذه المنطقة لفريق تشاو الداخلي</p>
           {signedInAs ? (
-            <p className="text-sm text-sea/60 mt-2">
+            <p className="text-sm text-faint mt-2">
               أنت داخل بالرقم{" "}
               <span className="font-bold text-sea" dir="ltr">
                 {localPhone(signedInAs)}
@@ -105,7 +105,7 @@ function BizConsole() {
               — وهذا الحساب ليس من الفريق.
             </p>
           ) : null}
-          <p className="text-sm text-sea/60 mt-2">
+          <p className="text-sm text-faint mt-2">
             تحتاج صلاحية «عمليات» أو «مدير». ادخل برقم من الفريق، أو اطلب من المدير رفع صلاحية رقمك
             من شاشة «المستخدمون».
           </p>
@@ -133,7 +133,7 @@ function BizConsole() {
                 key={key}
                 onClick={() => go(key)}
                 className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
-                  tab === key ? "bg-sea text-white" : "bg-white text-sea/70 hover:bg-sand"
+                  tab === key ? "bg-sea text-white" : "bg-surface text-muted hover:bg-sand"
                 }`}
               >
                 <span aria-hidden>{emoji}</span>
@@ -160,7 +160,7 @@ function BizConsole() {
 
 export default function BizPage() {
   return (
-    <Suspense fallback={<p className="p-6 text-sea/60">…</p>}>
+    <Suspense fallback={<p className="p-6 text-faint">…</p>}>
       <BizConsole />
     </Suspense>
   );

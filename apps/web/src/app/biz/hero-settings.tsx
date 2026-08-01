@@ -74,12 +74,12 @@ export function HeroSettings({
       title="صور الواجهة الرئيسية"
       action={row?.overridden ? <Pill tone="amber">مُعدّلة</Pill> : <Pill tone="slate">افتراضي</Pill>}
     >
-      <p className="text-xs text-sea/60 mb-3 leading-relaxed">
+      <p className="text-xs text-faint mb-3 leading-relaxed">
         تتبدّل هذه الصور تلقائيًا في أعلى الصفحة الرئيسية. الصورة الأولى هي التي تُحمَّل فورًا على
         الشبكات البطيئة — اجعلها الأقوى.
       </p>
 
-      {err ? <p className="text-sm font-bold text-red-700 mb-2">{err}</p> : null}
+      {err ? <p className="text-sm font-bold text-danger mb-2">{err}</p> : null}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {images.map((img, i) => (
@@ -95,14 +95,14 @@ export function HeroSettings({
               <div className="absolute bottom-1 inset-x-1 flex items-center justify-between">
                 <div className="flex gap-1">
                   <button
-                    className="w-6 h-6 rounded-full bg-white/90 text-sea text-xs font-bold"
+                    className="w-6 h-6 rounded-full btn-on-photo text-xs font-bold"
                     onClick={() => move(i, -1)}
                     aria-label="تقديم"
                   >
                     ›
                   </button>
                   <button
-                    className="w-6 h-6 rounded-full bg-white/90 text-sea text-xs font-bold"
+                    className="w-6 h-6 rounded-full btn-on-photo text-xs font-bold"
                     onClick={() => move(i, 1)}
                     aria-label="تأخير"
                   >
@@ -143,7 +143,7 @@ export function HeroSettings({
         </div>
       ) : null}
 
-      <label className="block text-xs font-bold text-sea/70 mt-3">
+      <label className="block text-xs font-bold text-muted mt-3">
         مدة عرض كل صورة (ثانية)
         <input
           className="input !py-1.5 !text-sm mt-1 max-w-[110px]"
@@ -154,7 +154,7 @@ export function HeroSettings({
         />
       </label>
 
-      <p className="text-[11px] text-sea/45 mt-3 leading-relaxed">
+      <p className="text-[11px] text-faint mt-3 leading-relaxed">
         يُكتب المسار بدون اللاحقة: النظام يطلب تلقائيًا نسختي 800 و1600 بكسل بصيغة WebP، فيصل
         للهاتف على شبكة ضعيفة أخفّ ملف ممكن.
       </p>

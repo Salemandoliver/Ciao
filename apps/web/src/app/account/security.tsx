@@ -111,12 +111,12 @@ export function SecurityTab({
 
       <div className="card p-4">
         <h3 className="font-bold text-sea text-sm">الدخول بالبصمة أو الوجه</h3>
-        <p className="text-xs text-sea/70 mt-1 leading-relaxed">
+        <p className="text-xs text-muted mt-1 leading-relaxed">
           بدل انتظار رمز يصل برسالة: بصمتك محفوظة على جهازك وحده، ولا تغادره أبدًا — نحن نحتفظ
           بالجزء العلني منها فقط. تشتغل حتى وقت انقطاع الشبكة، وهي الطريقة الآمنة لحماية محفظتك.
         </p>
         {!supported ? (
-          <p className="text-xs text-amber-dark font-bold mt-2">
+          <p className="text-xs text-link font-bold mt-2">
             متصفحك لا يدعم هذه الميزة — جرّب من متصفح الهاتف.
           </p>
         ) : (
@@ -135,7 +135,7 @@ export function SecurityTab({
           الأجهزة المفعّلة ({data.passkeys})
         </h3>
         {items.length === 0 ? (
-          <p className="text-sm text-sea/50">لا أجهزة بعد.</p>
+          <p className="text-sm text-faint">لا أجهزة بعد.</p>
         ) : (
           <ul className="divide-y divide-sand">
             {items.map((p) => (
@@ -144,7 +144,7 @@ export function SecurityTab({
                   <div className="text-sm font-bold text-sea truncate">
                     {p.deviceLabel ?? "جهاز"}
                   </div>
-                  <div className="text-[11px] text-sea/50">
+                  <div className="text-[11px] text-faint">
                     {p.lastUsedAt
                       ? `آخر استخدام ${new Date(p.lastUsedAt).toLocaleDateString("ar-LY")}`
                       : "لم يُستخدم بعد"}
@@ -161,7 +161,7 @@ export function SecurityTab({
 
       <div className="card p-4">
         <h3 className="font-bold text-sea text-sm">رقمك هو هويتك</h3>
-        <p className="text-xs text-sea/70 mt-1 leading-relaxed" dir="auto">
+        <p className="text-xs text-muted mt-1 leading-relaxed" dir="auto">
           حسابك مرتبط بالرقم <strong dir="ltr">{data.phone}</strong>. البصمة إضافة فوقه لا بديل
           عنه — أول إثبات لهويتك يبقى دائمًا عبر رقمك.
         </p>

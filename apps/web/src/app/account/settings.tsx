@@ -150,7 +150,7 @@ export function SettingsTab({
       </Card>
 
       <Card title="الدفع">
-        <p className="text-xs text-sea/60 mb-2">
+        <p className="text-xs text-faint mb-2">
           نختار لك هذه الوسيلة تلقائيًا عند الحجز — تقدر تغيّرها في كل مرة.
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -164,7 +164,7 @@ export function SettingsTab({
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-sea/45 mt-2">
+        <p className="text-[11px] text-faint mt-2">
           لا نحفظ أرقام بطاقتك أبدًا — ذلك عند مزوّد الدفع وحده.
         </p>
       </Card>
@@ -204,7 +204,7 @@ export function SettingsTab({
       </Card>
 
       <Card title="مناطقك المفضّلة">
-        <p className="text-xs text-sea/60 mb-2">
+        <p className="text-xs text-faint mb-2">
           اخترها بنفسك — لا نستنتجها عنك. نستخدمها للترتيب وللإعلان المبكر فقط.
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -230,7 +230,7 @@ export function SettingsTab({
       </Card>
 
       <Card title="البريد الإلكتروني">
-        <p className="text-xs text-sea/60 mb-2">
+        <p className="text-xs text-faint mb-2">
           اختياري. فائدته أنه يبقى معك لو تغيّر رقمك — و
           {data.emailVerified ? "بريدك موثّق ✅" : "توثيقه يمنحك نقاطًا"}.
         </p>
@@ -248,14 +248,14 @@ export function SettingsTab({
           </button>
         </div>
         {devLink ? (
-          <a className="text-xs text-amber-dark font-bold mt-2 inline-block break-all" href={devLink}>
+          <a className="text-xs text-link font-bold mt-2 inline-block break-all" href={devLink}>
             رابط التوثيق (وضع تجريبي) ←
           </a>
         ) : null}
       </Card>
 
       <Card title="بياناتك">
-        <p className="text-xs text-sea/70 leading-relaxed">
+        <p className="text-xs text-muted leading-relaxed">
           نتعلّم من استخدامك داخل التطبيق فقط. لا نشتري بياناتك ولا نجمع حساباتك على مواقع
           التواصل، ولا نبيعها لأي جهة.
         </p>
@@ -300,7 +300,7 @@ function Toggle({
     <label className="flex items-start justify-between gap-3 py-1.5 cursor-pointer">
       <span className="min-w-0">
         <span className="block text-sm text-sea/85">{label}</span>
-        {hint ? <span className="block text-[11px] text-sea/50 mt-0.5">{hint}</span> : null}
+        {hint ? <span className="block text-[11px] text-faint mt-0.5">{hint}</span> : null}
       </span>
       <input
         type="checkbox"

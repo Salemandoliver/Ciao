@@ -37,7 +37,7 @@ export function SearchResults({
 
   if (items.length === 0) {
     return (
-      <div className="card p-8 text-center text-sea/70">
+      <div className="card p-8 text-center text-muted">
         لا نتائج بهذه الفلاتر — جرّب توسيع البحث.
       </div>
     );
@@ -78,8 +78,9 @@ export function SearchResults({
               {selected ? (
                 <PreviewCard listing={selected} onClose={() => setSelectedId(null)} />
               ) : (
-                <p className="absolute bottom-3 inset-x-0 text-center text-[11px] text-sea/70 pointer-events-none">
-                  <span className="bg-white/85 rounded-full px-3 py-1">
+                <p className="absolute bottom-3 inset-x-0 text-center pointer-events-none">
+                  {/* Sits on the map tiles, which are light in both themes. */}
+                  <span className="chip-on-photo !text-[11px]">
                     📍 المواقع تقريبية (~500م) — العنوان الدقيق بعد العربون
                   </span>
                 </p>
@@ -127,7 +128,7 @@ function PreviewCard({
 }) {
   const cover = listing.media.find((m) => m.kind === "photo");
   return (
-    <div className="absolute bottom-3 inset-x-3 bg-white rounded-bubble shadow-xl overflow-hidden flex z-[500]">
+    <div className="absolute bottom-3 inset-x-3 bg-surface rounded-bubble shadow-xl overflow-hidden flex z-[500]">
       <Link href={`/l/${listing.slug}`} className="flex flex-1 min-w-0">
         <div className="w-28 h-28 shrink-0 bg-sea/10 relative">
           {cover ? (
@@ -141,7 +142,7 @@ function PreviewCard({
         <div className="p-3 min-w-0 flex-1">
           <p className="font-bold text-sm leading-snug line-clamp-2">{listing.titleAr}</p>
           {listing.rating ? (
-            <p className="text-xs text-amber-dark font-bold mt-0.5" dir="ltr">
+            <p className="text-xs text-link font-bold mt-0.5" dir="ltr">
               ★ {listing.rating.toFixed(1)}
               {listing.reviewCount ? ` (${listing.reviewCount})` : ""}
             </p>

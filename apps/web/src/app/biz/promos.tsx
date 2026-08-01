@@ -150,7 +150,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
 
       <div className="card p-4">
         <h3 className="font-bold text-sea text-sm">كيف تعمل أكواد الخصم عندنا</h3>
-        <p className="text-xs text-sea/70 mt-1 leading-relaxed">
+        <p className="text-xs text-muted mt-1 leading-relaxed">
           الخصم يُموَّل من عمولة تشاو ولا يتجاوزها أبدًا. لو أنشأت كود ٥٠٪ على حجز عمولتنا فيه
           ١٠٪، سيحصل الضيف على ١٠٪ — لأن حصة المضيف وعدٌ قطعناه له، وليست ميزانية تسويق. النظام
           يقصّ الخصم تلقائيًا عند هذا الحد.
@@ -171,7 +171,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
       >
         {adding ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               الكود
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -181,7 +181,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                 onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
               />
             </label>
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               النوع
               <select
                 className="input !py-2 !text-sm mt-1"
@@ -193,7 +193,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                 ))}
               </select>
             </label>
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               {form.kind === "percent" ? "النسبة (٪)" : form.kind === "fixed" ? "المبلغ (د.ل)" : "النقاط"}
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -202,7 +202,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                 onChange={(e) => setForm({ ...form, value: e.target.value })}
               />
             </label>
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               أقصى خصم (د.ل)
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -212,7 +212,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                 onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })}
               />
             </label>
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               القطاع
               <select
                 className="input !py-2 !text-sm mt-1"
@@ -225,7 +225,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                 <option value="service">خدمات</option>
               </select>
             </label>
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               المدينة
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -235,7 +235,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                 onChange={(e) => setForm({ ...form, city: e.target.value })}
               />
             </label>
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               أقل قيمة حجز (د.ل)
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -245,7 +245,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                 onChange={(e) => setForm({ ...form, minSpend: e.target.value })}
               />
             </label>
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               ينتهي في
               <input
                 type="date"
@@ -254,7 +254,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                 onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
               />
             </label>
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               أقصى عدد استخدامات
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -264,7 +264,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                 onChange={(e) => setForm({ ...form, maxRedemptions: e.target.value })}
               />
             </label>
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               الحد لكل مستخدم
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -291,7 +291,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="text-sea/60">
+            <thead className="text-faint">
               <tr>
                 <th className="text-start py-1">الكود</th>
                 <th className="text-start py-1">القيمة</th>
@@ -309,11 +309,11 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                     <td className="py-2">
                       <div className="font-bold text-sea font-mono" dir="ltr">{p.code}</div>
                       {p.descriptionAr ? (
-                        <div className="text-[11px] text-sea/55">{p.descriptionAr}</div>
+                        <div className="text-[11px] text-faint">{p.descriptionAr}</div>
                       ) : null}
                     </td>
                     <td className="py-2 font-bold text-sea">{describe(p)}</td>
-                    <td className="py-2 text-sea/70">
+                    <td className="py-2 text-muted">
                       {p.vertical
                         ? { coast: "شاليهات", hall: "قاعات", service: "خدمات" }[p.vertical]
                         : "الكل"}
@@ -323,7 +323,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
                     <td className="py-2 tabular-nums">
                       {p.timesUsed}
                       {p.maxRedemptions != null ? `/${p.maxRedemptions}` : ""}
-                      <div className="text-[11px] text-sea/50">لكل عضو {p.perUserLimit}</div>
+                      <div className="text-[11px] text-faint">لكل عضو {p.perUserLimit}</div>
                     </td>
                     <td className="py-2">
                       <Money dirhams={p.discountGiven} />
@@ -344,7 +344,7 @@ export function PromosTab({ isAdmin }: { isAdmin: boolean }) {
               })}
               {items.length === 0 ? (
                 <tr>
-                  <td className="p-3 text-sea/50" colSpan={6}>
+                  <td className="p-3 text-faint" colSpan={6}>
                     لا أكواد بعد
                   </td>
                 </tr>

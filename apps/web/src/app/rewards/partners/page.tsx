@@ -136,7 +136,7 @@ export default function PartnersPage() {
       </header>
 
       <h1 className="font-bold text-xl text-sea">اصرف نقاطك عند شركائنا</h1>
-      <p className="text-sm text-sea/70 mt-1 leading-relaxed">
+      <p className="text-sm text-muted mt-1 leading-relaxed">
         قهوة، حلويات، أو وجبة — بنقاط كسبتها من حجوزاتك. اختر الشريك والقيمة، واعرض الكود عند
         الكاشير.
       </p>
@@ -146,10 +146,10 @@ export default function PartnersPage() {
         </p>
       ) : null}
 
-      {msg ? <p className="text-sm font-bold text-red-700 mt-3">{msg}</p> : null}
+      {msg ? <p className="text-sm font-bold text-danger mt-3">{msg}</p> : null}
 
       {dir && !dir.enabled ? (
-        <p className="card p-4 mt-4 text-sm text-sea/70">
+        <p className="card p-4 mt-4 text-sm text-muted">
           الصرف عند الشركاء غير مفعّل حاليًا. نقاطك تبقى في رصيدك ويمكنك تحويلها إلى رصيد داخل
           تشاو.
         </p>
@@ -166,22 +166,22 @@ export default function PartnersPage() {
               <span aria-hidden className="text-xl">{CATEGORY_EMOJI[p.category] ?? "🎁"}</span>
               <div className="min-w-0">
                 <h3 className="font-bold text-sea truncate">{p.nameAr}</h3>
-                <p className="text-[11px] text-sea/55">
+                <p className="text-[11px] text-faint">
                   {dir?.categories[p.category] ?? p.category}
                   {p.venueNameAr ? ` · داخل ${p.venueNameAr}` : p.area ? ` · ${p.area}` : ""}
                 </p>
               </div>
             </div>
             {p.descriptionAr ? (
-              <p className="text-xs text-sea/70 mt-2 leading-relaxed">{p.descriptionAr}</p>
+              <p className="text-xs text-muted mt-2 leading-relaxed">{p.descriptionAr}</p>
             ) : null}
-            <p className="text-[11px] text-sea/45 mt-2">
+            <p className="text-[11px] text-faint mt-2">
               من {fmtLyd(p.minValue)} إلى {fmtLyd(p.maxValue)}
             </p>
           </button>
         ))}
         {dir && dir.items.length === 0 ? (
-          <p className="card p-4 text-sm text-sea/60 sm:col-span-2">
+          <p className="card p-4 text-sm text-faint sm:col-span-2">
             لم نضف شركاء بعد. نختارهم بالطريقة نفسها التي نختار بها الأماكن — بالزيارة، لا
             بالمكالمة.
           </p>
@@ -196,7 +196,7 @@ export default function PartnersPage() {
           aria-modal="true"
         >
           <div
-            className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-bubble shadow-xl p-5"
+            className="bg-surface w-full sm:max-w-md rounded-t-3xl sm:rounded-bubble shadow-xl p-5"
             onClick={(e) => e.stopPropagation()}
           >
             {voucher ? (
@@ -204,7 +204,7 @@ export default function PartnersPage() {
             ) : (
               <>
                 <h2 className="font-bold text-sea">{active.nameAr}</h2>
-                <p className="text-xs text-sea/60 mt-1">اختر قيمة القسيمة</p>
+                <p className="text-xs text-faint mt-1">اختر قيمة القسيمة</p>
                 <div className="flex flex-wrap gap-2 mt-3">
                   {stepsFor(active).map((v) => (
                     <button
@@ -216,13 +216,13 @@ export default function PartnersPage() {
                     </button>
                   ))}
                 </div>
-                <p className="text-sm text-sea/75 mt-3">
+                <p className="text-sm text-muted mt-3">
                   تُخصم <strong className="text-sea">{pointsNeeded.toLocaleString("ar-LY")}</strong>{" "}
                   نقطة
                   {points != null ? ` من ${points.toLocaleString("ar-LY")}` : ""}
                 </p>
                 {!affordable ? (
-                  <p className="text-sm font-bold text-red-700 mt-1">نقاطك لا تكفي لهذه القيمة</p>
+                  <p className="text-sm font-bold text-danger mt-1">نقاطك لا تكفي لهذه القيمة</p>
                 ) : null}
                 <button
                   className="btn-primary w-full !py-2 !text-sm mt-4 disabled:opacity-40"
@@ -231,7 +231,7 @@ export default function PartnersPage() {
                 >
                   {busy ? "…" : "أصدر القسيمة"}
                 </button>
-                <p className="text-[11px] text-sea/45 mt-2 leading-relaxed">
+                <p className="text-[11px] text-faint mt-2 leading-relaxed">
                   تُخصم النقاط فور الإصدار حتى لا تُصرف مرتين. إن لم تستخدم القسيمة خلال{" "}
                   {dir?.voucherMinutes ?? 30} دقيقة، تعود نقاطك تلقائيًا.
                 </p>
@@ -269,7 +269,7 @@ function VoucherView({ voucher, onClose }: { voucher: Voucher; onClose: () => vo
 
   return (
     <div className="text-center">
-      <p className="text-xs font-bold text-sea/55">اعرض هذا الكود عند الكاشير</p>
+      <p className="text-xs font-bold text-faint">اعرض هذا الكود عند الكاشير</p>
       <div
         className="text-4xl font-extrabold text-sea tracking-[0.3em] my-3 tabular-nums"
         dir="ltr"
@@ -277,8 +277,8 @@ function VoucherView({ voucher, onClose }: { voucher: Voucher; onClose: () => vo
         {voucher.code}
       </div>
       <p className="font-bold text-sea">{fmtLyd(voucher.value)} — {voucher.partnerName}</p>
-      <p className="text-sm text-amber-dark font-bold mt-1" dir="ltr">{left}</p>
-      <p className="text-[11px] text-sea/45 mt-3 leading-relaxed">
+      <p className="text-sm text-link font-bold mt-1" dir="ltr">{left}</p>
+      <p className="text-[11px] text-faint mt-3 leading-relaxed">
         القسيمة لمرة واحدة ولدى هذا الشريك فقط. لا تُستبدل نقدًا ولا يُعاد باقيها.
       </p>
       <button className="chip mt-4" onClick={onClose}>

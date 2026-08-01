@@ -102,8 +102,8 @@ function AccountScreen() {
         </nav>
       </header>
 
-      {err ? <p className="p-4 text-red-700 font-bold">{err}</p> : null}
-      {!data && !err ? <p className="p-4 text-sea/60">جارٍ التحميل…</p> : null}
+      {err ? <p className="p-4 text-danger font-bold">{err}</p> : null}
+      {!data && !err ? <p className="p-4 text-faint">جارٍ التحميل…</p> : null}
 
       {data ? (
         <>
@@ -111,7 +111,7 @@ function AccountScreen() {
             <h1 className="font-bold text-lg text-sea">
               {data.displayName || "أهلًا بك في تشاو"}
             </h1>
-            <p className="text-xs text-sea/55 mt-0.5" dir="ltr">
+            <p className="text-xs text-faint mt-0.5" dir="ltr">
               {data.phone}
             </p>
             <div className="grid grid-cols-3 gap-2 mt-3 text-center">
@@ -127,7 +127,7 @@ function AccountScreen() {
                 key={key}
                 onClick={() => go(key)}
                 className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
-                  tab === key ? "bg-sea text-white" : "bg-white text-sea/70 hover:bg-sand"
+                  tab === key ? "bg-sea text-white" : "bg-surface text-muted hover:bg-sand"
                 }`}
               >
                 <span aria-hidden>{emoji}</span>
@@ -158,7 +158,7 @@ function AccountScreen() {
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-sand/60 p-2">
-      <div className="text-[11px] font-bold text-sea/55">{label}</div>
+      <div className="text-[11px] font-bold text-faint">{label}</div>
       <div className="font-extrabold text-sea tabular-nums">{value}</div>
     </div>
   );
@@ -206,7 +206,7 @@ function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void
           <div key={t.title} className="card p-4 flex items-start justify-between gap-3">
             <div>
               <h3 className="font-bold text-sea text-sm">{t.title}</h3>
-              <p className="text-xs text-sea/70 mt-1 leading-relaxed">{t.body}</p>
+              <p className="text-xs text-muted mt-1 leading-relaxed">{t.body}</p>
             </div>
             <button className="chip shrink-0 !bg-amber !text-sea-dark" onClick={() => onGo(t.go)}>
               {t.action}
@@ -216,7 +216,7 @@ function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void
       ) : (
         <div className="card p-4">
           <p className="font-bold text-sea text-sm">حسابك مكتمل ✅</p>
-          <p className="text-xs text-sea/70 mt-1">
+          <p className="text-xs text-muted mt-1">
             البصمة مفعّلة، بريدك موثّق، ولا رسائل تنتظرك. عضويتك منذ{" "}
             {new Date(data.memberSince).toLocaleDateString("ar-LY")}.
           </p>
@@ -225,7 +225,7 @@ function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void
 
       <div className="card p-4">
         <h3 className="font-bold text-sea text-sm">كيف تكسب النقاط</h3>
-        <ul className="text-xs text-sea/70 mt-2 space-y-1">
+        <ul className="text-xs text-muted mt-2 space-y-1">
           {[
             ["إتمام إقامة", data.loyalty.rules.stay_completed],
             ["كتابة تقييم بعد الإقامة", data.loyalty.rules.review_written],
@@ -238,7 +238,7 @@ function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void
             </li>
           ))}
         </ul>
-        <p className="text-[11px] text-sea/45 mt-2 leading-relaxed">
+        <p className="text-[11px] text-faint mt-2 leading-relaxed">
           كل ١٠٠٠ نقطة = ١ د.ل رصيد. النقاط تُكتسب بما تفعله فعلًا — لا نمنح نقاطًا مقابل التسجيل
           وحده حتى لا تُستغل بحسابات وهمية.
         </p>
@@ -249,7 +249,7 @@ function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void
 
 export default function AccountPage() {
   return (
-    <Suspense fallback={<p className="p-6 text-sea/60">…</p>}>
+    <Suspense fallback={<p className="p-6 text-faint">…</p>}>
       <AccountScreen />
     </Suspense>
   );

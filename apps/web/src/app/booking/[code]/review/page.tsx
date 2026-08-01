@@ -56,7 +56,7 @@ export default function ReviewPage({ params }: { params: Promise<{ code: string 
       </header>
       <div className="card p-5 space-y-4">
         <h1 className="font-bold text-xl text-sea">قيّم إقامتك</h1>
-        <p className="text-sm text-sea/60">
+        <p className="text-sm text-faint">
           تقييمك لا يظهر للمضيف حتى يقيّم هو أيضًا (أو بعد ٧ أيام) — قيّم بصراحة.
         </p>
         {DIMENSIONS.map(([key, label]) => (
@@ -82,7 +82,7 @@ export default function ReviewPage({ params }: { params: Promise<{ code: string 
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-        {error ? <p className="text-red-700 text-sm font-bold">{error}</p> : null}
+        {error ? <p className="text-danger text-sm font-bold">{error}</p> : null}
         <button className="btn-primary w-full" disabled={!complete || busy || !bookingId} onClick={submit}>
           أرسل التقييم
         </button>

@@ -174,7 +174,7 @@ export function LoyaltyTab({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
-  if (!data) return <p className="p-4 text-sea/60">جارٍ التحميل…</p>;
+  if (!data) return <p className="p-4 text-faint">جارٍ التحميل…</p>;
   const c = data.config;
   const dirty = Object.keys(draft).length;
 
@@ -201,7 +201,7 @@ export function LoyaltyTab({ isAdmin }: { isAdmin: boolean }) {
             sub="نقطة"
           />
         </div>
-        <p className="text-[11px] text-sea/45 mt-3 leading-relaxed">
+        <p className="text-[11px] text-faint mt-3 leading-relaxed">
           النقاط ليست نقودًا لكنها وعد: هذا الرقم هو ما ستكلّفنا لو طالب به الجميع غدًا. عدّل قيم
           الكسب وأنت تنظر إليه.
         </p>
@@ -284,14 +284,14 @@ export function LoyaltyTab({ isAdmin }: { isAdmin: boolean }) {
           />
         </div>
         {!isAdmin ? (
-          <p className="text-[11px] text-sea/50 mt-2">التعديل للمدير فقط — هذه أرقام تكلّف مالًا.</p>
+          <p className="text-[11px] text-faint mt-2">التعديل للمدير فقط — هذه أرقام تكلّف مالًا.</p>
         ) : null}
       </Section>
 
       <Section title="حركة النقاط">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="text-sea/60">
+            <thead className="text-faint">
               <tr>
                 <th className="text-start py-1">السبب</th>
                 <th className="text-start py-1">النقاط</th>
@@ -306,13 +306,13 @@ export function LoyaltyTab({ isAdmin }: { isAdmin: boolean }) {
                     <td className="py-1.5 font-bold text-sea">{REASON_AR[r.reason] ?? r.reason}</td>
                     <td
                       className={`py-1.5 tabular-nums font-bold ${
-                        r.points > 0 ? "text-emerald-700" : "text-sea/70"
+                        r.points > 0 ? "text-success" : "text-muted"
                       }`}
                     >
                       {r.points > 0 ? "+" : ""}
                       {r.points.toLocaleString("ar-LY")}
                     </td>
-                    <td className="py-1.5 tabular-nums text-sea/60">{r.entries}</td>
+                    <td className="py-1.5 tabular-nums text-faint">{r.entries}</td>
                   </tr>
                 ))}
             </tbody>
@@ -328,7 +328,7 @@ export function LoyaltyTab({ isAdmin }: { isAdmin: boolean }) {
           </button>
         }
       >
-        <p className="text-xs text-sea/60 mb-3 leading-relaxed">
+        <p className="text-xs text-faint mb-3 leading-relaxed">
           المقهى داخل المنتجع، المخبز القريب. النقاط تتحول عندهم إلى زبون حقيقي، ونحن نسدّد لهم
           نقدًا. رقم هاتف الكاشير يصبح حسابه لصرف القسائم.
         </p>
@@ -364,7 +364,7 @@ export function LoyaltyTab({ isAdmin }: { isAdmin: boolean }) {
               value={form.area}
               onChange={(e) => setForm({ ...form, area: e.target.value })}
             />
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               أقل قيمة قسيمة (د.ل)
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -373,7 +373,7 @@ export function LoyaltyTab({ isAdmin }: { isAdmin: boolean }) {
                 onChange={(e) => setForm({ ...form, minValue: e.target.value })}
               />
             </label>
-            <label className="text-xs font-bold text-sea/70">
+            <label className="text-xs font-bold text-muted">
               أعلى قيمة قسيمة (د.ل)
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -400,7 +400,7 @@ export function LoyaltyTab({ isAdmin }: { isAdmin: boolean }) {
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="text-sea/60">
+            <thead className="text-faint">
               <tr>
                 <th className="text-start py-1">الشريك</th>
                 <th className="text-start py-1">قسائم</th>
@@ -413,7 +413,7 @@ export function LoyaltyTab({ isAdmin }: { isAdmin: boolean }) {
                 <tr key={p.id} className="border-t border-sand">
                   <td className="py-2">
                     <div className="font-bold text-sea">{p.nameAr}</div>
-                    <div className="text-[11px] text-sea/55">
+                    <div className="text-[11px] text-faint">
                       {CATEGORIES.find(([v]) => v === p.category)?.[1] ?? p.category}
                       {p.venueNameAr ? ` · داخل ${p.venueNameAr}` : p.area ? ` · ${p.area}` : ""}
                       {p.staffPhone ? ` · ${p.staffPhone}` : " · بلا حساب كاشير"}
@@ -442,7 +442,7 @@ export function LoyaltyTab({ isAdmin }: { isAdmin: boolean }) {
               ))}
               {partners.length === 0 ? (
                 <tr>
-                  <td className="p-3 text-sea/50" colSpan={4}>
+                  <td className="p-3 text-faint" colSpan={4}>
                     لا شركاء بعد
                   </td>
                 </tr>
@@ -471,7 +471,7 @@ function Field({
   return (
     <label className="block rounded-2xl bg-sand/40 p-3">
       <span className="block text-sm text-sea/85 font-bold">{label}</span>
-      {hint ? <span className="block text-[11px] text-sea/55 mt-0.5">{hint}</span> : null}
+      {hint ? <span className="block text-[11px] text-faint mt-0.5">{hint}</span> : null}
       <input
         className="input !py-1.5 !text-sm mt-2 max-w-[140px]"
         inputMode="numeric"

@@ -41,12 +41,12 @@ function Verify() {
       </Link>
       <div className="card p-6">
         {state === "working" ? (
-          <p className="text-sea/70">جارٍ توثيق بريدك…</p>
+          <p className="text-muted">جارٍ توثيق بريدك…</p>
         ) : state === "done" ? (
           <>
             <p className="font-bold text-sea text-lg">تم توثيق بريدك ✅</p>
             {points > 0 ? (
-              <p className="text-sm text-sea/70 mt-2">كسبت {points} نقطة.</p>
+              <p className="text-sm text-muted mt-2">كسبت {points} نقطة.</p>
             ) : null}
             <Link href="/account" className="btn-primary !py-2 !text-sm inline-block mt-4">
               افتح حسابك
@@ -55,7 +55,7 @@ function Verify() {
         ) : (
           <>
             <p className="font-bold text-sea">الرابط منتهي أو مستخدم من قبل</p>
-            <p className="text-sm text-sea/70 mt-2">
+            <p className="text-sm text-muted mt-2">
               افتح إعدادات حسابك واطلب رابط توثيق جديدًا.
             </p>
             <Link href="/account?tab=settings" className="btn-primary !py-2 !text-sm inline-block mt-4">
@@ -70,7 +70,7 @@ function Verify() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<p className="p-6 text-sea/60">…</p>}>
+    <Suspense fallback={<p className="p-6 text-faint">…</p>}>
       <Verify />
     </Suspense>
   );

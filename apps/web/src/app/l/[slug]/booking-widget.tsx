@@ -168,7 +168,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
     return (
       <div className="card p-4 sticky top-4">
         <h2 className="font-bold text-sea text-lg">اطلب عرض سعر</h2>
-        <p className="text-sm text-sea/70 mt-1">
+        <p className="text-sm text-muted mt-1">
           الخدمات تُسعَّر حسب مناسبتك — أرسل تاريخك وعدد الضيوف ويرد عليك المزوّد
           بعرض واضح عبر فريق تشاو.
         </p>
@@ -180,7 +180,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
         >
           💬 اطلب عرض سعر (واتساب)
         </a>
-        <p className="text-xs text-sea/50 mt-2 text-center">
+        <p className="text-xs text-faint mt-2 text-center">
           الحجز والدفع عبر تشاو قادم للخدمات — حاليًا فريقنا يوصلك بالمزوّد المعتمد.
         </p>
       </div>
@@ -191,7 +191,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
     return (
       <div className="card p-4 sticky top-4">
         <h2 className="font-bold text-sea text-lg">احجز موعد معاينة</h2>
-        <p className="text-sm text-sea/70 mt-1">
+        <p className="text-sm text-muted mt-1">
           الأعراس لا تُحجز بدون معاينة — نرتب لك زيارة للقاعة ثم تقفل التاريخ بعربون
           10٪ أونلاين مع عقد PDF واضح.
         </p>
@@ -203,7 +203,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
         >
           📅 اطلب موعد معاينة (واتساب)
         </a>
-        <p className="text-xs text-sea/50 mt-2 text-center">
+        <p className="text-xs text-faint mt-2 text-center">
           الحجز الذاتي الكامل للقاعات قادم — حاليًا فريق تشاو يرافقك خطوة بخطوة.
         </p>
       </div>
@@ -251,11 +251,11 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
             <span>العربون الآن (٢٠٪)</span>
             <span>{fmtLyd(quote.deposit)}</span>
           </div>
-          <div className="flex justify-between text-sea/70">
+          <div className="flex justify-between text-muted">
             <span>الباقي نقدًا عند الوصول</span>
             <span>{fmtLyd(quote.balanceOnArrival)}</span>
           </div>
-          <p className="text-xs text-sea/50 pt-1">
+          <p className="text-xs text-faint pt-1">
             إذا رفض المضيف أو انتهت مهلة التأكيد، يرجع عربونك كاملًا فورًا كرصيد (+5٪
             هدية) أو تحويلًا بنكيًا.
           </p>
@@ -300,7 +300,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
             />
           </label>
           {devCode ? (
-            <p className="text-xs text-amber-dark">وضع العرض التجريبي — رمزك: {devCode}</p>
+            <p className="text-xs text-link">وضع العرض التجريبي — رمزك: {devCode}</p>
           ) : null}
           <button className="btn-primary w-full" onClick={verifyOtp} disabled={busy || otp.length !== 6}>
             تأكيد
@@ -366,7 +366,7 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
         </div>
       ) : null}
 
-      {error ? <p className="text-red-700 text-sm font-bold">{error}</p> : null}
+      {error ? <p className="text-danger text-sm font-bold">{error}</p> : null}
     </div>
   );
 }

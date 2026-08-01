@@ -119,7 +119,7 @@ export function PointsTab({ onChange }: { onChange: () => void | Promise<void> }
     setMsg("✅ نُسخت الدعوة — الصقها في واتساب");
   }
 
-  if (!points || !ref) return <p className="p-4 text-sea/60">جارٍ التحميل…</p>;
+  if (!points || !ref) return <p className="p-4 text-faint">جارٍ التحميل…</p>;
 
   const canRedeem = points.balance >= points.minRedeem;
 
@@ -128,11 +128,11 @@ export function PointsTab({ onChange }: { onChange: () => void | Promise<void> }
       {msg ? <p className="text-sm font-bold text-sea">{msg}</p> : null}
 
       <div className="card p-5 text-center">
-        <div className="text-xs font-bold text-sea/55">نقاطك</div>
+        <div className="text-xs font-bold text-faint">نقاطك</div>
         <div className="text-3xl font-extrabold text-sea mt-1 tabular-nums">
           {points.balance.toLocaleString("ar-LY")}
         </div>
-        <div className="text-xs text-sea/60 mt-1">
+        <div className="text-xs text-faint mt-1">
           تساوي {fmtLydPrecise(points.worthDirhams)} رصيدًا
         </div>
         <button
@@ -146,7 +146,7 @@ export function PointsTab({ onChange }: { onChange: () => void | Promise<void> }
 
       <div className="card p-4">
         <h3 className="font-bold text-sea text-sm">ادعُ أصدقاءك</h3>
-        <p className="text-xs text-sea/70 mt-1 leading-relaxed">
+        <p className="text-xs text-muted mt-1 leading-relaxed">
           تكسب {ref.pointsPerReferral} نقطة عن كل صديق يكمل أول حجز له — لا عند تسجيله فقط. وهو
           أيضًا يكسب نقاطًا ترحيبية.
         </p>
@@ -163,7 +163,7 @@ export function PointsTab({ onChange }: { onChange: () => void | Promise<void> }
           <MiniStat label="انضموا" value={ref.joined} />
           <MiniStat label="مكافآت مصروفة" value={ref.rewarded} />
         </div>
-        <p className="text-[11px] text-sea/45 mt-2">
+        <p className="text-[11px] text-faint mt-2">
           لا نعرض لك أسماء من قبِل دعوتك — نعرض العدد فقط، احترامًا لخصوصيتهم.
         </p>
       </div>
@@ -187,11 +187,11 @@ export function PointsTab({ onChange }: { onChange: () => void | Promise<void> }
       <div className="card p-4">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-bold text-sea text-sm">اصرف نقاطك</h3>
-          <a href="/rewards" className="text-[11px] font-bold text-amber-dark">
+          <a href="/rewards" className="text-[11px] font-bold text-link">
             شروط البرنامج ←
           </a>
         </div>
-        <p className="text-xs text-sea/70 mt-1 leading-relaxed">
+        <p className="text-xs text-muted mt-1 leading-relaxed">
           حوّلها إلى رصيد داخل تشاو، أو اصرفها عند أحد شركائنا — مقهى داخل المنتجع، مخبز، أو مطعم.
         </p>
         <a href="/rewards/partners" className="btn-amber !py-2 !text-sm inline-block mt-3">
@@ -202,20 +202,20 @@ export function PointsTab({ onChange }: { onChange: () => void | Promise<void> }
       <div className="card p-4">
         <h3 className="font-bold text-sea text-sm mb-2">سجلّ النقاط</h3>
         {points.history.length === 0 ? (
-          <p className="text-sm text-sea/50">لا حركات بعد.</p>
+          <p className="text-sm text-faint">لا حركات بعد.</p>
         ) : (
           <ul className="divide-y divide-sand">
             {points.history.map((h, i) => (
               <li key={`${h.at}-${i}`} className="py-2 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-bold text-sea truncate">{h.label}</div>
-                  <div className="text-[11px] text-sea/50" dir="ltr">
+                  <div className="text-[11px] text-faint" dir="ltr">
                     {new Date(h.at).toLocaleDateString("ar-LY")}
                   </div>
                 </div>
                 <span
                   className={`shrink-0 font-bold tabular-nums text-sm ${
-                    h.delta > 0 ? "text-emerald-700" : "text-sea/70"
+                    h.delta > 0 ? "text-success" : "text-muted"
                   }`}
                 >
                   {h.delta > 0 ? "+" : ""}
@@ -233,7 +233,7 @@ export function PointsTab({ onChange }: { onChange: () => void | Promise<void> }
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl bg-sand/60 p-2">
-      <div className="text-[11px] font-bold text-sea/55">{label}</div>
+      <div className="text-[11px] font-bold text-faint">{label}</div>
       <div className="font-extrabold text-sea tabular-nums">{value}</div>
     </div>
   );

@@ -39,7 +39,7 @@ export default function MyBookingsPage() {
       </header>
       <h1 className="font-bold text-xl text-sea mb-4">حجوزاتي</h1>
       {items === null ? (
-        <p className="text-sea/60">جارٍ التحميل…</p>
+        <p className="text-faint">جارٍ التحميل…</p>
       ) : items.length === 0 ? (
         <div className="card p-8 text-center">
           <p className="mb-4">لا حجوزات بعد.</p>
@@ -52,7 +52,7 @@ export default function MyBookingsPage() {
               <Link href={`/booking/${b.code}`} className="card p-4 flex justify-between items-center hover:shadow-md">
                 <div>
                   <p className="font-inter font-bold" dir="ltr">{b.code}</p>
-                  <p className="text-sm text-sea/70">
+                  <p className="text-sm text-muted">
                     {b.checkIn} → {b.checkOut}
                   </p>
                 </div>

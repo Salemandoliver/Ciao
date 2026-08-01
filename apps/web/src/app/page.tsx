@@ -74,10 +74,10 @@ export default async function HomePage() {
         {/* Sea-blue gradient keeps text sunlight-readable (§3.3). Kept as
             light as legibility allows so the photography stays the hero. */}
         <div
-          className="absolute inset-0 bg-gradient-to-t from-sea/80 via-sea/35 to-sea/15"
+          className="absolute inset-0 photo-scrim-soft"
           aria-hidden
         />
-        <div className="relative p-6 sm:p-10 pb-4 sm:pb-6">
+        <div className="relative p-6 sm:p-10 pb-4 sm:pb-6" data-on-photo>
           <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight drop-shadow">
             قول <span className="text-amber">تشاو</span> للحجز بالمكالمات
           </h1>
@@ -86,7 +86,9 @@ export default async function HomePage() {
             والمولّد مجرَّب. احجز بعربون بسيط والباقي نقدًا عند الوصول.
           </p>
         </div>
-        <div className="relative px-3 sm:px-10 pb-4 sm:pb-8">
+        {/* On the photo: contrast here comes from `.hero-pill` / `.tab-on-photo`,
+            which are deliberately fixed rather than themed. */}
+        <div className="relative px-3 sm:px-10 pb-4 sm:pb-8" data-on-photo>
           <HeroSearch />
         </div>
       </section>
@@ -100,7 +102,7 @@ export default async function HomePage() {
         ].map(([title, body]) => (
           <div key={title} className="card p-4">
             <h3 className="font-bold text-sea">{title}</h3>
-            <p className="text-sm text-sea/70 mt-1">{body}</p>
+            <p className="text-sm text-muted mt-1">{body}</p>
           </div>
         ))}
       </section>
@@ -112,7 +114,7 @@ export default async function HomePage() {
 
       <ServiceTiles />
 
-      <footer className="mt-12 text-center text-sm text-sea/60 space-y-1">
+      <footer className="mt-12 text-center text-sm text-faint space-y-1">
         <p>
           <Link href="/about" className="font-bold text-sea/80 hover:text-sea">
             من نحن وكيف نعتمد الأماكن
@@ -143,7 +145,7 @@ function Section({
     <section className="mt-8">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-bold text-xl text-sea">{title}</h2>
-        <Link href={href} className="text-amber-dark font-bold text-sm">
+        <Link href={href} className="text-link font-bold text-sm">
           عرض الكل ←
         </Link>
       </div>

@@ -84,7 +84,7 @@ export function JoinPrompt({ bookingCode }: { bookingCode?: string }) {
     return (
       <div className="card p-4 mt-4 bg-amber/15 ring-1 ring-amber">
         <h3 className="font-bold text-sea">أهلًا بك في عضوية تشاو 🎉</h3>
-        <p className="text-sm text-sea/75 mt-1 leading-relaxed">
+        <p className="text-sm text-muted mt-1 leading-relaxed">
           كسبت {done.points} نقطة. كودك للدعوات{" "}
           <strong dir="ltr">{done.referralCode}</strong> — كل صديق يكمل أول حجز يكسبك نقاطًا أكثر.
         </p>
@@ -99,7 +99,7 @@ export function JoinPrompt({ bookingCode }: { bookingCode?: string }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="font-bold text-sea">تحب نحفظ لك كل هذا؟</h3>
-          <p className="text-sm text-sea/70 mt-1 leading-relaxed">
+          <p className="text-sm text-muted mt-1 leading-relaxed">
             {bookingCode ? "حجزك مؤكد. " : ""}
             العضوية مجانية: محفظة يدخلها أي استرجاع، نقاط على كل إقامة وتقييم، رسائل المضيفين
             محفوظة، ودخول ببصمتك بدل انتظار الرمز.
@@ -114,7 +114,7 @@ export function JoinPrompt({ bookingCode }: { bookingCode?: string }) {
         </button>
       </div>
 
-      {err ? <p className="text-sm text-red-700 font-bold mt-2">{err}</p> : null}
+      {err ? <p className="text-sm text-danger font-bold mt-2">{err}</p> : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
         <input
@@ -139,7 +139,7 @@ export function JoinPrompt({ bookingCode }: { bookingCode?: string }) {
           لاحقًا
         </button>
       </div>
-      <p className="text-[11px] text-sea/45 mt-2">
+      <p className="text-[11px] text-faint mt-2">
         الحجز لا يحتاج عضوية أبدًا — هذه إضافة، لا شرط.
       </p>
     </div>

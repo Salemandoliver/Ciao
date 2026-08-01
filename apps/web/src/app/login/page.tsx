@@ -116,17 +116,17 @@ function LoginForm() {
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />
-          {devCode ? <p className="text-xs text-amber-dark">وضع العرض التجريبي — رمزك: {devCode}</p> : null}
+          {devCode ? <p className="text-xs text-link">وضع العرض التجريبي — رمزك: {devCode}</p> : null}
           <button className="btn-primary w-full" onClick={verify} disabled={busy || code.length !== 6}>
             دخول
           </button>
         </>
       )}
-      {error ? <p className="text-red-700 text-sm font-bold">{error}</p> : null}
+      {error ? <p className="text-danger text-sm font-bold">{error}</p> : null}
 
       {passkeyReady && stage === "phone" ? (
         <>
-          <div className="flex items-center gap-2 text-xs text-sea/40">
+          <div className="flex items-center gap-2 text-xs text-faint">
             <span className="h-px flex-1 bg-sea/15" />
             أو
             <span className="h-px flex-1 bg-sea/15" />
@@ -138,13 +138,13 @@ function LoginForm() {
           >
             🔐 الدخول بالبصمة
           </button>
-          <p className="text-[11px] text-sea/45 text-center">
+          <p className="text-[11px] text-faint text-center">
             أسرع، ومجاني، ويشتغل حتى بدون شبكة — فعّله مرة واحدة من إعدادات الأمان.
           </p>
         </>
       ) : null}
 
-      <p className="text-xs text-sea/50">
+      <p className="text-xs text-faint">
         لا كلمات مرور ولا بريد إلكتروني — رقمك هو حسابك.
       </p>
     </div>

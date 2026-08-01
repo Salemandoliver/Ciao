@@ -16,6 +16,29 @@
   --surface: 255 255 255;
   --ink: 26 42 54;
   /*
+   * Secondary and tertiary ink.
+   *
+   * These exist because the old approach — `text-sea/55`, `text-sea/45` —
+   * makes contrast a function of whatever happens to be behind the text, and
+   * on a white card that lands around 2.5:1. Fine on a MacBook in an office;
+   * unreadable on a 300-nit phone in Tripoli sun, which is the screen this app
+   * is actually read on (§3.3). Both tokens clear 4.5:1 against `surface` AND
+   * against `sand`, so hierarchy now comes from size and weight rather than
+   * from fading text toward the background.
+   */
+  --muted: 72 100 121;
+  --faint: 84 112 132;
+  /* Amber is a fine accent and a poor text colour: brand amber on white is
+   * 2.2:1. Links and inline calls-to-action get their own darkened token. */
+  --link: 145 96 18;
+  /*
+   * Status colours. Tailwind's `red-700` / `emerald-700` are chosen for light
+   * grounds and go invisible on a dark one — "تعذر تحميل" in dark red on a
+   * near-black card is a failure message nobody reads. Both flip.
+   */
+  --danger: 185 28 28;
+  --success: 6 95 70;
+  /*
    * `sea-dark` is not "a darker sea" — it is the ink that sits on amber.
    * Amber stays light in both themes, so this token stays dark in both.
    * Naming it by role rather than by shade is what stops it flipping.
@@ -43,6 +66,13 @@
   --amber-dark: 214 152 60;
   --surface: 26 42 55;
   --ink: 230 238 245;
+  --muted: 168 186 201;
+  --faint: 132 152 168;
+  /* On a dark ground amber is already legible, so the link token relaxes back
+   * toward the brand rather than staying artificially dark. */
+  --link: 214 152 60;
+  --danger: 252 140 140;
+  --success: 52 211 153;
 }
 
 html {
@@ -55,13 +85,6 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.card,
-.input {
-  background: rgb(var(--surface));
-}
-.dark .input {
-  color: rgb(var(--ink));
-}
 /* Photography stays the hero; it just stops glaring at 1am. */
 .dark img {
   filter: brightness(0.92);
@@ -87,13 +110,115 @@ body {
   @apply bg-amber text-sea-dark font-bold rounded-bubble px-6 py-3 text-lg active:bg-amber-dark disabled:opacity-50 transition-colors;
 }
 .card {
-  @apply bg-white rounded-bubble shadow-sm overflow-hidden;
+  @apply bg-surface rounded-bubble shadow-sm overflow-hidden;
 }
 .chip {
   @apply inline-flex items-center gap-1 rounded-full bg-sand px-3 py-1 text-sm text-sea;
 }
 .input {
-  @apply w-full rounded-xl border border-sea/20 bg-white px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-sea/40;
+  @apply w-full rounded-xl border border-sea/20 bg-surface text-[color:rgb(var(--ink))] px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-sea/40;
+}
+/* Placeholders inherit `ink` at full strength otherwise, which reads as a value. */
+.input::placeholder {
+  color: rgb(var(--ink) / 0.4);
+}
+
+/**
+ * Chips and badges that sit on top of a photograph — "موثّق من تشاو",
+ * "عائلات فقط", a price pin. These must NOT follow the theme: the photo behind
+ * them is the same in light and dark, so they stay a light glass surface with
+ * dark ink in both. Following `sea` here would put pale text on white.
+ */
+.chip-on-photo {
+  @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm;
+  background: rgb(255 255 255 / 0.9);
+  color: #1b4f72;
+}
+
+/**
+ * The scrim over hero photography.
+ *
+ * This was written as `bg-gradient-to-t from-sea/80 …`, and `sea` inverts in
+ * dark mode — so at night the "darkening" gradient became a near-white wash
+ * and the white headline on top of it all but vanished. The scrim's job is to
+ * darken a photograph so white type reads on it, and a photograph does not
+ * change with the theme, so neither does this. Fixed sea-blue in both.
+ *
+ * `-strong` is for pages where the type runs long (About) and needs more
+ * cover; `-soft` keeps the photography dominant (home).
+ */
+.photo-scrim-soft {
+  background-image: linear-gradient(
+    to top,
+    rgb(27 79 114 / 0.8),
+    rgb(27 79 114 / 0.35),
+    rgb(27 79 114 / 0.15)
+  );
+}
+.photo-scrim-strong {
+  background-image: linear-gradient(
+    to top,
+    rgb(27 79 114 / 0.9),
+    rgb(27 79 114 / 0.55),
+    rgb(27 79 114 / 0.25)
+  );
+}
+/* The placeholder wash behind a card photo while it loads — same logic. */
+.photo-placeholder {
+  background-image: linear-gradient(to bottom, rgb(46 109 153 / 0.3), rgb(27 79 114 / 0.6));
+}
+
+/**
+ * Small circular controls stacked on top of a photograph — reorder arrows, the
+ * remove button on a media tile, the wishlist heart. Same reasoning as
+ * `.chip-on-photo`: the photo underneath does not change with the theme, so
+ * neither can the control sitting on it.
+ */
+.btn-on-photo {
+  background: rgb(255 255 255 / 0.9);
+  color: #1b4f72;
+}
+
+/**
+ * The unselected vertical tabs above the hero pill. They were white-at-25%
+ * with white type, which is fine over the dark corner of a photo and marginal
+ * over a bright sky. A fixed dark glass carries white type over any frame of
+ * the rotation, in either theme.
+ */
+.tab-on-photo {
+  background: rgb(20 60 87 / 0.45);
+  color: #fff;
+}
+
+/**
+ * Status tints in the business console.
+ *
+ * A Tailwind `-50` tint is white with a hint of colour in it. On a dark page
+ * ground that reads as a lit panel and drowns out the number it is meant to
+ * qualify, so dark mode uses a low-alpha wash of the same hue instead: the
+ * meaning (red = needs attention, green = healthy) survives the theme, the
+ * glare does not.
+ */
+.tone-warn {
+  background: rgb(var(--danger) / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(var(--danger) / 0.4);
+}
+.tone-good {
+  background: rgb(var(--success) / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(var(--success) / 0.4);
+}
+
+/* Status badges — the tint is derived from the status ink, so it follows it. */
+.badge-danger {
+  @apply bg-danger/15 text-danger;
+}
+.badge-success {
+  @apply bg-success/15 text-success;
+}
+
+/* Cards deepen slightly in dark so they lift off the page ground. */
+.dark .card {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
 }
 
 /**

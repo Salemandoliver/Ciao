@@ -91,8 +91,8 @@ export function OverviewTab() {
     void load();
   }, [load]);
 
-  if (err) return <p className="p-4 text-red-700 font-bold">{err}</p>;
-  if (!data) return <p className="p-4 text-sea/60">جارٍ التحميل…</p>;
+  if (err) return <p className="p-4 text-danger font-bold">{err}</p>;
+  if (!data) return <p className="p-4 text-faint">جارٍ التحميل…</p>;
 
   const a = data.needsAttention;
   const attention =
@@ -144,7 +144,7 @@ export function OverviewTab() {
         {a.disputes.length ? (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="text-sea/60 text-start">
+              <thead className="text-faint text-start">
                 <tr>
                   <th className="text-start py-1">الشكوى</th>
                   <th className="text-start py-1">النوع</th>
@@ -227,7 +227,7 @@ export function OverviewTab() {
         />
       </Section>
 
-      <p className="text-[11px] text-sea/45 mt-4 leading-relaxed">
+      <p className="text-[11px] text-faint mt-4 leading-relaxed">
         أرقام المال محسوبة من دفتر الأستاذ المزدوج لا من جدول الحجوزات، حتى لا تختلف الشاشة مع
         المحاسب أبدًا. المبالغ بالدينار الليبي؛ إجمالي القيمة {fmtLyd(data.demand.gmv)} خلال{" "}
         {data.windowDays} يومًا.

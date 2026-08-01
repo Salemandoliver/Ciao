@@ -96,20 +96,20 @@ export default function HostDashboard() {
       </header>
 
       {reliability ? (
-        <p className="text-sm text-sea/70 mb-4">{reliability.coaching}</p>
+        <p className="text-sm text-muted mb-4">{reliability.coaching}</p>
       ) : null}
       {msg ? <p className="card p-3 mb-4 text-sm font-bold text-sea">{msg}</p> : null}
 
       {pending.length > 0 ? (
         <section className="mb-6">
-          <h2 className="font-bold text-lg text-amber-dark mb-2">
+          <h2 className="font-bold text-lg text-link mb-2">
             ⏰ طلبات تنتظر ردّك ({pending.length})
           </h2>
           {pending.map((b) => (
             <div key={b.id} className="card p-4 mb-2 flex items-center justify-between gap-3">
               <div>
                 <p className="font-inter font-bold" dir="ltr">{b.code}</p>
-                <p className="text-sm text-sea/70">{b.checkIn} → {b.checkOut}</p>
+                <p className="text-sm text-muted">{b.checkIn} → {b.checkOut}</p>
                 <p className="text-sm font-bold text-sea">
                   حصتك من العربون: {fmtLyd(b.payoutAmount)} + {fmtLyd(b.balanceOnArrival)} نقدًا
                 </p>
@@ -118,7 +118,7 @@ export default function HostDashboard() {
                 <button className="btn-primary !py-2 !px-4 text-sm" onClick={() => respond(b.id, "confirm")}>
                   أكّد
                 </button>
-                <button className="text-sm text-sea/60 underline" onClick={() => respond(b.id, "decline")}>
+                <button className="text-sm text-faint underline" onClick={() => respond(b.id, "decline")}>
                   ارفض
                 </button>
               </div>
@@ -130,7 +130,7 @@ export default function HostDashboard() {
       <section className="mb-6">
         <h2 className="font-bold text-lg text-sea mb-2">حجوزاتك</h2>
         {bookings.length === 0 ? (
-          <p className="text-sea/60 text-sm">لا حجوزات بعد.</p>
+          <p className="text-faint text-sm">لا حجوزات بعد.</p>
         ) : (
           <ul className="space-y-2">
             {bookings.map((b) => (
@@ -170,7 +170,7 @@ export default function HostDashboard() {
             </div>
           </div>
         ))}
-        <p className="text-xs text-sea/50">
+        <p className="text-xs text-faint">
           حجب أيامك المحجوزة خارج المنصة يحميك من الحجز المزدوج — ويرفع ترتيبك.
         </p>
       </section>
@@ -190,7 +190,7 @@ export default function HostDashboard() {
               </span>
             </li>
           ))}
-          {payouts.length === 0 ? <p className="text-sea/60">لا مستحقات بعد.</p> : null}
+          {payouts.length === 0 ? <p className="text-faint">لا مستحقات بعد.</p> : null}
         </ul>
       </section>
     </main>

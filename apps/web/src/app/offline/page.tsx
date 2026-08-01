@@ -7,7 +7,7 @@ export default function OfflinePage() {
     <main className="mx-auto max-w-md px-4 py-16 text-center space-y-4">
       <Logo size={48} />
       <h1 className="font-bold text-xl text-sea">لا يوجد اتصال حاليًا</h1>
-      <p className="text-sea/70">
+      <p className="text-muted">
         حجوزاتك وقسائمك المحفوظة ما زالت متاحة — وكل ما حفظته سيُرسل تلقائيًا عند
         عودة الشبكة.
       </p>

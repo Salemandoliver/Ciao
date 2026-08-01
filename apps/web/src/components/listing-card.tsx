@@ -32,12 +32,12 @@ export function Stars({
   const full = Math.min(5, Math.floor(rating + 0.25)); // conservative fill
   return (
     <span className={`inline-flex items-center gap-1 ${size}`}>
-      <span className="text-amber-dark tracking-tight" dir="ltr" aria-hidden>
+      <span className="text-link tracking-tight" dir="ltr" aria-hidden>
         {"★".repeat(full)}
         <span className="opacity-25">{"★".repeat(5 - full)}</span>
       </span>
       <span className="font-bold text-sea">{rating.toFixed(1)}</span>
-      <span className="text-sea/50 text-xs">
+      <span className="text-faint text-xs">
         {count && count > 0
           ? `· ${count} ${source === "guests" ? "تقييم" : "تقييم تشاو"}`
           : "· تقييم تشاو"}
@@ -67,7 +67,7 @@ export function ListingCard({ l }: { l: PublicListing }) {
   const cover = l.media.find((m) => m.kind === "photo");
   return (
     <Link href={`/l/${l.slug}`} className="card block hover:shadow-md transition-shadow">
-      <div className="relative aspect-[4/3] bg-gradient-to-b from-sea-light/30 to-sea/60">
+      <div className="relative aspect-[4/3] photo-placeholder">
         {cover ? (
           <img
             src={cover.url}
@@ -78,7 +78,7 @@ export function ListingCard({ l }: { l: PublicListing }) {
         ) : null}
         <div className="absolute top-2 start-2 flex flex-col gap-1 items-start">
           {l.verified ? <VerifiedBadge /> : null}
-          {l.familyOnly ? <span className="chip bg-white/90">عائلات فقط</span> : null}
+          {l.familyOnly ? <span className="chip-on-photo">عائلات فقط</span> : null}
         </div>
         <div className="absolute top-2 end-2">
           <Heart
@@ -90,7 +90,7 @@ export function ListingCard({ l }: { l: PublicListing }) {
       <div className="p-3 space-y-1.5">
         <h3 className="font-bold text-base leading-snug">{l.titleAr}</h3>
         <Stars rating={l.rating} source={l.ratingSource} count={l.reviewCount} />
-        <p className="text-sm text-sea/70">
+        <p className="text-sm text-muted">
           {AREA_AR[l.area ?? ""] ?? l.area} · {CITY_AR[l.city] ?? l.city}
         </p>
         <div className="flex flex-wrap gap-1.5 text-xs">
@@ -111,7 +111,7 @@ export function ListingCard({ l }: { l: PublicListing }) {
               ? `${fmtLyd(l.baseNightly)} / ليلة`
               : "حسب الباقة"}
           {l.dayUsePrice ? (
-            <span className="text-sm font-normal text-sea/60"> · يومي {fmtLyd(l.dayUsePrice)}</span>
+            <span className="text-sm font-normal text-faint"> · يومي {fmtLyd(l.dayUsePrice)}</span>
           ) : null}
         </p>
       </div>

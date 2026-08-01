@@ -19,6 +19,13 @@ export default {
         },
         sand: "rgb(var(--sand) / <alpha-value>)",
         surface: "rgb(var(--surface) / <alpha-value>)",
+        // Secondary/tertiary ink and the link colour. Deliberately NOT alpha
+        // shades of `sea`: see the note in globals.css.
+        muted: "rgb(var(--muted) / <alpha-value>)",
+        faint: "rgb(var(--faint) / <alpha-value>)",
+        link: "rgb(var(--link) / <alpha-value>)",
+        danger: "rgb(var(--danger) / <alpha-value>)",
+        success: "rgb(var(--success) / <alpha-value>)",
         amber: {
           DEFAULT: "rgb(var(--amber) / <alpha-value>)",
           dark: "rgb(var(--amber-dark) / <alpha-value>)",

@@ -184,11 +184,11 @@ export function SettingsTab({ isAdmin }: { isAdmin: boolean }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="font-bold text-sea text-sm">{meta.label}</div>
-            <div className="text-[11px] text-sea/60 mt-0.5 leading-relaxed">{meta.help}</div>
+            <div className="text-[11px] text-faint mt-0.5 leading-relaxed">{meta.help}</div>
           </div>
           <div className="shrink-0 flex flex-col items-end gap-1">
             {row.overridden ? (
-              <button className="text-[10px] font-bold text-sea/60 underline" onClick={() => reset(row.key)}>
+              <button className="text-[10px] font-bold text-faint underline" onClick={() => reset(row.key)}>
                 إعادة للافتراضي
               </button>
             ) : (
@@ -217,8 +217,8 @@ export function SettingsTab({ isAdmin }: { isAdmin: boolean }) {
                 value={(Number(v) / 100).toString()}
                 onChange={(e) => set(row.key, Math.round(Number(e.target.value || 0) * 100))}
               />
-              <span className="text-sm font-bold text-sea/70">٪</span>
-              <span className="text-[11px] text-sea/45">
+              <span className="text-sm font-bold text-muted">٪</span>
+              <span className="text-[11px] text-faint">
                 الافتراضي {(Number(row.default) / 100).toFixed(1)}٪
               </span>
             </div>
@@ -231,7 +231,7 @@ export function SettingsTab({ isAdmin }: { isAdmin: boolean }) {
                 value={(Number(v) / 1000).toString()}
                 onChange={(e) => set(row.key, Math.round(Number(e.target.value || 0) * 1000))}
               />
-              <span className="text-sm font-bold text-sea/70">د.ل</span>
+              <span className="text-sm font-bold text-muted">د.ل</span>
             </div>
           ) : meta.kind === "number" ? (
             <input
@@ -277,7 +277,7 @@ export function SettingsTab({ isAdmin }: { isAdmin: boolean }) {
   return (
     <div>
       {!isAdmin ? (
-        <p className="rounded-2xl bg-sand p-3 text-sm text-sea/70 mb-3">
+        <p className="rounded-2xl bg-sand p-3 text-sm text-muted mb-3">
           أنت تشاهد الإعدادات للقراءة فقط — التعديل يحتاج صلاحية مدير.
         </p>
       ) : null}
@@ -311,7 +311,7 @@ export function SettingsTab({ isAdmin }: { isAdmin: boolean }) {
             <Field key={r.key} row={r} />
           ))}
         </div>
-        <p className="text-[11px] text-sea/45 mt-3 leading-relaxed">
+        <p className="text-[11px] text-faint mt-3 leading-relaxed">
           العربون يجب أن يبقى أعلى من العمولة، وإلا لن يغطي عمولة تشاو ونصبح ندفع من جيبنا مقابل
           كل حجز. النظام يرفض الحفظ في هذه الحالة.
         </p>

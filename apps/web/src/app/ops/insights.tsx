@@ -43,7 +43,7 @@ function Bars({
     <div className="space-y-1.5">
       {data.map((d) => (
         <div key={d.label} className="flex items-center gap-2 text-sm" title={`${d.label}: ${d.value}`}>
-          <span className="w-24 shrink-0 text-sea/70 text-xs">{d.label}</span>
+          <span className="w-24 shrink-0 text-muted text-xs">{d.label}</span>
           <div className="flex-1 h-4 bg-sand rounded-sm overflow-hidden">
             <div
               className="h-full bg-sea rounded-e-[4px]"
@@ -63,8 +63,8 @@ function Tile({ label, value, sub }: { label: string; value: string; sub?: strin
   return (
     <div className="card p-3 text-center">
       <p className="text-2xl font-extrabold text-sea" dir="ltr">{value}</p>
-      <p className="text-xs text-sea/70 mt-0.5">{label}</p>
-      {sub ? <p className="text-[11px] text-amber-dark font-bold">{sub}</p> : null}
+      <p className="text-xs text-muted mt-0.5">{label}</p>
+      {sub ? <p className="text-[11px] text-link font-bold">{sub}</p> : null}
     </div>
   );
 }
@@ -80,8 +80,8 @@ export function InsightsPanels() {
       .catch(() => setErr("تعذر تحميل لوحة الذكاء"));
   }, [days]);
 
-  if (err) return <p className="text-sm text-red-700">{err}</p>;
-  if (!data) return <p className="text-sm text-sea/60">جارٍ تحميل لوحة الذكاء…</p>;
+  if (err) return <p className="text-sm text-danger">{err}</p>;
+  if (!data) return <p className="text-sm text-faint">جارٍ تحميل لوحة الذكاء…</p>;
 
   const f = data.funnel;
   const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}٪` : "—");
@@ -139,10 +139,10 @@ export function InsightsPanels() {
         <div className="card p-4">
           <h3 className="font-bold text-sea text-sm mb-2">
             الحجوزات أسبوعيًا
-            <span className="font-normal text-sea/60"> · إجمالي القيمة {fmtLyd(totalWeeklyGmv)}</span>
+            <span className="font-normal text-faint"> · إجمالي القيمة {fmtLyd(totalWeeklyGmv)}</span>
           </h3>
           {data.weekly.length === 0 ? (
-            <p className="text-xs text-sea/50">لا بيانات بعد.</p>
+            <p className="text-xs text-faint">لا بيانات بعد.</p>
           ) : (
             <Bars
               data={data.weekly.map((w) => ({
@@ -179,7 +179,7 @@ export function InsightsPanels() {
         <div className="card p-4">
           <h3 className="font-bold text-sea text-sm mb-2">الطلب حسب المنطقة (بحث)</h3>
           {data.demandByArea.length === 0 ? (
-            <p className="text-xs text-sea/50">
+            <p className="text-xs text-faint">
               تظهر المناطق عندما يبحث فيها ٣ مستخدمين مختلفون على الأقل (حماية للخصوصية).
             </p>
           ) : (
@@ -200,7 +200,7 @@ export function InsightsPanels() {
           <div>
             <h3 className="font-bold text-sea text-sm mb-1">الفلاتر الأكثر استخدامًا</h3>
             {data.filterUsage.length === 0 ? (
-              <p className="text-xs text-sea/50">لا بيانات بعد.</p>
+              <p className="text-xs text-faint">لا بيانات بعد.</p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {data.filterUsage.map((x) => (
@@ -218,7 +218,7 @@ export function InsightsPanels() {
                 ? `${Math.round((data.repeatRate.repeaters / data.repeatRate.totalGuests) * 100)}%`
                 : "—"}
             </p>
-            <p className="text-xs text-sea/60">
+            <p className="text-xs text-faint">
               {data.repeatRate.repeaters} من {data.repeatRate.totalGuests} ضيف حجزوا أكثر من مرة
             </p>
           </div>

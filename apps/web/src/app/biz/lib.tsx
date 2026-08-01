@@ -15,17 +15,18 @@ export function Stat({
   sub?: ReactNode;
   tone?: "normal" | "warn" | "good";
 }) {
-  const ring =
-    tone === "warn"
-      ? "ring-1 ring-red-300 bg-red-50"
-      : tone === "good"
-        ? "ring-1 ring-emerald-300 bg-emerald-50"
-        : "bg-white";
+  const ring = tone === "warn" ? "tone-warn" : tone === "good" ? "tone-good" : "bg-surface";
+  /*
+   * On a toned panel the coloured wash lifts the background, and `faint` —
+   * which is calibrated against `surface` and `sand` — drops just under the
+   * readable threshold. The secondary ink is the right weight there.
+   */
+  const caption = tone === "normal" ? "text-faint" : "text-muted";
   return (
     <div className={`rounded-2xl p-3 shadow-sm ${ring}`}>
-      <div className="text-[11px] font-bold text-sea/55">{label}</div>
+      <div className={`text-[11px] font-bold ${caption}`}>{label}</div>
       <div className="text-xl font-extrabold text-sea tabular-nums">{value}</div>
-      {sub ? <div className="text-[11px] text-sea/60 mt-0.5">{sub}</div> : null}
+      {sub ? <div className={`text-[11px] mt-0.5 ${caption}`}>{sub}</div> : null}
     </div>
   );
 }
@@ -67,12 +68,12 @@ export function Bars({
   format?: (n: number) => string;
 }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
-  if (rows.length === 0) return <p className="text-sm text-sea/50">لا بيانات بعد</p>;
+  if (rows.length === 0) return <p className="text-sm text-faint">لا بيانات بعد</p>;
   return (
     <div className="space-y-1.5">
       {rows.map((r) => (
         <div key={r.label} className="flex items-center gap-2 text-xs">
-          <span className="w-32 shrink-0 truncate text-sea/70 font-bold">{r.label}</span>
+          <span className="w-32 shrink-0 truncate text-muted font-bold">{r.label}</span>
           <span className="flex-1 h-3 rounded-full bg-sand overflow-hidden">
             <span
               className="block h-full bg-sea/70 rounded-full"
@@ -91,10 +92,10 @@ export function Bars({
 export function Pill({ children, tone = "sand" }: { children: ReactNode; tone?: string }) {
   const tones: Record<string, string> = {
     sand: "bg-sand text-sea",
-    green: "bg-emerald-100 text-emerald-800",
-    red: "bg-red-100 text-red-800",
-    amber: "bg-amber/25 text-sea-dark",
-    slate: "bg-sea/10 text-sea/70",
+    green: "badge-success",
+    red: "badge-danger",
+    amber: "bg-amber/25 text-sea-dark dark:text-amber",
+    slate: "bg-sea/10 text-muted",
   };
   return (
     <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${tones[tone]}`}>

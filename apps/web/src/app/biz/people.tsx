@@ -84,14 +84,14 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <span className="text-xs text-sea/55">{total} مستخدم</span>
+        <span className="text-xs text-faint">{total} مستخدم</span>
       </div>
 
       {msg ? <p className="mb-3 text-sm font-bold text-sea">{msg}</p> : null}
 
       <div className="card overflow-x-auto">
         <table className="w-full text-xs">
-          <thead className="bg-sand/60 text-sea/70">
+          <thead className="bg-sand/60 text-muted">
             <tr>
               <th className="text-start p-2">المستخدم</th>
               <th className="text-start p-2">الصلاحية</th>
@@ -105,7 +105,7 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
               <tr key={u.id} className="border-t border-sand">
                 <td className="p-2">
                   <div className="font-bold text-sea">{u.displayName ?? "—"}</div>
-                  <div className="text-[11px] text-sea/55" dir="ltr">{u.phone}</div>
+                  <div className="text-[11px] text-faint" dir="ltr">{u.phone}</div>
                 </td>
                 <td className="p-2">
                   {isAdmin ? (
@@ -128,14 +128,14 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
                 <td className="p-2">
                   <Money dirhams={u.gmv} />
                 </td>
-                <td className="p-2 text-sea/55" dir="ltr">
+                <td className="p-2 text-faint" dir="ltr">
                   {new Date(u.createdAt).toLocaleDateString("ar-LY")}
                 </td>
               </tr>
             ))}
             {items.length === 0 ? (
               <tr>
-                <td className="p-4 text-sea/50" colSpan={5}>
+                <td className="p-4 text-faint" colSpan={5}>
                   لا نتائج
                 </td>
               </tr>
@@ -144,7 +144,7 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
         </table>
       </div>
 
-      <p className="text-[11px] text-sea/45 mt-3 leading-relaxed">
+      <p className="text-[11px] text-faint mt-3 leading-relaxed">
         لا تُعرض أسماء المستخدمين كاملة في أي شاشة عامة — العلن يرى الأحرف الأولى فقط (§11.5).
         هذه الشاشة داخلية ومحمية بالصلاحيات، وكل تغيير صلاحية يُسجَّل باسم من نفّذه.
       </p>

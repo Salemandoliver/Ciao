@@ -242,7 +242,7 @@ export default function AgentPage() {
           📸 احفظ الحزمة (يعمل بدون شبكة)
         </button>
         {msg ? <p className="text-sm font-bold text-sea">{msg}</p> : null}
-        <p className="text-xs text-sea/50">
+        <p className="text-xs text-faint">
           الصور تُرفع من تطبيق الكاميرا الموجّه (قريبًا) — حاليًا ترسلها للعمليات عبر
           واتساب مع رقم الحزمة.
         </p>

@@ -86,11 +86,19 @@ export function HeroSearch({
             key={t}
             onClick={() => setType(t)}
             className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+              /*
+                Over the hero photo these tabs must stay legible against an
+                image, not against the page ground — so the active tab keeps a
+                light glass fill with dark ink in both themes. In compact mode
+                there is no photo behind them and they follow the theme.
+              */
               type === t
-                ? "bg-white text-sea shadow"
+                ? compact
+                  ? "bg-surface text-sea shadow"
+                  : "bg-white text-[#1b4f72] shadow"
                 : compact
-                  ? "bg-sand text-sea/70"
-                  : "bg-white/25 text-white"
+                  ? "bg-sand text-muted"
+                  : "tab-on-photo"
             }`}
           >
             <span aria-hidden>{emoji}</span> {label}
@@ -109,14 +117,14 @@ export function HeroSearch({
       */}
       <div
         className={`rounded-full shadow-lg flex items-center text-sm ${
-          compact ? "bg-white dark:bg-[color:var(--surface)]" : "hero-pill backdrop-blur-md"
+          compact ? "bg-surface" : "hero-pill backdrop-blur-md"
         }`}
       >
         <button
           className="flex-1 min-w-0 flex items-baseline gap-1.5 text-start ps-4 py-1.5 rounded-full hover:bg-sand/40"
           onClick={() => setOpen((o) => !o)}
         >
-          <span className="text-[11px] font-bold text-sea/55 shrink-0">أين؟</span>
+          <span className="text-[11px] font-bold text-faint shrink-0">أين؟</span>
           <span className="font-bold text-sea truncate">{whereLabel}</span>
         </button>
         <span className="w-px h-5 bg-sea/15 shrink-0" aria-hidden />
@@ -124,7 +132,7 @@ export function HeroSearch({
           className="flex-1 min-w-0 flex items-baseline gap-1.5 text-start ps-3 py-1.5 hover:bg-sand/40"
           onClick={() => setOpen((o) => !o)}
         >
-          <span className="text-[11px] font-bold text-sea/55 shrink-0">
+          <span className="text-[11px] font-bold text-faint shrink-0">
             {type === "hall" ? "الضيفات؟" : type === "service" ? "الخدمة؟" : "متى؟"}
           </span>
           <span
@@ -145,7 +153,7 @@ export function HeroSearch({
               className="flex-1 min-w-0 items-baseline gap-1.5 text-start ps-3 py-1.5 hidden sm:flex hover:bg-sand/40"
               onClick={() => setOpen((o) => !o)}
             >
-              <span className="text-[11px] font-bold text-sea/55 shrink-0">من؟</span>
+              <span className="text-[11px] font-bold text-faint shrink-0">من؟</span>
               <span className="font-bold text-sea truncate">{whoLabel}</span>
             </button>
           </>
@@ -163,7 +171,7 @@ export function HeroSearch({
       {open ? (
         <div className="card mt-2 p-3 space-y-2 shadow-lg text-sm">
           <div className="grid grid-cols-2 gap-2">
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               المدينة
               <select
                 className="input !py-2 mt-1"
@@ -178,7 +186,7 @@ export function HeroSearch({
                 ))}
               </select>
             </label>
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               المنطقة
               <select
                 className="input !py-2 mt-1"
@@ -192,7 +200,7 @@ export function HeroSearch({
             </label>
             {type === "coast" ? (
               <>
-                <label className="block text-xs font-bold text-sea/70">
+                <label className="block text-xs font-bold text-muted">
                   الوصول
                   <input
                     type="date"
@@ -202,7 +210,7 @@ export function HeroSearch({
                     onChange={(e) => setCheckIn(e.target.value)}
                   />
                 </label>
-                <label className="block text-xs font-bold text-sea/70">
+                <label className="block text-xs font-bold text-muted">
                   المغادرة
                   <input
                     type="date"
@@ -212,7 +220,7 @@ export function HeroSearch({
                     onChange={(e) => setCheckOut(e.target.value)}
                   />
                 </label>
-                <label className="block text-xs font-bold text-sea/70 col-span-2">
+                <label className="block text-xs font-bold text-muted col-span-2">
                   عدد الأشخاص
                   <input
                     type="number"
@@ -226,7 +234,7 @@ export function HeroSearch({
                 </label>
               </>
             ) : type === "service" ? (
-              <label className="block text-xs font-bold text-sea/70 col-span-2">
+              <label className="block text-xs font-bold text-muted col-span-2">
                 نوع الخدمة
                 <select
                   className="input !py-2 mt-1"
@@ -240,7 +248,7 @@ export function HeroSearch({
                 </select>
               </label>
             ) : (
-              <label className="block text-xs font-bold text-sea/70 col-span-2">
+              <label className="block text-xs font-bold text-muted col-span-2">
                 عدد الضيفات (القاعة النسائية)
                 <input
                   type="number"

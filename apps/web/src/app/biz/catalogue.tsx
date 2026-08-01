@@ -185,12 +185,12 @@ export function CatalogueTab() {
 
       {adding ? (
         <Section title="إضافة نشاط جديد">
-          <p className="text-xs text-sea/60 mb-3">
+          <p className="text-xs text-faint mb-3">
             يُنشأ حساب المضيف والمكان والإعلان معًا. يبدأ الإعلان كمسودة — لا يُنشر إلا بعد
             المعاينة الميدانية وإضافة الصور.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               نوع النشاط
               <select
                 className="input !py-2 !text-sm mt-1"
@@ -203,7 +203,7 @@ export function CatalogueTab() {
               </select>
             </label>
             {form.vertical === "service" ? (
-              <label className="block text-xs font-bold text-sea/70">
+              <label className="block text-xs font-bold text-muted">
                 فئة الخدمة
                 <select
                   className="input !py-2 !text-sm mt-1"
@@ -219,7 +219,7 @@ export function CatalogueTab() {
                 </select>
               </label>
             ) : (
-              <label className="block text-xs font-bold text-sea/70">
+              <label className="block text-xs font-bold text-muted">
                 سياسة الإلغاء
                 <select
                   className="input !py-2 !text-sm mt-1"
@@ -234,7 +234,7 @@ export function CatalogueTab() {
                 </select>
               </label>
             )}
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               هاتف المضيف
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -244,7 +244,7 @@ export function CatalogueTab() {
                 onChange={(e) => set("hostPhone", e.target.value)}
               />
             </label>
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               اسم المضيف
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -252,7 +252,7 @@ export function CatalogueTab() {
                 onChange={(e) => set("hostName", e.target.value)}
               />
             </label>
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               اسم المكان
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -260,7 +260,7 @@ export function CatalogueTab() {
                 onChange={(e) => set("venueNameAr", e.target.value)}
               />
             </label>
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               المدينة
               <select
                 className="input !py-2 !text-sm mt-1"
@@ -274,7 +274,7 @@ export function CatalogueTab() {
                 <option value="khoms">الخمس</option>
               </select>
             </label>
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               المنطقة
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -284,7 +284,7 @@ export function CatalogueTab() {
                 onChange={(e) => set("area", e.target.value)}
               />
             </label>
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               عنوان الإعلان (عربي)
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -292,7 +292,7 @@ export function CatalogueTab() {
                 onChange={(e) => set("titleAr", e.target.value)}
               />
             </label>
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               الرمز في الرابط
               <div className="flex gap-1 mt-1">
                 <input
@@ -307,7 +307,7 @@ export function CatalogueTab() {
                 </button>
               </div>
             </label>
-            <label className="block text-xs font-bold text-sea/70">
+            <label className="block text-xs font-bold text-muted">
               السعر الأساسي (د.ل)
               <input
                 className="input !py-2 !text-sm mt-1"
@@ -317,7 +317,7 @@ export function CatalogueTab() {
               />
             </label>
             {form.vertical === "hall" ? (
-              <label className="block text-xs font-bold text-sea/70">
+              <label className="block text-xs font-bold text-muted">
                 سعة القسم النسائي
                 <input
                   className="input !py-2 !text-sm mt-1"
@@ -328,7 +328,7 @@ export function CatalogueTab() {
               </label>
             ) : form.vertical === "coast" ? (
               <>
-                <label className="block text-xs font-bold text-sea/70">
+                <label className="block text-xs font-bold text-muted">
                   أقصى عدد ضيوف
                   <input
                     className="input !py-2 !text-sm mt-1"
@@ -337,7 +337,7 @@ export function CatalogueTab() {
                     onChange={(e) => set("maxGuests", e.target.value)}
                   />
                 </label>
-                <label className="block text-xs font-bold text-sea/70">
+                <label className="block text-xs font-bold text-muted">
                   عدد الغرف
                   <input
                     className="input !py-2 !text-sm mt-1"
@@ -348,7 +348,7 @@ export function CatalogueTab() {
                 </label>
               </>
             ) : null}
-            <label className="block text-xs font-bold text-sea/70 sm:col-span-2">
+            <label className="block text-xs font-bold text-muted sm:col-span-2">
               الوصف
               <textarea
                 className="input !py-2 !text-sm mt-1 h-20"
@@ -357,7 +357,7 @@ export function CatalogueTab() {
               />
             </label>
             {form.vertical === "coast" ? (
-              <label className="flex items-center gap-2 text-xs font-bold text-sea/70">
+              <label className="flex items-center gap-2 text-xs font-bold text-muted">
                 <input
                   type="checkbox"
                   checked={form.familyOnly}
@@ -379,7 +379,7 @@ export function CatalogueTab() {
 
       <div className="card mt-3 overflow-x-auto">
         <table className="w-full text-xs">
-          <thead className="bg-sand/60 text-sea/70">
+          <thead className="bg-sand/60 text-muted">
             <tr>
               <th className="text-start p-2">النشاط</th>
               <th className="text-start p-2">النوع</th>
@@ -396,7 +396,7 @@ export function CatalogueTab() {
               <tr key={l.listingId} className="border-t border-sand align-top">
                 <td className="p-2">
                   <div className="font-bold text-sea">{l.titleAr}</div>
-                  <div className="text-[11px] text-sea/55">
+                  <div className="text-[11px] text-faint">
                     {l.venueNameAr} · {l.area ?? l.city}
                     {l.host ? ` · ${l.host.name ?? l.host.phone}` : " · بلا مضيف"}
                   </div>
@@ -418,7 +418,7 @@ export function CatalogueTab() {
                 </td>
                 <td className="p-2">
                   <button
-                    className={`chip !text-[11px] ${l.mediaCount === 0 ? "!bg-red-100 !text-red-800" : ""}`}
+                    className={`chip !text-[11px] ${l.mediaCount === 0 ? "badge-danger" : ""}`}
                     onClick={() => setMediaFor(l)}
                   >
                     🖼 {l.mediaCount}
@@ -431,7 +431,7 @@ export function CatalogueTab() {
                 <td className="p-2 tabular-nums">
                   {l.reviewCount}
                   {l.disputeCount ? (
-                    <span className="text-red-700"> · {l.disputeCount} شكوى</span>
+                    <span className="text-danger"> · {l.disputeCount} شكوى</span>
                   ) : null}
                 </td>
                 <td className="p-2">
@@ -449,7 +449,7 @@ export function CatalogueTab() {
             ))}
             {items.length === 0 ? (
               <tr>
-                <td className="p-4 text-sea/50" colSpan={8}>
+                <td className="p-4 text-faint" colSpan={8}>
                   لا نتائج
                 </td>
               </tr>

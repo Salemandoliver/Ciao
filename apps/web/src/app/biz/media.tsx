@@ -109,10 +109,10 @@ export function MediaManager({
       aria-modal="true"
     >
       <div
-        className="bg-white w-full sm:max-w-3xl max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-bubble shadow-xl"
+        className="bg-surface w-full sm:max-w-3xl max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-bubble shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white/95 backdrop-blur border-b border-sand px-4 py-3 flex items-center justify-between gap-2">
+        <div className="sticky top-0 bg-surface/95 backdrop-blur border-b border-sand px-4 py-3 flex items-center justify-between gap-2">
           <h2 className="font-bold text-sea truncate text-sm">صور: {title}</h2>
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -135,13 +135,13 @@ export function MediaManager({
         <div className="p-4">
           {msg ? <p className="mb-3 text-sm font-bold text-sea">{msg}</p> : null}
 
-          <p className="text-xs text-sea/60 mb-3">
+          <p className="text-xs text-faint mb-3">
             الصورة الأولى هي صورة الغلاف. رتّبها بالأسهم، واحذف ما لا يمثّل المكان فعلًا — ما
             يظهر في التطبيق يجب أن يكون هو الموجود على الأرض.
           </p>
 
           {media.length === 0 ? (
-            <p className="text-sm text-red-700 font-bold mb-3">لا توجد صور — لا يمكن نشر الإعلان</p>
+            <p className="text-sm text-danger font-bold mb-3">لا توجد صور — لا يمكن نشر الإعلان</p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
               {media.map((m, i) => (
@@ -156,14 +156,14 @@ export function MediaManager({
                   <div className="absolute bottom-1 inset-x-1 flex items-center justify-between">
                     <div className="flex gap-1">
                       <button
-                        className="w-6 h-6 rounded-full bg-white/90 text-sea text-xs font-bold"
+                        className="w-6 h-6 rounded-full btn-on-photo text-xs font-bold"
                         onClick={() => move(i, -1)}
                         aria-label="نقل لليمين"
                       >
                         ›
                       </button>
                       <button
-                        className="w-6 h-6 rounded-full bg-white/90 text-sea text-xs font-bold"
+                        className="w-6 h-6 rounded-full btn-on-photo text-xs font-bold"
                         onClick={() => move(i, 1)}
                         aria-label="نقل لليسار"
                       >
@@ -183,7 +183,7 @@ export function MediaManager({
             </div>
           )}
 
-          <label className="block text-xs font-bold text-sea/70">
+          <label className="block text-xs font-bold text-muted">
             إضافة صورة بالمسار
             <div className="flex gap-2 mt-1">
               <input
@@ -202,7 +202,7 @@ export function MediaManager({
 
           {library.length ? (
             <details className="mt-4">
-              <summary className="cursor-pointer text-xs font-bold text-sea/70">
+              <summary className="cursor-pointer text-xs font-bold text-muted">
                 اختر من مكتبة الصور ({library.length})
               </summary>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-2">
@@ -221,7 +221,7 @@ export function MediaManager({
             </details>
           ) : null}
 
-          <p className="text-[11px] text-sea/45 mt-4 leading-relaxed">
+          <p className="text-[11px] text-faint mt-4 leading-relaxed">
             الرفع المباشر من الجهاز يصل مع شبكة توصيل الصور (CDN). حتى ذلك الحين تُضاف الصور
             بمسارها بعد رفعها مع الإصدار، أو تُختار من المكتبة أعلاه.
           </p>

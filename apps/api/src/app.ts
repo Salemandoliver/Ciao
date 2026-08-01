@@ -58,10 +58,15 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(rateLimit, {
     max: 300,
     timeWindow: "1 minute",
-    errorResponseBuilder: () => {
-      const def = ERRORS.RATE_LIMITED;
-      return { error: { code: def.code, message: def.ar, messageEn: def.en } };
-    },
+    /*
+     * Whatever this returns is *thrown*, not sent — so returning a bare
+     * `{ error: … }` payload produced an object with no `statusCode` and no
+     * `message`, which the error handler could only classify as an unknown
+     * fault. Result: throttled callers got `500 CIAO-5000 "something went
+     * wrong on our side"`. Returning a real CiaoError puts it back on the
+     * normal path, status and Accept-Language handling included.
+     */
+    errorResponseBuilder: () => new CiaoError("RATE_LIMITED"),
   });
 
   app.setErrorHandler((err, req, reply) => {
@@ -78,6 +83,26 @@ export async function buildApp(): Promise<FastifyInstance> {
           detail: err.issues,
         },
       });
+    }
+    /*
+     * Errors raised by Fastify itself and by plugins — rate limiting, a
+     * malformed JSON body, an unsupported content type — are not CiaoErrors,
+     * so they used to fall straight through to the branch below. That did two
+     * bad things at once: a guest who tapped "send code" twice too quickly was
+     * told "something went wrong on our side — support has been notified"
+     * instead of "wait a minute", and every one of those was logged at error
+     * level, which is where a real incident is supposed to stand out.
+     *
+     * Anything with a 4xx status is the caller's business and gets the honest
+     * status and message.
+     */
+    const status = (err as { statusCode?: number }).statusCode;
+    if (typeof status === "number" && status >= 400 && status < 500) {
+      const def = status === 429 ? ERRORS.RATE_LIMITED : ERRORS.VALIDATION;
+      req.log.warn({ err: err.message, status }, "client error");
+      return reply
+        .status(status)
+        .send({ error: { code: def.code, message: locale === "en" ? def.en : def.ar } });
     }
     req.log.error(err);
     const def = ERRORS.INTERNAL;

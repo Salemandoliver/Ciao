@@ -49,7 +49,7 @@ function ConfirmForm() {
       <div className="card p-8 text-center space-y-2">
         <p className="text-4xl">🎉</p>
         <h1 className="font-bold text-xl text-sea">تم تأكيد الحجز {message}</h1>
-        <p className="text-sea/70 text-sm">
+        <p className="text-muted text-sm">
           وصلت الضيف قسيمته وعنوانك. حصتك من العربون تُحوَّل بعد يوم من وصول الضيف.
         </p>
       </div>
@@ -58,7 +58,7 @@ function ConfirmForm() {
     return (
       <div className="card p-8 text-center space-y-2">
         <h1 className="font-bold text-xl text-sea">تم الرفض</h1>
-        <p className="text-sea/70 text-sm">
+        <p className="text-muted text-sm">
           أبلغنا الضيف وأرجعنا عربونه. الرفض المتكرر يؤثر على ترتيبك في البحث.
         </p>
       </div>
@@ -66,14 +66,14 @@ function ConfirmForm() {
   if (result === "error")
     return (
       <div className="card p-8 text-center">
-        <p className="font-bold text-red-700">{message}</p>
+        <p className="font-bold text-danger">{message}</p>
       </div>
     );
 
   return (
     <div className="card p-8 text-center space-y-4">
       <h1 className="font-bold text-xl text-sea">طلب حجز جديد</h1>
-      <p className="text-sea/70 text-sm">
+      <p className="text-muted text-sm">
         العربون محجوز بالفعل من الضيف. أكّد لقفل التاريخ، أو ارفض ليرجع له عربونه.
       </p>
       <div className="flex gap-3 justify-center">

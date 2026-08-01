@@ -58,11 +58,11 @@ export default function WishlistPage() {
       </header>
 
       {items === null ? (
-        <p className="text-sea/60">جارٍ التحميل…</p>
+        <p className="text-faint">جارٍ التحميل…</p>
       ) : items.length === 0 ? (
         <div className="card p-8 text-center space-y-3">
           <p className="text-3xl">🤍</p>
-          <p className="text-sea/70">
+          <p className="text-muted">
             اضغط القلب على أي مكان يعجبك — يُحفظ هنا لتقارن وتقرر لاحقًا.
           </p>
           <Link href="/search" className="btn-primary inline-block">ابدأ التصفح</Link>
@@ -70,7 +70,7 @@ export default function WishlistPage() {
       ) : (
         <>
           {!signedIn && !hasSession() ? (
-            <p className="text-xs text-sea/60 mb-3">
+            <p className="text-xs text-faint mb-3">
               قائمتك محفوظة على هذا الجهاز — سجّل دخولك لتبقى معك على كل أجهزتك.
             </p>
           ) : null}
@@ -94,7 +94,7 @@ export default function WishlistPage() {
                   </div>
                   <div className="p-3">
                     <h3 className="font-bold text-sm">{l.titleAr}</h3>
-                    <p className="text-xs text-sea/60">{l.area ?? l.city}</p>
+                    <p className="text-xs text-faint">{l.area ?? l.city}</p>
                     {l.baseNightly > 0 ? (
                       <p className="text-sm font-bold text-sea mt-1">
                         {fmtLyd(l.baseNightly)} / ليلة
