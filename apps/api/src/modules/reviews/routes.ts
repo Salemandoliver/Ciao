@@ -75,9 +75,13 @@ export async function reviewRoutes(app: FastifyInstance) {
         .where(eq(schema.reviews.bookingId, b.id));
     }
 
-    // Guest review unlocks small loyalty credit (§6.1 step 8): 10 LYD.
+    // Guest review unlocks small loyalty credit (§6.1 step 8): 10 LYD, plus
+    // membership points — the review corpus is the product (§8.8), so it is
+    // worth paying for in both currencies.
     if (authorRole === "guest") {
       await issueCredit(claims.sub, 10_000, b.id, "review_loyalty_credit");
+      const loyalty = await import("../accounts/loyalty.js");
+      await loyalty.awardPoints(claims.sub, "review_written", b.id, "booking");
       const { transition } = await import("../bookings/machine.js");
       await transition({
         bookingId: b.id,

@@ -251,6 +251,7 @@ export async function bookingRoutes(app: FastifyInstance) {
         sentAt: new Date(),
       })
       .returning();
+    track("message.sent", { bookingId: b.id }, { userId: claims.sub });
     return reply.send({ id: msg!.id, body: stored, at: msg!.createdAt });
   });
 

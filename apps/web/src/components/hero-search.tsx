@@ -109,7 +109,7 @@ export function HeroSearch({
       */}
       <div
         className={`rounded-full shadow-lg flex items-center text-sm ${
-          compact ? "bg-white" : "bg-white/75 backdrop-blur-md ring-1 ring-white/50"
+          compact ? "bg-white dark:bg-[color:var(--surface)]" : "hero-pill backdrop-blur-md"
         }`}
       >
         <button

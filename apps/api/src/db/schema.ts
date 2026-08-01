@@ -36,6 +36,11 @@ export const users = pgTable(
     publicName: text("public_name"),
     locale: varchar("locale", { length: 5 }).notNull().default("ar"),
     email: text("email"),
+    emailVerifiedAt: ts("email_verified_at"),
+    // Cache of the loyalty ledger sum, same pattern as creditBalance: the
+    // ledger is truth, this makes the common read cheap.
+    pointsBalance: integer("points_balance").notNull().default(0),
+    referralCode: varchar("referral_code", { length: 16 }),
     // no-show history gates privileges (§11.5)
     noShowCount: integer("no_show_count").notNull().default(0),
     completedStays: integer("completed_stays").notNull().default(0),
@@ -45,7 +50,10 @@ export const users = pgTable(
     createdAt: now(),
     updatedAt: ts("updated_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("users_phone_uq").on(t.phone)],
+  (t) => [
+    uniqueIndex("users_phone_uq").on(t.phone),
+    uniqueIndex("users_referral_code_uq").on(t.referralCode),
+  ],
 );
 
 export const otpChallenges = pgTable(
@@ -426,9 +434,14 @@ export const messages = pgTable(
       .default("queued"), // queued|sent|delivered|failed|skipped
     ladderStep: integer("ladder_step").notNull().default(0),
     sentAt: ts("sent_at"),
+    readAt: ts("read_at"), // in-app inbox
     createdAt: now(),
   },
-  (t) => [index("messages_booking_idx").on(t.bookingId)],
+  (t) => [
+    index("messages_booking_idx").on(t.bookingId),
+    // The inbox reads by recipient, newest first — without this it scans.
+    index("messages_to_user_idx").on(t.toUserId, t.createdAt),
+  ],
 );
 
 // ---------------------------------------------------------------- trust
@@ -623,6 +636,138 @@ export const userProfiles = pgTable("user_profiles", {
   foldVersion: integer("fold_version").notNull().default(1),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * ─────────────────────────── Member accounts ───────────────────────────
+ *
+ * Signing up is optional and always will be: a guest can browse, quote and
+ * book with a phone number and an OTP (§6.1 — no account creation before
+ * checkout). An account buys extra — a wallet, points, an inbox, passkeys,
+ * saved preferences — but nothing in the booking path may ever require one.
+ */
+
+/**
+ * Passkeys (WebAuthn). The point in Libya is not password hygiene — there are
+ * no passwords here — it is that OTP costs money, needs signal, and fails
+ * during outages. A fingerprint works with no network at all, which matters at
+ * a chalet gate, and matters more once a wallet holds real balance.
+ *
+ * We store the public key only. The private key never leaves the device's
+ * secure element, so this table is worthless to whoever steals it.
+ */
+export const webauthnCredentials = pgTable(
+  "webauthn_credentials",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    credentialId: text("credential_id").notNull(), // base64url
+    publicKey: text("public_key").notNull(), // base64url COSE key
+    counter: integer("counter").notNull().default(0), // clone detection
+    transports: jsonb("transports").notNull().default(sql`'[]'::jsonb`),
+    deviceLabel: text("device_label"),
+    lastUsedAt: ts("last_used_at"),
+    createdAt: now(),
+  },
+  (t) => [
+    uniqueIndex("webauthn_credential_uq").on(t.credentialId),
+    index("webauthn_user_idx").on(t.userId),
+  ],
+);
+
+/**
+ * Declared preferences — guardrail 1 of the intelligence layer made concrete.
+ * Everything here the user told us on purpose; nothing here is inferred from
+ * behaviour. That separation is what lets us personalize without surveilling.
+ */
+export const userPreferences = pgTable("user_preferences", {
+  userId: uuid("user_id").primaryKey().references(() => users.id),
+  locale: varchar("locale", { length: 5 }).notNull().default("ar"),
+  theme: varchar("theme", { length: 8 }).notNull().default("system"), // system|light|dark
+  preferredRail: varchar("preferred_rail", { length: 12 }),
+  notifyWhatsapp: boolean("notify_whatsapp").notNull().default(true),
+  notifySms: boolean("notify_sms").notNull().default(true),
+  notifyInApp: boolean("notify_in_app").notNull().default(true),
+  // Off by default. Booking confirmations are service messages and always
+  // send; offers are marketing and must be asked for (Law 6/2022 consent).
+  marketingOptIn: boolean("marketing_opt_in").notNull().default(false),
+  earlyAccessOptIn: boolean("early_access_opt_in").notNull().default(false),
+  favouriteAreas: jsonb("favourite_areas").notNull().default(sql`'[]'::jsonb`),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * Loyalty points — deliberately NOT money.
+ *
+ * Money lives in the double-entry ledger as `guest_credit:<userId>`; points
+ * live here. Keeping them apart is a regulatory position as much as a design
+ * one: points are a marketing liability we can retire at will, whereas a
+ * balance a customer paid for is somebody's money (§15.4). Conflating them is
+ * how a marketplace accidentally becomes an unlicensed deposit-taker.
+ */
+export const loyaltyLedger = pgTable(
+  "loyalty_ledger",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    delta: integer("delta").notNull(), // + earned, − redeemed
+    reason: varchar("reason", { length: 40 }).notNull(),
+    refType: varchar("ref_type", { length: 20 }),
+    refId: text("ref_id"),
+    memoAr: text("memo_ar"),
+    createdAt: now(),
+  },
+  (t) => [
+    index("loyalty_user_idx").on(t.userId, t.createdAt),
+    // One award per (user, reason, ref) — makes every earn idempotent, so a
+    // retried webhook or a double-tapped button can't mint points twice.
+    uniqueIndex("loyalty_award_uq").on(t.userId, t.reason, t.refId),
+  ],
+);
+
+/**
+ * Referrals. The invite code is public and shareable; the reward only lands
+ * when the invited guest actually completes a stay, not when they sign up —
+ * paying for signups in a market this small is paying for fake accounts.
+ */
+export const referrals = pgTable(
+  "referrals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    referrerId: uuid("referrer_id").notNull().references(() => users.id),
+    refereeId: uuid("referee_id").references(() => users.id),
+    code: varchar("code", { length: 16 }).notNull(),
+    status: varchar("status", { length: 12 }).notNull().default("invited"),
+    // invited|joined|qualified|rewarded
+    bookingId: uuid("booking_id").references(() => bookings.id),
+    rewardedAt: ts("rewarded_at"),
+    createdAt: now(),
+  },
+  (t) => [
+    index("referrals_referrer_idx").on(t.referrerId),
+    // A person can only ever be referred once, by one person.
+    uniqueIndex("referrals_referee_uq").on(t.refereeId),
+  ],
+);
+
+/**
+ * Saved payment preferences. We never store a card number — that is the
+ * provider's job and their PCI scope, not ours. What we keep is which rail the
+ * guest prefers, a label, and whatever opaque token the provider hands back.
+ */
+export const paymentMethods = pgTable(
+  "payment_methods",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    rail: varchar("rail", { length: 12 }).notNull(),
+    label: text("label"),
+    providerToken: text("provider_token"), // opaque; never a PAN
+    last4: varchar("last4", { length: 4 }),
+    isDefault: boolean("is_default").notNull().default(false),
+    createdAt: now(),
+  },
+  (t) => [index("payment_methods_user_idx").on(t.userId)],
+);
 
 /**
  * Platform control plane — runtime settings that steer the public app.

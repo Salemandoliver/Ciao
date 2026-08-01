@@ -662,6 +662,12 @@ export async function completeStay(bookingId: string) {
       .update(schema.users)
       .set({ completedStays: guest.completedStays + 1 })
       .where(eq(schema.users.id, guest.id));
+    // Membership rewards attach to the behaviour we actually want — a stay
+    // that happened — not to a signup. Both calls are idempotent, so a
+    // replayed completion cannot mint points twice.
+    const loyalty = await import("../accounts/loyalty.js");
+    await loyalty.awardPoints(guest.id, "stay_completed", booking.id, "booking");
+    await loyalty.qualifyReferral(guest.id, booking.id);
     await notify({
       templateKey: "review_prompt",
       toPhone: guest.phone,

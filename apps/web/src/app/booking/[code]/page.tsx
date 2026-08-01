@@ -6,6 +6,7 @@
  */
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { JoinPrompt } from "@/components/join-prompt";
 import { Logo } from "@/components/logo";
 import { api, ensureSession, fmtLyd } from "@/lib/api";
 import type { BookingDetail } from "@/lib/types";
@@ -152,6 +153,10 @@ export default function BookingPage({ params }: { params: Promise<{ code: string
             ))}
           </ol>
         </div>
+
+        {/* The membership offer lands only once the date is actually held —
+            asking before the booking works would be a toll gate (§6.1). */}
+        {showVoucher ? <JoinPrompt bookingCode={b.code} /> : null}
 
         {err ? <p className="text-amber-dark text-sm text-center">{err}</p> : null}
       </div>

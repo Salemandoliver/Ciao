@@ -5,6 +5,7 @@ import { SwRegister } from "@/components/sw-register";
 import { OfflineBanner } from "@/components/offline-banner";
 import { PageViews } from "@/components/track";
 import { AnnouncementBar } from "@/components/announcement";
+import { ThemeBoot } from "@/components/theme-boot";
 
 /**
  * Brand typography — §3.3: Almarai 400/700 on the critical path,
@@ -55,6 +56,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       dir="rtl"
       className={`${almarai.variable} ${baloo.variable} ${inter.variable}`}
     >
+      <head>
+        <ThemeBoot />
+      </head>
       <body className="font-almarai min-h-dvh">
         <OfflineBanner />
         <AnnouncementBar />

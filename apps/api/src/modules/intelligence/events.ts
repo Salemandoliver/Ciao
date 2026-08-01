@@ -53,6 +53,18 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "trust.opened": "listingId, rating, reviewCount, disputeCount",
   "review.started": "listingId, bookingCode",
   "dispute.opened": "bookingId, listingId, category",
+  // membership — an account is a declared relationship, so its events are
+  // about what the user chose, never about what we inferred about them
+  "account.joined": "withReferral",
+  "auth.passkey_login": "",
+  "passkey.registered": "",
+  "prefs.updated": "keys[]",
+  "loyalty.earned": "reason, delta",
+  "loyalty.redeemed": "points, dirhams",
+  "referral.joined": "referrerId",
+  "referral.qualified": "referralId, bookingId",
+  "wallet.topup_started": "amount, rail",
+  "message.sent": "bookingId",
 };
 
 export interface EmitOptions {

@@ -3,9 +3,46 @@
 @tailwind utilities;
 
 :root {
-  --sea: #1b4f72;
-  --sand: #f5efe3;
-  --amber: #e8a33d;
+  /*
+   * Brand tokens as RGB triples so Tailwind can consume them with alpha
+   * modifiers (text-sea/70 still works). Everything downstream reads these,
+   * which is what makes the dark theme a re-point rather than a rewrite.
+   */
+  --sea: 27 79 114;
+  --sea-light: 46 109 153;
+  --sand: 245 239 227;
+  --amber: 232 163 61;
+  --amber-dark: 201 135 31;
+  --surface: 255 255 255;
+  --ink: 26 42 54;
+  /*
+   * `sea-dark` is not "a darker sea" — it is the ink that sits on amber.
+   * Amber stays light in both themes, so this token stays dark in both.
+   * Naming it by role rather than by shade is what stops it flipping.
+   */
+  --sea-dark: 20 60 87;
+}
+
+/*
+ * Dark mode.
+ *
+ * Not a novelty here: the app gets opened at night, at a chalet gate, on a
+ * phone at 8% during a power cut. A dark surface draws measurably less power
+ * on the OLED panels common in this market's mid-range Androids, and is
+ * kinder to read in a car at 1am.
+ *
+ * `sea` inverts because it is overwhelmingly used as ink. Where it is used as
+ * a *background* (primary buttons, active tabs) the rules below re-point it to
+ * a mid blue that still carries white text.
+ */
+.dark {
+  --sea: 207 227 242;
+  --sea-light: 160 195 222;
+  --sand: 22 36 47;
+  --amber: 240 180 88;
+  --amber-dark: 214 152 60;
+  --surface: 26 42 55;
+  --ink: 230 238 245;
 }
 
 html {
@@ -13,9 +50,33 @@ html {
 }
 
 body {
-  background: var(--sand);
-  color: #1a2a36;
+  background: rgb(var(--sand));
+  color: rgb(var(--ink));
   -webkit-tap-highlight-color: transparent;
+}
+
+.card,
+.input {
+  background: rgb(var(--surface));
+}
+.dark .input {
+  color: rgb(var(--ink));
+}
+/* Photography stays the hero; it just stops glaring at 1am. */
+.dark img {
+  filter: brightness(0.92);
+}
+
+/*
+ * The three places `sea` is a surface rather than ink. In dark mode a light
+ * `sea` behind white text would be unreadable, so these re-point to a mid blue
+ * that works on a dark ground and still carries white type.
+ */
+.dark .btn-primary,
+.dark .bg-sea,
+.dark .\!bg-sea {
+  background-color: rgb(38 92 133) !important;
+  color: #fff;
 }
 
 /* High-contrast for sunlight readability on cheap screens (§3.3) */
@@ -33,6 +94,30 @@ body {
 }
 .input {
   @apply w-full rounded-xl border border-sea/20 bg-white px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-sea/40;
+}
+
+/**
+ * The hero search pill sits on top of a photograph, so it cannot simply follow
+ * the theme tokens: in dark mode `--sea` becomes a light ink, which would put
+ * pale text on white glass. Light mode gets translucent white with dark ink;
+ * dark mode gets translucent dark glass with light ink. Both stay readable in
+ * Tripoli sunlight and at 1am.
+ */
+.hero-pill {
+  background: rgb(255 255 255 / 0.75);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.5);
+}
+.hero-pill,
+.hero-pill .text-sea {
+  color: #1b4f72;
+}
+.dark .hero-pill {
+  background: rgb(12 26 36 / 0.7);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+}
+.dark .hero-pill,
+.dark .hero-pill .text-sea {
+  color: #e6eef5;
 }
 
 /* Offline indicator */

@@ -46,11 +46,21 @@ export const SETTING_DEFAULTS = {
   "fees.hallDateLockBps": FEES.hallDateLockBps,
   /** Which payment rails the checkout offers, in display order (§10.2). */
   "payments.enabledRails": ["sadad", "adfali", "local_card", "cash"],
+  /**
+   * Wallet top-up — customers funding a balance with their own cash.
+   * OFF by default and deliberately so: Libya has no e-money or escrow regime,
+   * and holding customer funds is the single biggest regulatory exposure in
+   * the model (§15.4). The code path exists and is tested; switching it on is
+   * a founder decision that follows a legal opinion, not a deploy.
+   */
+  "wallet.topUpEnabled": false,
   /** Feature flags for the public app. */
   "features.wishlist": true,
   "features.map": true,
   "features.services": true,
   "features.reviews": true,
+  "features.accounts": true,
+  "features.loyalty": true,
   /** Trust policy (§8.8, §11.6) — the numbers the trust surface publishes. */
   "trust.minReviewsForGuestRating": 3,
   "trust.disputeSlaHours": 48,
@@ -189,6 +199,8 @@ export async function publicSettings() {
       map: all["features.map"],
       services: all["features.services"],
       reviews: all["features.reviews"],
+      accounts: all["features.accounts"],
+      loyalty: all["features.loyalty"],
     },
     paymentRails: all["payments.enabledRails"],
     announcementAr: all["ops.announcementAr"],

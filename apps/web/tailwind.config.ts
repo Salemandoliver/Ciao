@@ -3,18 +3,25 @@ import type { Config } from "tailwindcss";
 /** Ciao brand — design doc §3.3: Mediterranean palette, sunlight-readable. */
 export default {
   content: ["./src/**/*.{ts,tsx}"],
+  // Theme is a user preference stored on their account and echoed to a class
+  // on <html> before first paint, not a guess from the OS alone.
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
+        // Every brand colour resolves through a CSS variable, so switching
+        // theme re-points the tokens and every component follows — including
+        // ones written a year from now that never heard of dark mode.
         sea: {
-          DEFAULT: "#1B4F72",
-          dark: "#143C57",
-          light: "#2E6D99",
+          DEFAULT: "rgb(var(--sea) / <alpha-value>)",
+          dark: "rgb(var(--sea-dark) / <alpha-value>)",
+          light: "rgb(var(--sea-light) / <alpha-value>)",
         },
-        sand: "#F5EFE3",
+        sand: "rgb(var(--sand) / <alpha-value>)",
+        surface: "rgb(var(--surface) / <alpha-value>)",
         amber: {
-          DEFAULT: "#E8A33D",
-          dark: "#C9871F",
+          DEFAULT: "rgb(var(--amber) / <alpha-value>)",
+          dark: "rgb(var(--amber-dark) / <alpha-value>)",
         },
       },
       fontFamily: {

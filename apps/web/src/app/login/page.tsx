@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/logo";
@@ -15,6 +15,46 @@ function LoginForm() {
   const [stage, setStage] = useState<"phone" | "otp">("phone");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [passkeyReady, setPasskeyReady] = useState(false);
+
+  // Only offer the passkey path where the browser can actually do it —
+  // a button that fails is worse than no button.
+  useEffect(() => {
+    setPasskeyReady(typeof window !== "undefined" && Boolean(window.PublicKeyCredential));
+  }, []);
+
+  /**
+   * Passkey sign-in. No phone number is asked for first: prompting for one
+   * would leak whether a given number has an account. The device's resident
+   * key tells the server who it is after the fingerprint, not before.
+   */
+  async function passkeyLogin() {
+    setBusy(true);
+    setError("");
+    try {
+      const { startAuthentication } = await import("@simplewebauthn/browser");
+      const options = await api<Record<string, unknown>>("/v1/auth/passkey/options", {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      const response = await startAuthentication({ optionsJSON: options as never });
+      const r = await api<{ accessToken: string; refreshToken: string }>(
+        "/v1/auth/passkey/verify",
+        { method: "POST", body: JSON.stringify({ response }) },
+      );
+      setTokens(r.accessToken, r.refreshToken);
+      router.push(next);
+    } catch (e) {
+      const name = (e as { name?: string })?.name;
+      setError(
+        name === "NotAllowedError"
+          ? "أُلغيت العملية"
+          : "لا يوجد مفتاح دخول على هذا الجهاز — ادخل برقمك ثم فعّله من الأمان",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function request() {
     setBusy(true);
@@ -83,6 +123,27 @@ function LoginForm() {
         </>
       )}
       {error ? <p className="text-red-700 text-sm font-bold">{error}</p> : null}
+
+      {passkeyReady && stage === "phone" ? (
+        <>
+          <div className="flex items-center gap-2 text-xs text-sea/40">
+            <span className="h-px flex-1 bg-sea/15" />
+            أو
+            <span className="h-px flex-1 bg-sea/15" />
+          </div>
+          <button
+            className="w-full rounded-bubble border border-sea/20 py-3 font-bold text-sea active:bg-sand"
+            onClick={passkeyLogin}
+            disabled={busy}
+          >
+            🔐 الدخول بالبصمة
+          </button>
+          <p className="text-[11px] text-sea/45 text-center">
+            أسرع، ومجاني، ويشتغل حتى بدون شبكة — فعّله مرة واحدة من إعدادات الأمان.
+          </p>
+        </>
+      ) : null}
+
       <p className="text-xs text-sea/50">
         لا كلمات مرور ولا بريد إلكتروني — رقمك هو حسابك.
       </p>

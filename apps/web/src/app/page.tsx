@@ -64,7 +64,7 @@ export default async function HomePage() {
           <Link href="/wishlist" aria-label="المفضلة">🤍</Link>
           <Link href="/about">من نحن</Link>
           <Link href="/host">للمضيفين</Link>
-          <Link href="/login">دخول</Link>
+          <Link href="/account">حسابي</Link>
         </nav>
       </header>
 

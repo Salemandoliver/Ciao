@@ -116,3 +116,15 @@ export async function ensureSession(): Promise<boolean> {
 export function fmtLyd(dirhams: number): string {
   return `${(dirhams / 1000).toLocaleString("ar-LY", { maximumFractionDigits: 0 })} د.ل`;
 }
+
+/**
+ * Money that can legitimately be a fraction of a dinar — a loyalty balance
+ * part-way to its first dinar, say. fmtLyd rounds to whole dinars, which is
+ * right for prices and wrong here: telling someone their 400 points are worth
+ * "0 د.ل" is worse than not showing a number at all.
+ */
+export function fmtLydPrecise(dirhams: number): string {
+  const lyd = dirhams / 1000;
+  const digits = lyd > 0 && lyd < 10 ? 2 : 0;
+  return `${lyd.toLocaleString("ar-LY", { maximumFractionDigits: digits })} د.ل`;
+}
