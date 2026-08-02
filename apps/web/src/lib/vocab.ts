@@ -266,6 +266,8 @@ export const PAYMENT_RAILS: Record<Locale, Vocab> = {
     tlync: "تطبيقات المصارف (T-Lync)",
     mpgs: "Visa / Mastercard دولية",
     cash: "نقدًا عند الوصول",
+    // Where a partner receives money, rather than where a guest pays it.
+    bank_app: "تطبيق المصرف",
   },
   en: {
     sadad: "Sadad (Almadar)",
@@ -274,6 +276,7 @@ export const PAYMENT_RAILS: Record<Locale, Vocab> = {
     tlync: "Bank apps (T-Lync)",
     mpgs: "Visa / Mastercard international",
     cash: "Cash on arrival",
+    bank_app: "Bank app",
   },
 };
 
@@ -375,6 +378,139 @@ export const ROLES: Record<Locale, Vocab> = {
     agent: "Field agent",
     ops: "Operations",
     admin: "Admin",
+  },
+};
+
+/**
+ * Partner control-panel vocabulary.
+ *
+ * Where a job came from. These read as a partner would say them, not as a
+ * CRM would: «واتساب» rather than "inbound messaging channel". `ciao` is
+ * deliberately named with the brand, because the whole value of this column
+ * to a partner is being able to see at a glance how much of their work we
+ * actually brought them.
+ */
+export const JOB_SOURCES: Record<Locale, Vocab> = {
+  ar: {
+    ciao: "تشاو",
+    whatsapp: "واتساب",
+    phone: "مكالمة",
+    walk_in: "زيارة مباشرة",
+    instagram: "إنستقرام",
+    facebook: "فيسبوك",
+    repeat: "زبون سابق",
+    direct: "مباشر",
+    other: "غير ذلك",
+  },
+  en: {
+    ciao: "Ciao",
+    whatsapp: "WhatsApp",
+    phone: "Phone call",
+    walk_in: "Walk-in",
+    instagram: "Instagram",
+    facebook: "Facebook",
+    repeat: "Returning client",
+    direct: "Direct",
+    other: "Other",
+  },
+};
+
+export const JOB_STATUS: Record<Locale, Vocab> = {
+  ar: {
+    enquiry: "استفسار",
+    quoted: "أُرسل عرض",
+    confirmed: "مؤكد",
+    done: "تم",
+    cancelled: "ملغى",
+    no_show: "لم يحضر",
+  },
+  en: {
+    enquiry: "Enquiry",
+    quoted: "Quoted",
+    confirmed: "Confirmed",
+    done: "Done",
+    cancelled: "Cancelled",
+    no_show: "No-show",
+  },
+};
+
+export const JOB_STATUS_TONE: Record<string, string> = {
+  enquiry: "bg-sand text-muted",
+  quoted: "bg-amber/25 text-sea-dark dark:text-amber",
+  confirmed: "badge-success",
+  done: "bg-sea/10 text-muted",
+  cancelled: "badge-danger",
+  no_show: "badge-danger",
+};
+
+export const JOB_KINDS: Record<Locale, Vocab> = {
+  ar: {
+    stay: "إقامة",
+    day_use: "يوم كامل",
+    event: "مناسبة",
+    session: "فترة",
+    appointment: "موعد",
+    visit: "معاينة",
+  },
+  en: {
+    stay: "Stay",
+    day_use: "Day use",
+    event: "Event",
+    session: "Session",
+    appointment: "Appointment",
+    visit: "Viewing",
+  },
+};
+
+export const QUOTE_STATUS: Record<Locale, Vocab> = {
+  ar: {
+    draft: "مسودة",
+    sent: "مُرسل",
+    accepted: "مقبول",
+    declined: "مرفوض",
+    expired: "منتهي",
+    withdrawn: "مسحوب",
+  },
+  en: {
+    draft: "Draft",
+    sent: "Sent",
+    accepted: "Accepted",
+    declined: "Declined",
+    expired: "Expired",
+    withdrawn: "Withdrawn",
+  },
+};
+
+export const QUOTE_STATUS_TONE: Record<string, string> = {
+  draft: "bg-sand text-muted",
+  sent: "bg-amber/25 text-sea-dark dark:text-amber",
+  accepted: "badge-success",
+  declined: "badge-danger",
+  expired: "bg-sand text-muted",
+  withdrawn: "bg-sand text-muted",
+};
+
+/**
+ * Team roles inside a partner business — distinct from the platform roles
+ * above, which describe someone's relationship with Ciao. A hall manager is
+ * `host` to the platform and `manager` to their employer, and conflating the
+ * two words on one screen is how a permission gets granted by accident.
+ */
+export const PARTNER_ROLES: Record<Locale, Vocab> = {
+  ar: { owner: "صاحب النشاط", manager: "مدير", staff: "موظف" },
+  en: { owner: "Owner", manager: "Manager", staff: "Staff" },
+};
+
+export const PARTNER_ROLE_HINT: Record<Locale, Vocab> = {
+  ar: {
+    owner: "كل شيء — بما فيه الحساب البنكي والفريق والاشتراك",
+    manager: "المواعيد والتقويم والعروض والزبائن والأرقام",
+    staff: "شغل اليوم والتقويم فقط — بلا أي أرقام مالية",
+  },
+  en: {
+    owner: "Everything — including the payout account, the team and the plan",
+    manager: "The diary, calendar, quotes, clients and the numbers",
+    staff: "Today's work and the calendar only — no money screens",
   },
 };
 

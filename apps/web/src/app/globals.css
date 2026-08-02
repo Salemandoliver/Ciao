@@ -36,7 +36,16 @@
    * grounds and go invisible on a dark one — "تعذر تحميل" in dark red on a
    * near-black card is a failure message nobody reads. Both flip.
    */
-  --danger: 185 28 28;
+  /*
+   * `danger` has to clear AA twice over, because it is used two ways: as ink
+   * on a page, and as ink on its own 15% tint (`.badge-danger`). The tint is
+   * the harder case, and it gets harder still on `sand` than on `surface` —
+   * a red-700 badge lands at 4.41:1 on a sand card, which is how an "overdue"
+   * pill on the partner money screen came out just under the line while every
+   * other use of the same token passed. Calibrated against the tint over sand,
+   * so every ground it can sit on is covered by the worst one.
+   */
+  --danger: 168 25 25;
   --success: 6 95 70;
   /*
    * `sea-dark` is not "a darker sea" — it is the ink that sits on amber.

@@ -3,7 +3,7 @@
  * estirahas + one Tripoli wedding hall (design doc §14.2 anchor venues).
  * Idempotent: skips if seed data already present.
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, pool, schema } from "./client.js";
 
 /** Real listing photos (served from the web app's /public/media). */
@@ -571,6 +571,315 @@ async function syncDemoTrust() {
   console.log("Demo trust history synced (reviews + dispute record).");
 }
 
+/**
+ * Demo diary for the partner control panel.
+ *
+ * A control panel that opens empty demonstrates nothing — and the thing this
+ * one has to demonstrate is not "you can add a job", it is the argument: that
+ * a partner's own book, the part Ciao never touched, lives here too. So the
+ * seeded data is deliberately mostly *not* Ciao's: WhatsApp jobs, a walk-in, a
+ * returning client, and a real unpaid balance somebody has to chase.
+ *
+ * Built around صالون نون and لمسة from the services seed, because a make-up
+ * artist and a salon are the clearest case for this product — several
+ * appointments a day, no system at all today, and everything currently living
+ * in a chat thread.
+ *
+ * Idempotent: keyed on the job title per partner, so re-seeding is safe.
+ */
+async function syncPartnerDemo() {
+  const today = new Date();
+  const day = (offset: number) =>
+    new Date(today.getTime() + offset * 86_400_000).toISOString().slice(0, 10);
+
+  const cast: {
+    hostPhone: string;
+    kind: "venue" | "hall" | "service";
+    businessNameAr: string;
+    maxJobsPerDay: number;
+    clients: { nameAr: string; phone: string }[];
+    jobs: {
+      titleAr: string;
+      client: number;
+      day: string;
+      startTime?: string;
+      source: string;
+      kind: string;
+      price: number;
+      amountPaid: number;
+      locationAr?: string;
+      notesAr?: string;
+      status?: string;
+    }[];
+  }[] = [
+    {
+      hostPhone: "+218914000003", // لمسة — ميكب آرتيست
+      kind: "service",
+      businessNameAr: "لمسة بيوتي",
+      maxJobsPerDay: 4,
+      clients: [
+        { nameAr: "هدى العرفي", phone: "+218915550001" },
+        { nameAr: "أم سارة", phone: "+218915550002" },
+        { nameAr: "نور بن عثمان", phone: "+218915550003" },
+      ],
+      jobs: [
+        {
+          titleAr: "ميكب عروس — عرس هدى",
+          client: 0,
+          day: day(0),
+          startTime: "09:00",
+          source: "whatsapp",
+          kind: "appointment",
+          price: 1_800_000,
+          amountPaid: 500_000,
+          locationAr: "بيت العروس — جنزور",
+          notesAr: "التجربة تمت. تبي فرش أفتح من التجربة.",
+        },
+        {
+          titleAr: "ميكب مناسبة",
+          client: 1,
+          day: day(0),
+          startTime: "16:30",
+          source: "repeat",
+          kind: "appointment",
+          price: 600_000,
+          amountPaid: 600_000,
+          locationAr: "الصالون",
+        },
+        {
+          titleAr: "تجربة ميكب عروس",
+          client: 2,
+          day: day(1),
+          startTime: "11:00",
+          source: "instagram",
+          kind: "appointment",
+          price: 400_000,
+          amountPaid: 0,
+          locationAr: "الصالون",
+        },
+        {
+          titleAr: "ميكب عروس — عرس نور",
+          client: 2,
+          day: day(24),
+          startTime: "08:30",
+          source: "instagram",
+          kind: "appointment",
+          price: 1_800_000,
+          amountPaid: 400_000,
+          locationAr: "قاعة الأندلس — طريق المطار",
+        },
+        {
+          // The unpaid balance from last month — the number that makes the
+          // money screen worth opening.
+          titleAr: "ميكب مناسبة عائلية",
+          client: 1,
+          day: day(-21),
+          source: "phone",
+          kind: "appointment",
+          price: 750_000,
+          amountPaid: 250_000,
+          status: "done",
+        },
+        {
+          titleAr: "ميكب سهرة",
+          client: 0,
+          day: day(-40),
+          source: "walk_in",
+          kind: "appointment",
+          price: 450_000,
+          amountPaid: 450_000,
+          status: "done",
+        },
+      ],
+    },
+    {
+      hostPhone: "+218914000005", // صالون نون
+      kind: "service",
+      businessNameAr: "صالون نون",
+      maxJobsPerDay: 5,
+      clients: [
+        { nameAr: "مريم الفيتوري", phone: "+218915550010" },
+        { nameAr: "أم عبدالله", phone: "+218915550011" },
+      ],
+      jobs: [
+        {
+          titleAr: "تسريحة عروس",
+          client: 0,
+          day: day(2),
+          startTime: "10:00",
+          source: "whatsapp",
+          kind: "appointment",
+          price: 900_000,
+          amountPaid: 300_000,
+          locationAr: "الصالون — جنزور",
+        },
+        {
+          titleAr: "تسريحات مناسبة (٣ سيدات)",
+          client: 1,
+          day: day(5),
+          startTime: "15:00",
+          source: "facebook",
+          kind: "appointment",
+          price: 1_200_000,
+          amountPaid: 0,
+          locationAr: "الصالون — جنزور",
+        },
+      ],
+    },
+    {
+      hostPhone: "+218911111111", // a coast host — the notebook case
+      kind: "venue",
+      businessNameAr: "",
+      maxJobsPerDay: 1,
+      clients: [{ nameAr: "أبو محمد", phone: "+218915550020" }],
+      jobs: [
+        {
+          // Exactly the booking that causes a double-booking today: taken over
+          // the phone, written in a notebook, invisible to the marketplace.
+          titleAr: "حجز عائلي — من التلفون",
+          client: 0,
+          day: day(9),
+          source: "phone",
+          kind: "stay",
+          price: 1_500_000,
+          amountPaid: 300_000,
+          notesAr: "عائلة من مصراتة، يوصلوا العصر.",
+        },
+      ],
+    },
+  ];
+
+  const { createJob, ensureProfile, upsertClient } = await import(
+    "../modules/partner/service.js"
+  );
+
+  for (const business of cast) {
+    const [host] = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.phone, business.hostPhone))
+      .limit(1);
+    if (!host) continue;
+
+    await ensureProfile(host.id, {
+      kind: business.kind,
+      businessNameAr: business.businessNameAr || undefined,
+    });
+    await db
+      .update(schema.partnerProfiles)
+      .set({
+        maxJobsPerDay: business.maxJobsPerDay,
+        agendaEnabled: true,
+        agendaHour: 18,
+        onboardedAt: new Date(),
+      })
+      .where(eq(schema.partnerProfiles.userId, host.id));
+
+    const [listing] = await db
+      .select({ id: schema.listings.id })
+      .from(schema.listings)
+      .innerJoin(schema.venues, eq(schema.listings.venueId, schema.venues.id))
+      .where(eq(schema.venues.hostId, host.id))
+      .limit(1);
+
+    const clientIds: string[] = [];
+    for (const c of business.clients) {
+      const row = await upsertClient(host.id, { nameAr: c.nameAr, phone: c.phone }, host.id);
+      clientIds.push(row.id);
+    }
+
+    for (const job of business.jobs) {
+      const [exists] = await db
+        .select({ id: schema.partnerJobs.id })
+        .from(schema.partnerJobs)
+        .where(
+          and(
+            eq(schema.partnerJobs.partnerId, host.id),
+            eq(schema.partnerJobs.titleAr, job.titleAr),
+          ),
+        )
+        .limit(1);
+      if (exists) continue;
+      await createJob(host.id, host.id, {
+        listingId: business.kind === "venue" ? (listing?.id ?? null) : null,
+        clientId: clientIds[job.client] ?? null,
+        source: job.source,
+        kind: job.kind,
+        titleAr: job.titleAr,
+        day: job.day,
+        startTime: job.startTime ?? null,
+        status: (job.status ?? "confirmed") as "confirmed" | "done",
+        price: job.price,
+        amountPaid: job.amountPaid,
+        locationAr: job.locationAr ?? null,
+        notesAr: job.notesAr ?? null,
+        // Only the chalet's off-platform booking closes a marketplace day —
+        // a make-up artist's appointment does not take a listing off sale.
+        blocksCalendar: business.kind === "venue",
+      });
+    }
+  }
+  /*
+   * One quote, sent and awaiting an answer.
+   *
+   * Seeded because the quote is the feature that has to be *seen* to land —
+   * describing "a priced document with a share link" to a photographer does
+   * nothing, and handing her a phone with one open on it does everything. The
+   * code is stable across seeds so a demo link keeps working.
+   */
+  const [lamsa] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.phone, "+218914000003"))
+    .limit(1);
+  if (lamsa) {
+    const [exists] = await db
+      .select({ id: schema.partnerQuotes.id })
+      .from(schema.partnerQuotes)
+      .where(eq(schema.partnerQuotes.code, "Q-DEMO01"))
+      .limit(1);
+    if (!exists) {
+      const [client] = await db
+        .select({ id: schema.partnerClients.id })
+        .from(schema.partnerClients)
+        .where(
+          and(
+            eq(schema.partnerClients.partnerId, lamsa.id),
+            eq(schema.partnerClients.phone, "+218915550003"),
+          ),
+        )
+        .limit(1);
+      const lineItems = [
+        { labelAr: "ميكب عروس يوم العرس", qty: 1, unitPrice: 1_500_000 },
+        { labelAr: "تجربة ميكب قبل الموعد", qty: 1, unitPrice: 300_000 },
+        { labelAr: "تسريحة شعر", qty: 1, unitPrice: 400_000 },
+        { labelAr: "تنقل لخارج طرابلس", qty: 1, unitPrice: 150_000 },
+      ];
+      const subtotal = lineItems.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+      await db.insert(schema.partnerQuotes).values({
+        code: "Q-DEMO01",
+        partnerId: lamsa.id,
+        clientId: client?.id ?? null,
+        titleAr: "باقة عروس كاملة — ميكب وتسريحة",
+        lineItems,
+        subtotal,
+        discount: 0,
+        total: subtotal,
+        depositAmount: Math.round(subtotal * 0.25),
+        proposedDay: day(24),
+        startTime: "08:30",
+        validUntil: day(10),
+        notesAr: "التجربة تكون قبل الموعد بأسبوع، ونتفق على الستايل من صور تختارينها.",
+        termsAr: "العربون يثبّت التاريخ ولا يُسترجع خلال آخر ٧ أيام قبل الموعد.",
+        status: "sent",
+        sentAt: new Date(),
+      });
+    }
+  }
+
+  console.log("Partner demo diaries synced.");
+}
+
 async function main() {
   const [existing] = await db
     .select({ id: schema.listings.id })
@@ -583,6 +892,7 @@ async function main() {
     await syncServiceFacts();
     await syncMedia();
     await syncDemoTrust();
+    await syncPartnerDemo();
     await pool.end();
     return;
   }
@@ -833,6 +1143,7 @@ async function main() {
   await syncServiceFacts();
   await syncMedia();
   await syncDemoTrust();
+  await syncPartnerDemo();
   console.log("Seeded 3 coast venues + 1 wedding hall with packages. تشاو!");
   await pool.end();
 }

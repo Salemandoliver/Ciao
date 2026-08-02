@@ -21,7 +21,14 @@ const MAX_ATTEMPTS = 5;
 
 /** Ensure the recurring intelligence jobs exist (idempotent, called on boot). */
 export async function ensureRecurringJobs(): Promise<void> {
-  for (const kind of ["profile_fold", "events_prune", "loyalty_sweep", "birthday_campaign"]) {
+  for (const kind of [
+    "profile_fold",
+    "events_prune",
+    "loyalty_sweep",
+    "birthday_campaign",
+    "partner_daily_agenda",
+    "partner_housekeeping",
+  ]) {
     const [pending] = await db
       .select({ id: schema.scheduledJobs.id })
       .from(schema.scheduledJobs)
@@ -290,6 +297,69 @@ async function handle(job: Job): Promise<void> {
     case "requeue_notification": {
       const p = job.payload as Parameters<typeof notify>[0] | null;
       if (p) await notify(p);
+      break;
+    }
+    /**
+     * The evening agenda.
+     *
+     * Sent the night before, not the morning of, because the decisions it
+     * changes — buy the flowers, charge the batteries, tell the driver, leave
+     * earlier for Tajoura — are made the night before. It is the single most
+     * useful message this platform sends anyone, and it is the reason a
+     * partner who never opens the console still gets value from it every day.
+     *
+     * Re-arms hourly rather than daily so partners on different agenda hours
+     * are all served, and each one is sent at most once per day by the
+     * `messages` journal check.
+     */
+    case "partner_daily_agenda": {
+      const partner = await import("./modules/partner/agenda-job.js");
+      const sent = await partner.sendDueAgendas();
+      const warned = await partner.warnExpiringTrials();
+      if (sent > 0 || warned > 0)
+        console.log(`partner: ${sent} agendas, ${warned} trial warnings`);
+      await db.insert(schema.scheduledJobs).values({
+        kind: "partner_daily_agenda",
+        refId: null,
+        runAt: new Date(Date.now() + 3600 * 1000),
+      }).onConflictDoNothing();
+      break;
+    }
+    /**
+     * Daily partner housekeeping: lapse quotes past their validity date, and
+     * take the Ciao Plus fee out of money we already owe.
+     *
+     * Both are jobs that make the console tell the truth without anyone
+     * opening it — a "3 quotes waiting" badge that includes one which lapsed
+     * in March is worse than no badge.
+     */
+    case "partner_housekeeping": {
+      const quotes = await import("./modules/partner/quotes.js");
+      const money = await import("./modules/partner/money.js");
+      const expired = await quotes.expireStaleQuotes();
+      const charged = await money.chargeDuePlusPeriods();
+      if (expired || charged)
+        console.log(`partner housekeeping: ${expired} quotes expired, ${charged} subscriptions billed`);
+      await db.insert(schema.scheduledJobs).values({
+        kind: "partner_housekeeping",
+        refId: null,
+        runAt: new Date(Date.now() + 24 * 3600 * 1000),
+      }).onConflictDoNothing();
+      break;
+    }
+    /**
+     * A payout-destination change has sat out its cooling-off period.
+     *
+     * `activatePayoutAccount` returns false when the owner cancelled it in the
+     * meantime — which is the whole point of the delay, and is a success, not
+     * an error.
+     */
+    case "partner_payout_account_activate": {
+      const money = await import("./modules/partner/money.js");
+      if (job.refId) {
+        const activated = await money.activatePayoutAccount(job.refId);
+        console.log(`partner payout account ${job.refId}: ${activated ? "activated" : "superseded or cancelled"}`);
+      }
       break;
     }
     default:

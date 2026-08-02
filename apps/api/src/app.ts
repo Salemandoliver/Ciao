@@ -18,6 +18,7 @@ import { wishlistRoutes } from "./modules/wishlist/routes.js";
 import { trustRoutes } from "./modules/trust/routes.js";
 import { businessRoutes } from "./modules/business/routes.js";
 import { accountRoutes } from "./modules/accounts/routes.js";
+import { partnerRoutes } from "./modules/partner/routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -126,6 +127,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(trustRoutes);
   await app.register(businessRoutes);
   await app.register(accountRoutes);
+  await app.register(partnerRoutes);
 
   return app;
 }

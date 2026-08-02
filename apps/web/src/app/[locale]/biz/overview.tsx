@@ -11,6 +11,7 @@ import { useLocale } from "@/lib/locale";
 import { LISTING_STATUS, fmtDate, term } from "@/lib/vocab";
 import type { Locale } from "@/lib/i18n";
 import { Bars, Money, Pill, Section, Stat } from "./lib";
+import { PartnerPanel } from "./partner-panel";
 
 interface Overview {
   windowDays: number;
@@ -356,6 +357,9 @@ export function OverviewTab() {
           }))}
         />
       </Section>
+
+      {/* 5 — the supply base's own diaries, and how much of it we win */}
+      <PartnerPanel />
 
       <p className="text-[11px] text-faint mt-4 leading-relaxed">
         {c.footer(fmtLyd(data.demand.gmv, locale), data.windowDays)}

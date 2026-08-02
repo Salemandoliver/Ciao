@@ -125,6 +125,45 @@ export const SETTING_DEFAULTS = {
   "trust.minReviewsForGuestRating": 3,
   "trust.disputeSlaHours": 48,
   "trust.reviewWindowDays": 14,
+  /**
+   * The partner control panel — what supply-side businesses can do, and what
+   * the intelligence subscription costs.
+   *
+   * These are commercial levers of exactly the kind the control plane exists
+   * for. The Plus price in particular will be wrong the first time we set it,
+   * and finding the right number should be a conversation in the console, not
+   * a deploy.
+   */
+  "partner.directJobsEnabled": true,
+  /**
+   * Ciao Plus — market intelligence. Own numbers are always free (see the
+   * `partnerSubscriptions` comment for why that line is where it is).
+   */
+  "partner.plusEnabled": true,
+  /** 250 LYD/month, in dirhams. */
+  "partner.plusPriceDirhams": 250_000,
+  /**
+   * Every partner gets a full season free. The trial is the onboarding
+   * argument — a photographer who has seen what the market data tells her for
+   * six months will not go back to guessing — and a season is the shortest
+   * window in which this market's seasonality is visible at all.
+   */
+  "partner.plusTrialDays": 180,
+  /**
+   * The smallest number of comparable businesses a price benchmark may be
+   * computed from. Below this the "market" is one or two identifiable
+   * competitors and the panel is a way of reading their prices, not a
+   * benchmark — so it is suppressed rather than shown thin.
+   */
+  "partner.benchmarkMinPeers": 5,
+  /**
+   * Hours a payout-destination change waits before it takes effect. The delay
+   * is the anti-takeover control; the notification to the *old* channel is
+   * what makes the delay useful (see `partnerPayoutAccounts`).
+   */
+  "partner.payoutChangeHoldHours": 24,
+  /** Send the evening agenda message to partners who have it switched on. */
+  "partner.agendaEnabled": true,
   /** Operational posture. */
   "ops.demoMode": true,
   "ops.acceptingBookings": true,
@@ -327,6 +366,27 @@ export function validateSetting(key: string, value: unknown): string | null {
       return typeof value === "number" && value >= 5 && value <= 1440
         ? null
         : "مدة صلاحية القسيمة بين 5 دقائق و24 ساعة";
+    case "partner.plusPriceDirhams":
+      return typeof value === "number" && value >= 0 && value <= 5_000_000
+        ? null
+        : "سعر تشاو بلس بين 0 و5000 د.ل شهريًا";
+    case "partner.plusTrialDays":
+      return typeof value === "number" && value >= 0 && value <= 730
+        ? null
+        : "مدة التجربة بين 0 و730 يومًا";
+    case "partner.benchmarkMinPeers":
+      /*
+       * The floor of 3 is not a taste preference. Below three comparable
+       * businesses a median is a competitor's price with a hat on, and a
+       * partner could read a rival's rate off our own dashboard.
+       */
+      return typeof value === "number" && value >= 3 && value <= 50
+        ? null
+        : "الحد الأدنى للمقارنة بين 3 و50 نشاطًا";
+    case "partner.payoutChangeHoldHours":
+      return typeof value === "number" && value >= 0 && value <= 168
+        ? null
+        : "مهلة تغيير حساب التحويل بين 0 و168 ساعة";
     case "loyalty.earnRules": {
       const v = value as Record<string, unknown>;
       if (!v || typeof v !== "object") return "قواعد الكسب غير صالحة";

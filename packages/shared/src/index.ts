@@ -3,3 +3,4 @@ export * from "./domain";
 export * from "./errors";
 export * from "./pricing";
 export * from "./phone";
+export * from "./partner";

@@ -41,6 +41,32 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   // host behavior (server)
   "host.response": "bookingId, decision, minutes",
   "host.calendar_blocked": "listingId, dayCount",
+  /*
+   * Partner control panel — the supply side's own behaviour.
+   *
+   * These feed dashboards, not guest profiles: `foldEvent` builds a picture of
+   * a *guest's* taste, and folding a photographer's diary into it would put
+   * her business in the same object as her holiday preferences. Events →
+   * dashboards is a legitimate path through the four layers; events → the
+   * wrong profile is not.
+   *
+   * `source` on a job is the single most valuable field the marketplace
+   * collects. It is the partner telling us, from their own diary, how much of
+   * Libya's chalet and wedding business Ciao is actually winning — a question
+   * nobody here can answer today, ourselves included. It carries no customer,
+   * no price detail and no name.
+   */
+  "partner.job_created": "source, kind, linked, hasPrice, leadDays",
+  "partner.job_completed": "source, kind, linked, paidInFull",
+  "partner.calendar_updated": "action, dayCount, via",
+  "partner.quote_sent": "total, lines, hasDay",
+  "partner.quote_accepted": "total, daysToDecide",
+  "partner.insights_viewed": "plus, windowDays",
+  "partner.plus_started": "trial, priceDirhams",
+  "partner.plus_cancelled": "daysActive",
+  "partner.command_received": "command, dayCount, refused",
+  "partner.agenda_sent": "jobCount, channel",
+  "partner.team_changed": "action, role",
   // engagement (client + server)
   "rail.selected": "rail",
   "share.clicked": "listingId, channel",

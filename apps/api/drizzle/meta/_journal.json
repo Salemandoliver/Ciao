@@ -71,6 +71,13 @@
       "when": 1785679574406,
       "tag": "0009_perpetual_random",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785686510675,
+      "tag": "0010_orange_robin_chapel",
+      "breakpoints": true
     }
   ]
 }

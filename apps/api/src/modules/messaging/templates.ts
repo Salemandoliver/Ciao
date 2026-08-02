@@ -114,6 +114,56 @@ export const TEMPLATES: Record<string, MessageTemplate> = {
     en: "You have an occasion this month 🎈 We've picked places that suit it — book early, the good dates go first: {{link}}",
     critical: false,
   },
+  /**
+   * ───────────────────────── Partner messages ─────────────────────────
+   *
+   * The partner console is a phone product before it is a desk product, and
+   * for a large share of this supply base WhatsApp *is* the product. These are
+   * the messages that make it work when nobody opens the app.
+   */
+
+  /**
+   * The evening agenda — the single most useful message Ciao sends anyone.
+   *
+   * It goes out the night before rather than the morning of, because the
+   * decisions it changes (buy the flowers, charge the batteries, tell the
+   * driver) are made the night before. It carries the whole day in the message
+   * body rather than only a link, since the point is that it is useful with no
+   * signal and no data left on the bundle.
+   */
+  partner_daily_agenda: {
+    key: "partner_daily_agenda",
+    ar: "برنامج بكرة ({{date}}):\n{{lines}}\nالتفاصيل: {{link}}",
+    en: "Tomorrow ({{date}}):\n{{lines}}\nDetails: {{link}}",
+    smsAr: "تشاو — بكرة: {{summary}}. {{link}}",
+    critical: false,
+  },
+  /** A quote the partner sent has been accepted. Their day just changed. */
+  partner_quote_accepted: {
+    key: "partner_quote_accepted",
+    ar: "قُبل عرضك {{code}} ({{total}} د.ل){{when}} — أضفناه لبرنامجك وحجزنا اليوم في تقويمك: {{link}}",
+    en: "Your quote {{code}} was accepted ({{total}} LYD){{when}} — it's in your diary and the day is held: {{link}}",
+    critical: false,
+  },
+  /**
+   * The security alert. It goes to the number *on record before* the change,
+   * which is the only channel that reaches the real owner if the account has
+   * been taken over — so it is critical priority and ignores quiet hours. A
+   * payout redirect at 2am is exactly when this needs to arrive.
+   */
+  partner_payout_account_changed: {
+    key: "partner_payout_account_changed",
+    ar: "تنبيه أمان: طُلب تغيير حساب استلام أموالك إلى {{ref}}. يسري بعد {{hours}} ساعة. إن لم تكن أنت، أوقفه فورًا: {{link}}",
+    en: "Security alert: a request was made to change your payout account to {{ref}}. It takes effect in {{hours}} hours. If this wasn't you, stop it now: {{link}}",
+    critical: true,
+  },
+  /** The free season is running out — said plainly, well before it does. */
+  partner_plus_trial_ending: {
+    key: "partner_plus_trial_ending",
+    ar: "موسمك المجاني في تشاو بلس ينتهي بعد {{days}} يوم. بعدها {{price}} د.ل شهريًا تُخصم من مستحقاتك، وأرقامك الخاصة تبقى مجانية دائمًا: {{link}}",
+    en: "Your free season of Ciao Plus ends in {{days}} days. After that it's {{price}} LYD a month, taken from your payouts — your own numbers stay free forever: {{link}}",
+    critical: false,
+  },
   calendar_attestation: {
     key: "calendar_attestation",
     ar: "تشاو الأسبوعي: هل عندك حجوزات خارج المنصة نحجبها من التقويم؟ رد بالتواريخ أو اضغط: {{link}}",

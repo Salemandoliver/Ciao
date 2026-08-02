@@ -129,7 +129,16 @@ self.addEventListener("fetch", (event) => {
   const isVoucherData =
     url.pathname.startsWith("/v1/bookings/") || url.pathname === "/v1/my/bookings";
   const isVoucherPage = url.pathname.startsWith("/booking/");
-  if (isVoucherData || isVoucherPage) {
+  /*
+   * A partner's agenda gets the same treatment as a guest's voucher, and for
+   * the same reason: it is the thing they need at the worst moment. A make-up
+   * artist standing outside a house at seven in the morning during a power cut
+   * needs to know whose house it is, and "check your connection" is not an
+   * answer. Network-first so the day is current whenever there is signal;
+   * cache-backed so the last good copy is there when there is not.
+   */
+  const isAgendaData = url.pathname === "/v1/partner/agenda";
+  if (isVoucherData || isVoucherPage || isAgendaData) {
     event.respondWith(networkFirst(request, DATA_CACHE));
     return;
   }

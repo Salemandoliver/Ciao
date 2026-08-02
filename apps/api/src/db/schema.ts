@@ -1041,6 +1041,366 @@ export const platformSettings = pgTable("platform_settings", {
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
 
+/**
+ * ─────────────────────── The partner control panel ───────────────────────
+ *
+ * Everything below belongs to the people who supply this marketplace: the man
+ * with six chalets in Janzour, the hall on Airport Road, the make-up artist
+ * who does four brides on a Thursday morning.
+ *
+ * The governing decision, and the reason these tables exist at all: **a
+ * partner manages their whole book here, not just the part Ciao brought
+ * them.** Almost none of them has a booking system today — the calendar is a
+ * notebook, the diary is a WhatsApp thread, and the accounts receivable is
+ * what they can remember. A console that only showed Ciao's bookings would be
+ * a commission statement, and nobody opens a commission statement. A console
+ * that holds the whole diary is the tool they run their business from, and
+ * they will open it every morning.
+ *
+ * Three things follow from that, and each one is worth more than the feature
+ * that produced it:
+ *
+ *  1. **It is the onboarding argument.** We are not asking a photographer to
+ *     pay us 10% for leads. We are handing her a business system that is
+ *     better than her notebook, free, and mentioning that it also brings
+ *     customers.
+ *  2. **It closes pitfall #2 — the ghost calendar** (§7.2). Off-platform
+ *     bookings are the single largest cause of double-booking in this market,
+ *     and no amount of weekly "please attest your calendar" nagging fixes
+ *     that. Giving the partner a reason to record the off-platform job — she
+ *     wants it in her own diary — blocks the date on Ciao as a side effect.
+ *  3. **It is the market dataset** (§13.9). Real prices, real occupancy, real
+ *     demand across both books, which nobody in Libya has.
+ *
+ * The promise that makes it work has to be kept absolutely: a direct job is
+ * hers. Ciao charges no commission on it, never contacts the customer, and
+ * never markets to them. The moment we monetise the diary, the diary empties.
+ */
+
+/**
+ * Business-level settings for a partner — the things that are true about how
+ * they work rather than about any single job.
+ *
+ * Keyed on the user because in this market the business *is* the person: Haj
+ * Mustafa's six chalets are not a company, and asking him to create an
+ * "organisation" before he can see his bookings would lose him at the first
+ * screen. Halls that genuinely have staff get that through `partnerTeam`.
+ */
+export const partnerProfiles = pgTable("partner_profiles", {
+  userId: uuid("user_id").primaryKey().references(() => users.id),
+  businessNameAr: text("business_name_ar"),
+  businessNameEn: text("business_name_en"),
+  /**
+   * Which shape of business this is. It changes the whole console: a chalet
+   * thinks in nights, a hall thinks in sessions on a date, a make-up artist
+   * thinks in appointments with a travel time between them. One console that
+   * pretends all three are the same would be wrong for all three.
+   */
+  kind: varchar("kind", { length: 8 }).notNull().default("venue"), // venue|hall|service
+
+  /** ISO day numbers (1=Mon … 7=Sun) the business works. Empty = every day. */
+  workingDays: jsonb("working_days").notNull().default(sql`'[]'::jsonb`),
+  /** { from: "09:00", to: "18:00" } — display and agenda only, not enforced. */
+  workingHours: jsonb("working_hours"),
+  /**
+   * How much warning they need. A chalet can take a booking for tonight; a
+   * caterer cooking for 300 cannot, and a request that arrives too late is
+   * worse than no request because refusing it costs them a reliability strike.
+   */
+  noticeHours: integer("notice_hours").notNull().default(0),
+  /**
+   * How many jobs fit in a day. A chalet is 1. A make-up artist is 3 or 4, and
+   * the difference is the whole reason her calendar cannot be a day grid of
+   * open/closed like a venue's.
+   */
+  maxJobsPerDay: integer("max_jobs_per_day").notNull().default(1),
+
+  /** Service providers who travel to the customer, and what they charge for it. */
+  travelsToClient: boolean("travels_to_client").notNull().default(false),
+  travelFee: money("travel_fee").notNull().default(0),
+  serviceAreas: jsonb("service_areas").notNull().default(sql`'[]'::jsonb`),
+
+  /** Their own deposit policy on direct work. Ciao's rate governs Ciao bookings. */
+  defaultDepositBps: integer("default_deposit_bps").notNull().default(2000),
+
+  /**
+   * The daily agenda message — the feature that makes this a phone product
+   * rather than an office product. Sent the evening before, over the same
+   * channel ladder as everything else, so it survives a power cut.
+   */
+  agendaEnabled: boolean("agenda_enabled").notNull().default(true),
+  /** Hour (Africa/Tripoli) the agenda goes out the evening before. */
+  agendaHour: integer("agenda_hour").notNull().default(18),
+  locale: varchar("locale", { length: 5 }).notNull().default("ar"),
+  onboardedAt: ts("onboarded_at"),
+  createdAt: now(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * The partner's own customer book. **Theirs, not ours.**
+ *
+ * We are the processor here, not the controller: these are contacts the
+ * partner typed in about people who are their customers, often long before
+ * Ciao existed. So the rules are strict and they are product rules, not just
+ * policy text — Ciao never markets to a row in this table, never folds it into
+ * the intelligence layer beyond counts, and any staff access is audited with a
+ * reason attached (see `partner/service.ts`).
+ *
+ * `ciaoUserId` is set only when the partner's client is demonstrably an
+ * existing Ciao member — matched on the normalized phone at write time. It
+ * exists so "she has booked with me four times" is true across both books,
+ * which is the number a partner most wants and can least easily keep.
+ */
+export const partnerClients = pgTable(
+  "partner_clients",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    nameAr: text("name_ar").notNull(),
+    phone: varchar("phone", { length: 20 }),
+    ciaoUserId: uuid("ciao_user_id").references(() => users.id),
+    notesAr: text("notes_ar"),
+    /** Caches, so the client list does not fan out into a query per row. */
+    jobsCount: integer("jobs_count").notNull().default(0),
+    totalSpend: money("total_spend").notNull().default(0),
+    lastJobAt: ts("last_job_at"),
+    createdAt: now(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("partner_clients_partner_idx").on(t.partnerId, t.lastJobAt),
+    // One row per person per partner, so re-entering a returning customer
+    // updates the history instead of splitting it in two.
+    uniqueIndex("partner_clients_phone_uq").on(t.partnerId, t.phone),
+  ],
+);
+
+/**
+ * A job — one piece of work on one day.
+ *
+ * This is the unified record the whole console is built on, and it deliberately
+ * spans both books:
+ *
+ *  - `bookingId` set → this job mirrors a Ciao booking. The booking is the
+ *    truth for money and state; the job carries the partner's own notes and
+ *    keeps it visible in one diary. State changes still go through the booking
+ *    state machine, never through here — the console is a better set of hands
+ *    on the same machine (§9.3).
+ *  - `bookingId` null → a direct job the partner entered. Ciao takes nothing,
+ *    knows nothing about the customer beyond what the partner typed, and the
+ *    partner owns every field.
+ *
+ * `blocksCalendar` defaults true because that is the entire point: recording
+ * Thursday's wedding in the diary is what stops Ciao selling Thursday.
+ */
+export const partnerJobs = pgTable(
+  "partner_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    listingId: uuid("listing_id").references(() => listings.id),
+    bookingId: uuid("booking_id").references(() => bookings.id),
+    clientId: uuid("client_id").references(() => partnerClients.id),
+    /** Where the work came from — the number that tells a partner what Ciao is worth. */
+    source: varchar("source", { length: 12 }).notNull().default("direct"),
+    // ciao|whatsapp|phone|walk_in|instagram|facebook|repeat|direct|other
+    kind: varchar("kind", { length: 12 }).notNull().default("event"),
+    // stay|day_use|event|session|appointment|visit
+    titleAr: text("title_ar").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    /** Null for a one-day job. Inclusive of the last night for a stay. */
+    endDay: date("end_day", { mode: "string" }),
+    session: varchar("session", { length: 16 }).notNull().default("night"),
+    startTime: varchar("start_time", { length: 5 }), // "16:30", local
+    endTime: varchar("end_time", { length: 5 }),
+    status: varchar("status", { length: 12 }).notNull().default("confirmed"),
+    // enquiry|quoted|confirmed|done|cancelled|no_show
+    /** Partner-entered money on direct jobs; mirrored from the booking on Ciao ones. */
+    price: money("price").notNull().default(0),
+    amountPaid: money("amount_paid").notNull().default(0),
+    locationAr: text("location_ar"),
+    notesAr: text("notes_ar"),
+    blocksCalendar: boolean("blocks_calendar").notNull().default(true),
+    completedAt: ts("completed_at"),
+    cancelledAt: ts("cancelled_at"),
+    createdById: uuid("created_by_id").references(() => users.id),
+    createdAt: now(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("partner_jobs_partner_day_idx").on(t.partnerId, t.day),
+    index("partner_jobs_client_idx").on(t.clientId),
+    // A Ciao booking mirrors into exactly one job, so the sync is idempotent
+    // however many times a webhook or a worker replays it.
+    uniqueIndex("partner_jobs_booking_uq").on(t.bookingId),
+  ],
+);
+
+/**
+ * Quotes — the single most useful thing this console gives a service provider.
+ *
+ * A photographer's real workflow is enquiry → quote → deposit → shoot →
+ * delivery, and today the quote is a voice note or a screenshot of a note-app
+ * page. It gets misremembered, it gets renegotiated at the door, and it is
+ * unenforceable. A quote with priced lines, a validity date and a link that
+ * unfurls properly in WhatsApp is a professional posture no competitor in this
+ * market offers, and it costs us nothing but the table.
+ *
+ * `code` is public and shareable: the customer opens it without an account,
+ * because requiring one at this point would kill the send.
+ */
+export const partnerQuotes = pgTable(
+  "partner_quotes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 12 }).notNull(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    clientId: uuid("client_id").references(() => partnerClients.id),
+    listingId: uuid("listing_id").references(() => listings.id),
+    titleAr: text("title_ar").notNull(),
+    /** [{ labelAr, qty, unitPrice, total }] — priced lines, comparable rows. */
+    lineItems: jsonb("line_items").notNull().default(sql`'[]'::jsonb`),
+    subtotal: money("subtotal").notNull().default(0),
+    discount: money("discount").notNull().default(0),
+    total: money("total").notNull().default(0),
+    depositAmount: money("deposit_amount").notNull().default(0),
+    proposedDay: date("proposed_day", { mode: "string" }),
+    session: varchar("session", { length: 16 }),
+    startTime: varchar("start_time", { length: 5 }),
+    validUntil: date("valid_until", { mode: "string" }),
+    notesAr: text("notes_ar"),
+    termsAr: text("terms_ar"),
+    status: varchar("status", { length: 10 }).notNull().default("draft"),
+    // draft|sent|accepted|declined|expired|withdrawn
+    /**
+     * Whether the customer opened it, and when they last did. A partner
+     * chasing a quote wants to know the difference between "she hasn't seen
+     * it" and "she's seen it three times and hasn't answered" — those are two
+     * different conversations.
+     */
+    viewCount: integer("view_count").notNull().default(0),
+    lastViewedAt: ts("last_viewed_at"),
+    sentAt: ts("sent_at"),
+    respondedAt: ts("responded_at"),
+    jobId: uuid("job_id").references(() => partnerJobs.id),
+    createdById: uuid("created_by_id").references(() => users.id),
+    createdAt: now(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("partner_quotes_code_uq").on(t.code),
+    index("partner_quotes_partner_idx").on(t.partnerId, t.createdAt),
+  ],
+);
+
+/**
+ * Team members.
+ *
+ * A hall has staff; a resort has a manager; the owner is often not the person
+ * holding the phone at 9pm. Without this the only way to let a manager confirm
+ * bookings is to hand them the owner's login — which is what happens today,
+ * and it is why "who cancelled that booking" is unanswerable in this market.
+ *
+ * The role split is drawn where the money is:
+ *  - `owner`   — everything, including where payouts go and who is on the team.
+ *  - `manager` — the diary, the calendar, quotes, clients, earnings summary.
+ *                Not the payout destination, not the team, not the plan.
+ *  - `staff`   — today's work and the calendar. No money screens at all.
+ *
+ * Staff can still see a client's phone number for a job they are working,
+ * because otherwise they cannot ring the customer who is late, which is the
+ * job. They cannot see the client list or what anything earned.
+ */
+export const partnerTeam = pgTable(
+  "partner_team",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    memberUserId: uuid("member_user_id").notNull().references(() => users.id),
+    role: varchar("role", { length: 8 }).notNull().default("staff"), // owner|manager|staff
+    invitedById: uuid("invited_by_id").references(() => users.id),
+    disabledAt: ts("disabled_at"),
+    lastSeenAt: ts("last_seen_at"),
+    createdAt: now(),
+  },
+  (t) => [
+    uniqueIndex("partner_team_uq").on(t.partnerId, t.memberUserId),
+    index("partner_team_member_idx").on(t.memberUserId),
+  ],
+);
+
+/**
+ * Where a partner's money goes — and the delay that protects it.
+ *
+ * Account-takeover in a marketplace does not steal the account, it redirects
+ * the payouts, and it is the highest-value attack available against Ciao
+ * because it converts one compromised phone into every future booking's
+ * deposit. So changing the destination is not an ordinary edit:
+ *
+ *  - the new destination sits `pending` until `activatesAt` (a cooling-off
+ *    period the control plane sets, 24h by default),
+ *  - the *previous* channel is notified the moment the change is requested,
+ *    which is the only alert that reaches the real owner if the attacker
+ *    already controls the new one,
+ *  - payouts due in the meantime hold rather than paying to either account.
+ *
+ * The delay is the control. A thief needs the owner not to read a WhatsApp
+ * message for a day, which is a much harder thing to arrange than an OTP.
+ */
+export const partnerPayoutAccounts = pgTable(
+  "partner_payout_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    rail: varchar("rail", { length: 12 }).notNull().default("bank_app"),
+    label: text("label"),
+    /** Masked for display; the full reference is never rendered back to a client. */
+    accountRef: text("account_ref").notNull(),
+    status: varchar("status", { length: 10 }).notNull().default("pending"),
+    // pending|active|cancelled|replaced
+    activatesAt: ts("activates_at"),
+    activatedAt: ts("activated_at"),
+    cancelledAt: ts("cancelled_at"),
+    requestedById: uuid("requested_by_id").references(() => users.id),
+    requestedIp: varchar("requested_ip", { length: 45 }),
+    createdAt: now(),
+  },
+  (t) => [index("partner_payout_accounts_partner_idx").on(t.partnerId, t.status)],
+);
+
+/**
+ * Ciao Plus — the intelligence subscription.
+ *
+ * What is free and what is paid is a deliberate line, not a paywall drawn
+ * wherever it fit: **your own numbers are always free; the market costs
+ * money.** A partner should never have to pay to see how much they earned or
+ * who owes them — charging for that would make the console a hostage
+ * situation, and they would go back to the notebook. What Plus sells is the
+ * thing they genuinely cannot get anywhere else and that costs us real work to
+ * produce honestly: what the rest of the market is doing.
+ *
+ * Settlement is netted from payouts rather than billed to a card, because
+ * recurring card billing does not meaningfully exist in Libya and a monthly
+ * invoice to a chalet owner is a monthly collections problem. Taking it out of
+ * money we already owe them is the only mechanism that actually works here.
+ */
+export const partnerSubscriptions = pgTable("partner_subscriptions", {
+  partnerId: uuid("partner_id").primaryKey().references(() => users.id),
+  plan: varchar("plan", { length: 8 }).notNull().default("free"), // free|plus
+  status: varchar("status", { length: 10 }).notNull().default("none"),
+  // none|trialing|active|past_due|cancelled
+  trialEndsAt: ts("trial_ends_at"),
+  currentPeriodStart: ts("current_period_start"),
+  currentPeriodEnd: ts("current_period_end"),
+  priceDirhams: money("price_dirhams").notNull().default(0),
+  /** How the monthly fee is collected. Netting is the default and the realistic one. */
+  settlement: varchar("settlement", { length: 16 }).notNull().default("payout_netting"),
+  cancelledAt: ts("cancelled_at"),
+  createdAt: now(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
 /** Ops audit log (§13.8). */
 export const auditLog = pgTable(
   "audit_log",

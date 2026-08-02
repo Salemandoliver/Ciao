@@ -155,10 +155,27 @@ for (const theme of ["light", "dark"]) {
     let stillLoading = true;
     for (let i = 0; i < 20 && stillLoading; i++) {
       await page.waitForTimeout(400);
-      stillLoading = await page.evaluate(() => /جارٍ|جاري|Loading…/.test(document.body.innerText));
+      stillLoading = await page.evaluate(() => {
+        const text = document.body.innerText.trim();
+        /*
+         * A Suspense fallback is a loading state too, and the cheapest one to
+         * miss: several screens fall back to a bare "…", which is neither one
+         * of the loading words below nor an empty body. The audit passed a
+         * whole console that way — every page rendered exactly one ellipsis,
+         * one text node, perfect contrast, reported clean. A body this short
+         * has not rendered a screen, whatever it contains.
+         */
+        if (text.length <= 3) return true;
+        return /جارٍ|جاري|Loading…/.test(text);
+      });
     }
     const rows = await page.evaluate(probe);
-    if (status !== 200 || rows.length === 0 || stillLoading) {
+    /*
+     * A floor on text nodes rather than "more than zero", for the same reason:
+     * a fallback, a spinner or a bare error line clears one node easily, and a
+     * real screen in this app never renders fewer than a handful.
+     */
+    if (status !== 200 || rows.length < 4 || stillLoading) {
       failures += 1;
       console.log(
         `\n### ${theme} ${path} — DID NOT RENDER (http ${status}, ${rows.length} text nodes` +
