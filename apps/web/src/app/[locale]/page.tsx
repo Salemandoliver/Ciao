@@ -3,6 +3,7 @@ import { Logo } from "@/components/logo";
 import { ListingCard } from "@/components/listing-card";
 import { HeroSearch } from "@/components/hero-search";
 import { HeroRotator, type HeroImage } from "@/components/hero-rotator";
+import { Greeting } from "@/components/greeting";
 import { RecsStrip } from "@/components/recs";
 import { ServiceTiles } from "@/components/service-tiles";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -150,6 +151,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <LanguageToggle />
         </nav>
       </header>
+
+      {/* Signed-in members only, and client-side — the page itself is cached
+          for everyone (§12.3), so it cannot know a name. Renders nothing at
+          all when logged out, which is why it can sit above the hero without
+          moving it. */}
+      <Greeting />
 
       {/* Hero — the «قول تشاو» device (§3.2) over the Tripoli sunset */}
       <section className="card relative overflow-hidden text-white">

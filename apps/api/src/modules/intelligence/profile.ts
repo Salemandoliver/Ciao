@@ -15,7 +15,7 @@
 import { and, asc, eq, gt, isNotNull, sql } from "drizzle-orm";
 import { db, schema } from "../../db/client.js";
 
-export const FOLD_VERSION = 1;
+export const FOLD_VERSION = 2;
 
 export interface Traits {
   v: number;
@@ -34,6 +34,24 @@ export interface Traits {
   weekdayCheckins: number;
   monthCounts: Record<string, number>;
   rfm: { lastEventAt: string | null; bookings: number; gmv: number };
+  /**
+   * Declared traits — what the member told us, kept apart from what we
+   * inferred. The separation is the point: everything above this line is a
+   * guess we made from behaviour and can be wrong about politely; everything
+   * below it is a statement they made on purpose, and it outranks the guess.
+   *
+   * Nothing here is finer-grained than the member would expect. `ageBand` is a
+   * band, never a birth date. `declaredParty` is two counts and a set of
+   * coarse bands, never a family. If a member asked to see their profile, this
+   * is printable without apology — which is the test guardrail 3 sets.
+   */
+  declared: {
+    ageBand: string | null;
+    birthMonth: number | null;
+    party: { adults: number; children: number; bands: string[] } | null;
+    occasionMonths: number[];
+    plannedEventKind: string | null;
+  };
 }
 
 export function emptyTraits(): Traits {
@@ -54,6 +72,13 @@ export function emptyTraits(): Traits {
     weekdayCheckins: 0,
     monthCounts: {},
     rfm: { lastEventAt: null, bookings: 0, gmv: 0 },
+    declared: {
+      ageBand: null,
+      birthMonth: null,
+      party: null,
+      occasionMonths: [],
+      plannedEventKind: null,
+    },
   };
 }
 
@@ -96,6 +121,41 @@ export function foldEvent(t: Traits, e: EventRow): Traits {
         t.groupSizeSum += g;
         t.groupSizeCount++;
       }
+      break;
+    }
+    /*
+     * Declared profile events. These fold like any other event so the one
+     * direction of data flow holds — nothing reads user_preferences directly
+     * to personalize, or two consumers would end up with two definitions of
+     * "what we know about this member".
+     */
+    case "profile.birth_date_added": {
+      t.declared.ageBand = typeof p.ageBand === "string" ? p.ageBand : null;
+      const bm = num("birthMonth");
+      t.declared.birthMonth = Number.isFinite(bm) && bm >= 1 && bm <= 12 ? bm : null;
+      break;
+    }
+    case "profile.party_added": {
+      const adults = num("adults");
+      const children = num("children");
+      if (Number.isFinite(adults) && adults > 0) {
+        t.declared.party = {
+          adults,
+          children: Number.isFinite(children) && children > 0 ? children : 0,
+          bands: Array.isArray(p.bands) ? (p.bands as string[]) : [],
+        };
+      }
+      break;
+    }
+    case "profile.occasions_added": {
+      const months = Array.isArray(p.months) ? (p.months as unknown[]) : [];
+      t.declared.occasionMonths = [
+        ...new Set(months.map(Number).filter((m) => Number.isFinite(m) && m >= 1 && m <= 12)),
+      ];
+      break;
+    }
+    case "profile.planned_event_added": {
+      t.declared.plannedEventKind = typeof p.kind === "string" ? p.kind : null;
       break;
     }
     case "listing.viewed":
@@ -242,14 +302,38 @@ export function scoreListing(
       }
     }
 
-    // Group-size fit.
-    if (traits.groupSizeCount > 0 && listing.maxGuests) {
-      const typical = traits.groupSizeSum / traits.groupSizeCount;
-      if (listing.maxGuests >= typical) {
-        score += 5;
-        if (typical >= 8) because.push([5, "يتسع لمجموعتك"]);
+    /*
+     * Group-size fit.
+     *
+     * A declared party outranks an inferred one, and outranks it decisively:
+     * a member who typed "8 adults, 3 children" has told us the answer, while
+     * an average over past searches is a guess that a few browsing sessions
+     * for a couples' weekend can drag off. Stating it also earns a stronger
+     * penalty when a place cannot hold them — showing a family of eleven a
+     * four-person chalet after they told us there are eleven of them is worse
+     * than never having asked.
+     *
+     * Note what child bands are NOT used for here. They size and screen the
+     * property; they never rank *at* a child.
+     */
+    const declaredHeads = traits.declared.party
+      ? traits.declared.party.adults + traits.declared.party.children
+      : null;
+    const typicalGroup =
+      declaredHeads ??
+      (traits.groupSizeCount > 0 ? traits.groupSizeSum / traits.groupSizeCount : null);
+    if (typicalGroup != null && listing.maxGuests) {
+      const stated = declaredHeads != null;
+      if (listing.maxGuests >= typicalGroup) {
+        score += stated ? 9 : 5;
+        if (typicalGroup >= 8 || stated) {
+          because.push([
+            stated ? 9 : 5,
+            stated ? `يتسع لمجموعتكم (${Math.round(typicalGroup)} أشخاص)` : "يتسع لمجموعتك",
+          ]);
+        }
       } else {
-        score -= 8; // too small for their family — actively bad
+        score -= stated ? 14 : 8; // too small for the party they told us about
       }
     }
 

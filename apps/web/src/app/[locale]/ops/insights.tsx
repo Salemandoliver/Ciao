@@ -22,6 +22,17 @@ interface Insights {
   filterUsage: { filter: string; count: number }[];
   leadTimes: { bucket: string; count: number }[];
   repeatRate: { repeaters: number; totalGuests: number };
+  declaredProfiles?: {
+    withBirthDate: number;
+    withParty: number;
+    marketingOptIn: number;
+    total: number;
+    avgPartySize: number;
+    partySizes: { bucket: string; users: number }[];
+    partySizesSuppressedRows: number;
+    birthMonths: { month: number; users: number }[];
+    birthMonthsSuppressedRows: number;
+  };
 }
 
 const copy = {
@@ -35,6 +46,17 @@ const copy = {
       minBedrooms: "🛏 غرف",
       womensCapacity: "👥 سعة نسائية",
     } as Record<string, string>,
+    declaredTitle: "ما أخبرنا به الأعضاء",
+    declaredBirthdays: "أعطونا تاريخ ميلادهم",
+    declaredParty: "أعطونا ملف المجموعة",
+    declaredOptIn: "يقبلون الرسائل التسويقية",
+    declaredAvgParty: "متوسط حجم المجموعة",
+    ofMembers: (total: string) => `من ${total} عضو`,
+    optInNote: "الهدية تصل الجميع، الرسالة لمن وافق",
+    avgPartyNote: "كبار وأطفال معًا",
+    partySizesTitle: "أحجام المجموعات",
+    birthMonthsTitle: "أشهر الميلاد",
+    suppressed: (n: string) => `${n} صف مخفي (أقل من ٣ أعضاء)`,
     loadFailed: "تعذر تحميل لوحة الذكاء",
     loading: "جارٍ تحميل لوحة الذكاء…",
     title: "📊 الذكاء والاتجاهات",
@@ -71,6 +93,17 @@ const copy = {
       minBedrooms: "🛏 Bedrooms",
       womensCapacity: "👥 Women's capacity",
     } as Record<string, string>,
+    declaredTitle: "What members told us",
+    declaredBirthdays: "Gave a date of birth",
+    declaredParty: "Gave a party profile",
+    declaredOptIn: "Accept marketing messages",
+    declaredAvgParty: "Average party size",
+    ofMembers: (total: string) => `of ${total} members`,
+    optInNote: "The gift reaches everyone; the message needs consent",
+    avgPartyNote: "Adults and children together",
+    partySizesTitle: "Party sizes",
+    birthMonthsTitle: "Birth months",
+    suppressed: (n: string) => `${n} row(s) withheld (fewer than 3 members)`,
     loadFailed: "Could not load the intelligence panel",
     loading: "Loading the intelligence panel…",
     title: "📊 Intelligence and trends",
@@ -304,6 +337,79 @@ export function InsightsPanels() {
           </div>
         </div>
       </div>
+
+      {/*
+        Declared profiles.
+        Not a demographic panel — it answers the two operating questions
+        ("can the birthday campaign run yet?" and "what size of party are we
+        actually serving?") and nothing else. Grouped rows are suppressed below
+        three members like every other panel here, and the suppressed count is
+        printed rather than hidden, so a thin month reads as withheld instead
+        of as zero.
+      */}
+      {data.declaredProfiles ? (
+        <div className="card p-4 mt-4">
+          <h2 className="font-bold text-sea mb-3">{c.declaredTitle}</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <Tile
+              label={c.declaredBirthdays}
+              value={fmtNum(locale, data.declaredProfiles.withBirthDate)}
+              sub={c.ofMembers(fmtNum(locale, data.declaredProfiles.total))}
+            />
+            <Tile
+              label={c.declaredParty}
+              value={fmtNum(locale, data.declaredProfiles.withParty)}
+              sub={c.ofMembers(fmtNum(locale, data.declaredProfiles.total))}
+            />
+            <Tile
+              label={c.declaredOptIn}
+              value={fmtNum(locale, data.declaredProfiles.marketingOptIn)}
+              sub={c.optInNote}
+            />
+            <Tile
+              label={c.declaredAvgParty}
+              value={String(data.declaredProfiles.avgPartySize || "—")}
+              sub={c.avgPartyNote}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <h3 className="font-bold text-sea text-sm mb-2">{c.partySizesTitle}</h3>
+              <Bars
+                data={data.declaredProfiles.partySizes.map((r) => ({
+                  label: r.bucket,
+                  value: r.users,
+                }))}
+              />
+              {data.declaredProfiles.partySizesSuppressedRows > 0 ? (
+                <p className="text-[11px] text-faint mt-2">
+                  {c.suppressed(
+                    fmtNum(locale, data.declaredProfiles.partySizesSuppressedRows),
+                  )}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <h3 className="font-bold text-sea text-sm mb-2">{c.birthMonthsTitle}</h3>
+              <Bars
+                data={data.declaredProfiles.birthMonths.map((r) => ({
+                  // `months` is 1-indexed with a blank at 0 so month numbers
+                  // read straight through — no off-by-one to remember.
+                  label: c.months[r.month] ?? String(r.month),
+                  value: r.users,
+                }))}
+              />
+              {data.declaredProfiles.birthMonthsSuppressedRows > 0 ? (
+                <p className="text-[11px] text-faint mt-2">
+                  {c.suppressed(
+                    fmtNum(locale, data.declaredProfiles.birthMonthsSuppressedRows),
+                  )}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

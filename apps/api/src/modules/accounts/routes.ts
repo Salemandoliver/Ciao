@@ -17,6 +17,36 @@
  */
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import {
+  ProfileInputError,
+  readProfile,
+  saveProfile,
+} from "./profile.js";
+import {
+  CHILD_BANDS,
+  MAX_PARTY_ADULTS,
+  MAX_PARTY_CHILDREN,
+  MIN_AGE_YEARS,
+  OCCASION_KINDS,
+  PLANNED_EVENT_KINDS,
+  type BirthDateProblem,
+} from "./profile-data.js";
+
+/** Why a birth date was refused, in words a member can act on. */
+const BIRTH_DATE_MESSAGES: Record<"ar" | "en", Record<BirthDateProblem, string>> = {
+  ar: {
+    malformed: "التاريخ غير صحيح — اكتبه بصيغة يوم/شهر/سنة.",
+    future: "تاريخ الميلاد لا يمكن أن يكون في المستقبل.",
+    under_age: `الحجز في تشاو عقد يشمل عربونًا وعنوان المضيف، ولذلك يلزم أن يكون عمرك ${MIN_AGE_YEARS} سنة فأكثر. يمكن لأحد والديك الحجز نيابة عنك.`,
+    implausible: "تأكد من سنة الميلاد — يبدو أن بها خطأ.",
+  },
+  en: {
+    malformed: "That date doesn't look right — enter it as day/month/year.",
+    future: "A date of birth can't be in the future.",
+    under_age: `Booking on Ciao is a contract involving a deposit and a host's address, so you need to be ${MIN_AGE_YEARS} or over. A parent can book on your behalf.`,
+    implausible: "Please check the year — it looks like a typo.",
+  },
+};
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { db, schema } from "../../db/client.js";
@@ -142,6 +172,11 @@ export async function accountRoutes(app: FastifyInstance) {
       },
       passkeys: passkeys.length,
       unreadMessages: Number(unread[0]?.n ?? 0),
+      // Declared profile — birth date, party shape, occasions. Returned in
+      // full to its owner: everything we hold about their household should be
+      // visible to them on one screen, which is also the design constraint
+      // that keeps us from holding more than belongs there.
+      profile: await readProfile(claims.sub),
     });
   });
 
@@ -160,6 +195,74 @@ export async function accountRoutes(app: FastifyInstance) {
       .set({ ...body, updatedAt: new Date() })
       .where(eq(schema.users.id, claims.sub));
     return reply.send({ ok: true });
+  });
+
+  /**
+   * The declared profile — date of birth, who usually travels with you, the
+   * months that matter.
+   *
+   * Every field is optional and every field pays. That is deliberate: a
+   * required date of birth on a phone-first signup returns 01/01/1990 in bulk,
+   * and a birthday campaign that fires on one day for a third of the base is
+   * worse than none, because it is visibly fake. Points buy true answers;
+   * mandatory fields buy filled boxes.
+   *
+   * What this endpoint will not accept is as important as what it will. There
+   * is no field for a spouse, a child's name, a gender or an exact age — see
+   * profile-data.ts for why a party profile is the right shape and a family
+   * register is not.
+   */
+  app.patch("/v1/me/declared-profile", async (req, reply) => {
+    const claims = await authenticate(req);
+    const body = z
+      .object({
+        birthDate: z.string().max(10).nullable().optional(),
+        party: z
+          .object({
+            adults: z.number().int().min(1).max(MAX_PARTY_ADULTS),
+            children: z.number().int().min(0).max(MAX_PARTY_CHILDREN).optional(),
+            bands: z.array(z.enum(CHILD_BANDS)).max(3).optional(),
+          })
+          .nullable()
+          .optional(),
+        occasions: z
+          .array(z.object({ kind: z.enum(OCCASION_KINDS), month: z.number().int().min(1).max(12) }))
+          .max(6)
+          .optional(),
+        plannedEvent: z
+          .object({
+            kind: z.enum(PLANNED_EVENT_KINDS),
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          })
+          .nullable()
+          .optional(),
+      })
+      .parse(req.body);
+
+    try {
+      const result = await saveProfile(claims.sub, body);
+      return reply.send(result);
+    } catch (e) {
+      if (e instanceof ProfileInputError) {
+        // Under-age is a real refusal with a real reason, not a validation
+        // shrug — the message has to explain itself or the person just retypes
+        // the same date. And it answers in the language of the request, like
+        // every other error here: an English reader hitting an Arabic-only
+        // refusal is stuck at exactly the point they most need to understand.
+        const locale = (req.headers["accept-language"] ?? "ar").startsWith("en") ? "en" : "ar";
+        return reply.status(422).send({
+          error: {
+            code: "CIAO-4001",
+            message: BIRTH_DATE_MESSAGES[locale][e.problem],
+            messageAr: BIRTH_DATE_MESSAGES.ar[e.problem],
+            messageEn: BIRTH_DATE_MESSAGES.en[e.problem],
+            field: "birthDate",
+            problem: e.problem,
+          },
+        });
+      }
+      throw e;
+    }
   });
 
   /**

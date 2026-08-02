@@ -63,6 +63,9 @@ const EARN_KEYS = [
   "review_written",
   "referral_qualified",
   "referred_welcome",
+  "birth_date_added",
+  "party_profile_added",
+  "birthday_gift",
 ];
 
 /** Partner categories offered when adding one. */
@@ -76,6 +79,9 @@ const copy = {
       stay_completed: "إتمام إقامة",
       review_written: "كتابة تقييم",
       referral_qualified: "دعوة أثمرت حجزًا",
+      birth_date_added: "إضافة تاريخ الميلاد",
+      party_profile_added: "إضافة ملف المجموعة",
+      birthday_gift: "هدية عيد الميلاد (سنويًا)",
       referred_welcome: "ترحيب بمدعو",
     } as Record<string, string>,
     reason: {
@@ -166,6 +172,9 @@ const copy = {
       stay_completed: "Completing a stay",
       review_written: "Writing a review",
       referral_qualified: "An invite that led to a booking",
+      birth_date_added: "Adding a date of birth",
+      party_profile_added: "Adding a party profile",
+      birthday_gift: "Birthday gift (yearly)",
       referred_welcome: "Welcome for an invited member",
     } as Record<string, string>,
     reason: {

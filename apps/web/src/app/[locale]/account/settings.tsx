@@ -12,10 +12,11 @@
  */
 import { useEffect, useState } from "react";
 import NextLink from "next/link";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, rememberDisplayName } from "@/lib/api";
 import { useBarePath, useLocale } from "@/lib/locale";
 import { localePath, LOCALES, type Locale } from "@/lib/i18n";
-import { AREAS, PAYMENT_RAILS, term } from "@/lib/vocab";
+import { AREAS, PAYMENT_RAILS, UI, term } from "@/lib/vocab";
+import { ProfileFields } from "./profile";
 import type { AccountData } from "./page";
 
 /** The rails a guest can be defaulted to; labels live in the shared vocab. */
@@ -50,7 +51,11 @@ const copy = {
     inApp: "داخل التطبيق",
     inAppHint: "نسخة محفوظة من كل رسالة",
     marketing: "العروض والتخفيضات",
-    marketingHint: "اختياري تمامًا — تأكيدات حجزك تصلك دائمًا بغض النظر",
+    // The birthday line is here as well as on the birth-date field: this is
+    // the toggle someone reaches for when they wonder what saying "no" costs
+    // them, and the honest answer is «لا شيء».
+    marketingHint:
+      "اختياري تمامًا — تأكيدات حجزك ونقاط عيد ميلادك تصلك دائمًا بغض النظر، الموافقة للرسالة نفسها فقط",
     earlyAccess: "الإعلان المبكر عن الأماكن الجديدة",
     earlyAccessHint: "نخبرك قبل غيرك حين نعتمد مكانًا في مناطقك المفضّلة",
     areas: "مناطقك المفضّلة",
@@ -62,6 +67,11 @@ const copy = {
     verifiedBtn: "موثّق",
     sendVerification: "أرسل التوثيق",
     devLink: "رابط التوثيق (وضع تجريبي) ←",
+    nameTitle: "اسمك",
+    nameIntro:
+      "نستعمله للتحية فقط. الضيوف الآخرون والمضيفون يشوفون الأحرف الأولى من اسمك، لا الاسم كاملًا.",
+    namePlaceholder: "اسمك",
+    nameSaved: "تم حفظ اسمك ✅",
     yourData: "بياناتك",
     yourDataBody:
       "نتعلّم من استخدامك داخل التطبيق فقط. لا نشتري بياناتك ولا نجمع حساباتك على مواقع التواصل، ولا نبيعها لأي جهة.",
@@ -88,7 +98,8 @@ const copy = {
     inApp: "In the app",
     inAppHint: "A saved copy of every message",
     marketing: "Offers and discounts",
-    marketingHint: "Entirely optional — your booking confirmations reach you either way",
+    marketingHint:
+      "Entirely optional — your booking confirmations and your birthday points reach you either way; only the message itself needs your permission",
     earlyAccess: "Early word on new places",
     earlyAccessHint:
       "We tell you before anyone else when we approve a place in your favourite areas",
@@ -103,6 +114,11 @@ const copy = {
     verifiedBtn: "Verified",
     sendVerification: "Send verification",
     devLink: "Verification link (demo mode) →",
+    nameTitle: "Your name",
+    nameIntro:
+      "Only used to greet you. Other guests and hosts see your initials, never your full name.",
+    namePlaceholder: "Your name",
+    nameSaved: "Saved ✅",
     yourData: "Your data",
     yourDataBody:
       "We learn from how you use the app, and nothing else. We do not buy data about you, we do not gather your social accounts, and we do not sell anything to anyone.",
@@ -122,6 +138,7 @@ export function SettingsTab({
   const bare = useBarePath();
   const [prefs, setPrefs] = useState(data.preferences);
   const [email, setEmail] = useState(data.email ?? "");
+  const [name, setName] = useState(data.displayName ?? "");
   const [msg, setMsg] = useState("");
   const [devLink, setDevLink] = useState("");
   const [busy, setBusy] = useState(false);
@@ -155,6 +172,26 @@ export function SettingsTab({
       await onChange();
     } catch {
       setMsg(c.saveFailed);
+    }
+  }
+
+  /** The name is only ever what the member typed — never their phone number. */
+  async function saveName() {
+    setBusy(true);
+    setMsg("");
+    try {
+      await api("/v1/me/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ displayName: name.trim() }),
+      });
+      // Keep the home-page greeting in step without it having to re-fetch.
+      rememberDisplayName(name.trim());
+      setMsg(c.nameSaved);
+      await onChange();
+    } catch {
+      setMsg(c.saveFailed);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -200,6 +237,37 @@ export function SettingsTab({
   return (
     <div className="space-y-3">
       {msg ? <p className="text-sm font-bold text-sea">{msg}</p> : null}
+
+      {/*
+        "About you" leads, because it is where the prompt on the overview
+        sends people and where someone goes to take something back. The name
+        sits above the declared profile for the same reason the greeting asks
+        for it: it is the one field that changes how the app talks to you.
+      */}
+      <Card title={c.nameTitle}>
+        <p className="text-xs text-faint mb-2">{c.nameIntro}</p>
+        <div className="flex gap-2">
+          <input
+            className="input !py-2 !text-sm"
+            placeholder={c.namePlaceholder}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button
+            className="chip shrink-0"
+            onClick={saveName}
+            disabled={busy || name.trim().length < 2 || name.trim() === data.displayName}
+          >
+            {UI[locale].save}
+          </button>
+        </div>
+      </Card>
+
+      <ProfileFields
+        profile={data.profile ?? null}
+        rules={data.loyalty.rules}
+        onChange={onChange}
+      />
 
       <Card title={c.langAndLook}>
         {/*

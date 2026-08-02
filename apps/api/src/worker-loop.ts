@@ -21,7 +21,7 @@ const MAX_ATTEMPTS = 5;
 
 /** Ensure the recurring intelligence jobs exist (idempotent, called on boot). */
 export async function ensureRecurringJobs(): Promise<void> {
-  for (const kind of ["profile_fold", "events_prune", "loyalty_sweep"]) {
+  for (const kind of ["profile_fold", "events_prune", "loyalty_sweep", "birthday_campaign"]) {
     const [pending] = await db
       .select({ id: schema.scheduledJobs.id })
       .from(schema.scheduledJobs)
@@ -241,6 +241,33 @@ async function handle(job: Job): Promise<void> {
         kind: "loyalty_sweep",
         refId: null,
         runAt: new Date(Date.now() + 3600 * 1000), // hourly: vouchers live ~30min
+      }).onConflictDoNothing();
+      break;
+    }
+    case "birthday_campaign": {
+      /**
+       * Runs daily. The points are a loyalty benefit and go out regardless of
+       * marketing consent; the message is marketing and does not — see
+       * runBirthdayCampaign for why those are separate decisions.
+       *
+       * Re-arms for 06:00 Tripoli rather than "24h from now", so the gift and
+       * the note arrive at a civil hour instead of drifting into the night as
+       * the worker restarts. Libya is UTC+2 year-round with no DST, which is
+       * why this can be a constant offset and not a timezone library.
+       */
+      const { runBirthdayCampaign } = await import("./modules/accounts/profile.js");
+      const result = await runBirthdayCampaign();
+      if (result.awarded)
+        console.log(
+          `birthday campaign: ${result.awarded} gifts awarded, ${result.messaged} notes sent`,
+        );
+      const next = new Date();
+      next.setUTCHours(4, 0, 0, 0); // 06:00 in Tripoli
+      if (next.getTime() <= Date.now()) next.setUTCDate(next.getUTCDate() + 1);
+      await db.insert(schema.scheduledJobs).values({
+        kind: "birthday_campaign",
+        refId: null,
+        runAt: next,
       }).onConflictDoNothing();
       break;
     }

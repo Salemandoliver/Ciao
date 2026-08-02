@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Link, useLocale, useRouter } from "@/lib/locale";
 import { Logo } from "@/components/logo";
 import { LanguageToggle } from "@/components/language-toggle";
-import { api, setTokens, ApiError } from "@/lib/api";
+import { api, setTokens, rememberDisplayName, ApiError } from "@/lib/api";
 import type { Locale } from "@/lib/i18n";
 
 const copy = {
@@ -42,6 +42,13 @@ const copy = {
   },
 } satisfies Record<Locale, unknown>;
 
+/** Both sign-in paths answer with the same envelope. */
+interface AuthResult {
+  accessToken: string;
+  refreshToken: string;
+  user?: { displayName: string | null };
+}
+
 function LoginForm() {
   const locale = useLocale();
   const c = copy[locale];
@@ -77,11 +84,12 @@ function LoginForm() {
         body: JSON.stringify({}),
       });
       const response = await startAuthentication({ optionsJSON: options as never });
-      const r = await api<{ accessToken: string; refreshToken: string }>(
-        "/v1/auth/passkey/verify",
-        { method: "POST", body: JSON.stringify({ response }) },
-      );
+      const r = await api<AuthResult>("/v1/auth/passkey/verify", {
+        method: "POST",
+        body: JSON.stringify({ response }),
+      });
       setTokens(r.accessToken, r.refreshToken);
+      rememberDisplayName(r.user?.displayName);
       // `next` stays a bare path — the wrapped router puts the language on.
       router.push(next);
     } catch (e) {
@@ -113,11 +121,13 @@ function LoginForm() {
     setBusy(true);
     setError("");
     try {
-      const r = await api<{ accessToken: string; refreshToken: string }>(
-        "/v1/auth/otp/verify",
-        { method: "POST", body: JSON.stringify({ phone, code }) },
-      );
+      const r = await api<AuthResult>("/v1/auth/otp/verify", {
+        method: "POST",
+        body: JSON.stringify({ phone, code }),
+      });
       setTokens(r.accessToken, r.refreshToken);
+      // Kept for the greeting on the home page, so it does not cost a request.
+      rememberDisplayName(r.user?.displayName);
       router.push(next);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : c.wrongCode);

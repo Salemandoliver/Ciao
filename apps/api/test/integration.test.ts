@@ -247,7 +247,26 @@ describe("happy path (§6.1)", () => {
       .from(schema.payouts)
       .where(eq(schema.payouts.bookingId, b.bookingId));
     expect(payout).toBeTruthy();
-    expect(payout!.amount).toBe(b.deposit - 180_000); // deposit minus 10% commission
+    /*
+     * Assert the invariant, not a magic number.
+     *
+     * This used to expect `deposit - 180_000`, which quietly assumed the
+     * booking totalled exactly 1,800,000 dirhams. But the dates here are
+     * relative to today, and nightly pricing has a weekend rate — so the total
+     * (and with it the commission) changes depending on which weekday
+     * `future(30)` happens to land on. The test passed for weeks and then
+     * started failing on its own, with nothing having changed but the date.
+     *
+     * What §10.3 actually promises is that the host is paid the deposit less
+     * our commission, and that the commission is 10% of the booking. Both of
+     * those are checkable without knowing what day it is.
+     */
+    const [bookingRow] = await db
+      .select({ total: schema.bookings.totalAmount, commission: schema.bookings.commissionAmount })
+      .from(schema.bookings)
+      .where(eq(schema.bookings.id, b.bookingId));
+    expect(bookingRow!.commission).toBe(Math.round(bookingRow!.total * 0.1));
+    expect(payout!.amount).toBe(b.deposit - bookingRow!.commission);
     expect(payout!.releaseAfter.getTime()).toBeGreaterThan(Date.now());
 
     // Calendar days booked.

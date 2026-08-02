@@ -75,6 +75,31 @@ export const TEMPLATES: Record<string, MessageTemplate> = {
     en: "A refund of {{amount}} LYD was issued for {{code}} ({{method}}). Details: {{link}}",
     critical: true,
   },
+  /**
+   * The birthday note.
+   *
+   * Marketing, not service — it only sends to members who opted in, and the
+   * points land whether or not it does. Short, no hard sell, and it names the
+   * gift so the message is worth having rather than being an advert wearing a
+   * greeting as a disguise.
+   */
+  birthday: {
+    key: "birthday",
+    ar: "كل عام وأنت بخير{{name}} 🎉 أضفنا لك {{points}} نقطة هدية في حسابك بتشاو. صيفك أحلى بإقامة على البحر: {{link}}",
+    en: "Happy birthday{{name}} 🎉 We've added {{points}} reward points to your Ciao account. Somewhere by the sea, perhaps: {{link}}",
+    critical: false,
+  },
+  /**
+   * The occasion nudge — an anniversary or a family birthday whose month the
+   * member told us. Month-level only, so it says "this month", never a date we
+   * were never given.
+   */
+  occasion_nudge: {
+    key: "occasion_nudge",
+    ar: "عندك مناسبة هذا الشهر 🎈 اخترنا لك أماكن تناسبها — احجز مبكرًا فالتواريخ الحلوة تُحجز أولًا: {{link}}",
+    en: "You have an occasion this month 🎈 We've picked places that suit it — book early, the good dates go first: {{link}}",
+    critical: false,
+  },
   calendar_attestation: {
     key: "calendar_attestation",
     ar: "تشاو الأسبوعي: هل عندك حجوزات خارج المنصة نحجبها من التقويم؟ رد بالتواريخ أو اضغط: {{link}}",

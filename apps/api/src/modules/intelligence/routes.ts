@@ -197,7 +197,11 @@ export async function intelligenceRoutes(app: FastifyInstance) {
     // Demand map: searches by area (k-anonymity: suppress groups < 5 users).
     const areas = await db
       .select({
-        area: sql<string>`coalesce(${schema.events.props} ->> 'area', ${schema.events.props} ->> 'city', 'الكل')`,
+        // A key, not a label. This used to fall back to the Arabic word for
+        // "all", which then rendered untranslated on the English ops panel —
+        // an aggregation query is the wrong place to decide what language the
+        // reader speaks.
+        area: sql<string>`coalesce(${schema.events.props} ->> 'area', ${schema.events.props} ->> 'city', 'all')`,
         searches: sql<string>`count(*)`,
         users: sql<string>`count(distinct coalesce(${schema.events.userId}::text, ${schema.events.anonId}))`,
       })
@@ -242,6 +246,48 @@ export async function intelligenceRoutes(app: FastifyInstance) {
         sql`(select guest_id, count(*) c from bookings where state in ('confirmed','pre_arrival_reconfirmed','checked_in','completed','reviewed') group by guest_id) t`,
       );
 
+    /*
+     * Declared-profile coverage.
+     *
+     * Read from user_preferences rather than folded traits on purpose: this is
+     * an operating question about the member base ("can the birthday campaign
+     * actually run yet?"), not a personalization question, and the answer must
+     * not depend on when the fold worker last ran.
+     */
+    const [declared] = await db
+      .select({
+        total: sql<string>`count(*)`,
+        withBirthDate: sql<string>`count(*) filter (where birth_date is not null)`,
+        withParty: sql<string>`count(*) filter (where party_adults is not null)`,
+        marketingOptIn: sql<string>`count(*) filter (where marketing_opt_in)`,
+        avgParty: sql<string>`coalesce(round(avg(coalesce(party_adults,0) + coalesce(party_children,0)) filter (where party_adults is not null), 1), 0)`,
+      })
+      .from(schema.userPreferences);
+
+    const partySizes = await db
+      .select({
+        bucket: sql<string>`case
+          when coalesce(party_adults,0) + coalesce(party_children,0) <= 4 then '1-4'
+          when coalesce(party_adults,0) + coalesce(party_children,0) <= 8 then '5-8'
+          when coalesce(party_adults,0) + coalesce(party_children,0) <= 15 then '9-15'
+          else '16+' end`,
+        users: sql<string>`count(*)`,
+      })
+      .from(schema.userPreferences)
+      .where(sql`party_adults is not null`)
+      .groupBy(sql`1`)
+      .orderBy(sql`1`);
+
+    const birthMonths = await db
+      .select({
+        month: sql<string>`extract(month from birth_date)`,
+        users: sql<string>`count(*)`,
+      })
+      .from(schema.userPreferences)
+      .where(sql`birth_date is not null`)
+      .groupBy(sql`1`)
+      .orderBy(sql`1`);
+
     return reply.send({
       windowDays: q.days,
       funnel: {
@@ -274,6 +320,31 @@ export async function intelligenceRoutes(app: FastifyInstance) {
       repeatRate: {
         repeaters: Number(repeat?.repeaters ?? 0),
         totalGuests: Number(repeat?.total ?? 0),
+      },
+      /*
+       * Declared-profile coverage and shape.
+       *
+       * Deliberately not a demographic panel. It answers the two operating
+       * questions — how many members have told us enough for the campaigns to
+       * work, and what size of party we are actually serving — and it is
+       * k-anonymised like every other grouped panel, so no band or month can
+       * ever narrow to a person. Nothing here can be filtered down to an
+       * individual, because nothing here is joined to one.
+       */
+      declaredProfiles: {
+        withBirthDate: Number(declared?.withBirthDate ?? 0),
+        withParty: Number(declared?.withParty ?? 0),
+        marketingOptIn: Number(declared?.marketingOptIn ?? 0),
+        total: Number(declared?.total ?? 0),
+        avgPartySize: Number(declared?.avgParty ?? 0),
+        partySizes: partySizes
+          .filter((r) => Number(r.users) >= 3)
+          .map((r) => ({ bucket: r.bucket, users: Number(r.users) })),
+        partySizesSuppressedRows: partySizes.filter((r) => Number(r.users) < 3).length,
+        birthMonths: birthMonths
+          .filter((r) => Number(r.users) >= 3)
+          .map((r) => ({ month: Number(r.month), users: Number(r.users) })),
+        birthMonthsSuppressedRows: birthMonths.filter((r) => Number(r.users) < 3).length,
       },
     });
   });

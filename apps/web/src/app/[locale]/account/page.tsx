@@ -24,6 +24,8 @@ import { PointsTab } from "./points";
 import { InboxTab } from "./inbox";
 import { SettingsTab } from "./settings";
 import { SecurityTab } from "./security";
+import { SignOutCard } from "./sign-out";
+import type { DeclaredProfile } from "./profile";
 
 export interface AccountData {
   id: string;
@@ -53,6 +55,12 @@ export interface AccountData {
   };
   passkeys: number;
   unreadMessages: number;
+  /**
+   * Everything we hold about this member's household, returned in full to its
+   * owner. Optional on the type because an older API build may not send it —
+   * the screen must not break on a deploy skew.
+   */
+  profile?: DeclaredProfile;
 }
 
 const TABS = [
@@ -108,8 +116,17 @@ const copy = {
     earnReview: "كتابة تقييم بعد الإقامة",
     earnReferral: "صديق دعوته أتمّ أول حجز",
     earnEmail: "توثيق البريد الإلكتروني",
+    earnParty: "إخبارنا بمن يسافر معك عادة",
+    earnBirthDate: "إضافة تاريخ ميلادك",
+    earnBirthday: "هدية عيد ميلادك، كل سنة",
     earnNote:
       "كل ١٠٠٠ نقطة = ١ د.ل رصيد. النقاط تُكتسب بما تفعله فعلًا — لا نمنح نقاطًا مقابل التسجيل وحده حتى لا تُستغل بحسابات وهمية.",
+    profileTitle: "عرّفنا عليك أكثر",
+    profileBody: (birth: string, party: string) =>
+      `اختياري بالكامل: تاريخ ميلادك (+${birth} نقطة) ومين يسافر معك عادة (+${party} نقطة). نستعملهما للتهنئة في عيد ميلادك ولاقتراح أماكن بحجم مجموعتك — لا أكثر.`,
+    profileAction: "أكمل ملفك",
+    profileLater: "لاحقًا",
+    profileSection: "ملفك الشخصي",
   },
   en: {
     myBookings: "My bookings",
@@ -152,8 +169,17 @@ const copy = {
     earnReview: "Writing a review after your stay",
     earnReferral: "A friend you invited finishes their first booking",
     earnEmail: "Verifying your email",
+    earnParty: "Telling us who usually travels with you",
+    earnBirthDate: "Adding your date of birth",
+    earnBirthday: "Your birthday gift, every year",
     earnNote:
       "Every 1,000 points = 1 LYD of credit. Points come from things you actually do — signing up on its own earns nothing, so the scheme cannot be farmed with fake accounts.",
+    profileTitle: "Tell us a little about you",
+    profileBody: (birth: string, party: string) =>
+      `Entirely optional: your date of birth (+${birth} points) and who usually travels with you (+${party} points). We use them to wish you a happy birthday and to suggest places the right size for your group — nothing else.`,
+    profileAction: "Fill it in",
+    profileLater: "Not now",
+    profileSection: "About you",
   },
 } satisfies Record<Locale, unknown>;
 
@@ -305,6 +331,8 @@ function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void
 
   return (
     <div className="space-y-3">
+      <ProfilePrompt data={data} onGo={onGo} />
+
       {todo.length ? (
         todo.map((t) => (
           <div key={t.title} className="card p-4 flex items-start justify-between gap-3">
@@ -332,6 +360,9 @@ function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void
             [c.earnReview, data.loyalty.rules.review_written],
             [c.earnReferral, data.loyalty.rules.referral_qualified],
             [c.earnEmail, data.loyalty.rules.email_verified],
+            [c.earnParty, data.loyalty.rules.party_profile_added],
+            [c.earnBirthDate, data.loyalty.rules.birth_date_added],
+            [c.earnBirthday, data.loyalty.rules.birthday_gift],
           ].map(([label, pts]) => (
             <li key={String(label)} className="flex items-center justify-between">
               <span>{label}</span>
@@ -340,6 +371,74 @@ function Overview({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void
           ))}
         </ul>
         <p className="text-[11px] text-faint mt-2 leading-relaxed">{c.earnNote}</p>
+      </div>
+
+      <SignOutCard />
+    </div>
+  );
+}
+
+/**
+ * The nudge towards the declared profile.
+ *
+ * It shows only while there is actually a reward left to claim, and it
+ * dismisses permanently — a prompt that comes back every visit is an advert,
+ * and the argument this whole feature makes is that the data is asked for, not
+ * taken. Once dismissed, the fields are still there under Preferences, which
+ * is where someone who changes their mind will go looking.
+ */
+const PROFILE_PROMPT_DISMISSED = "ciao_profile_prompt_dismissed";
+
+function ProfilePrompt({ data, onGo }: { data: AccountData; onGo: (t: TabKey) => void }) {
+  const locale = useLocale();
+  const c = copy[locale];
+  const [dismissed, setDismissed] = useState(true);
+
+  useEffect(() => {
+    try {
+      setDismissed(Boolean(localStorage.getItem(PROFILE_PROMPT_DISMISSED)));
+    } catch {
+      setDismissed(false); // private mode — showing it once is fine
+    }
+  }, []);
+
+  const rewards = data.profile?.rewards;
+  if (dismissed || !rewards || !(rewards.birthDate || rewards.party)) return null;
+
+  function dismiss() {
+    try {
+      localStorage.setItem(PROFILE_PROMPT_DISMISSED, "1");
+    } catch {
+      /* ignore */
+    }
+    setDismissed(true);
+  }
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-bold text-sea text-sm">{c.profileTitle}</h3>
+        <button
+          onClick={dismiss}
+          aria-label={c.profileLater}
+          className="w-7 h-7 rounded-full bg-sand text-sea font-bold shrink-0"
+        >
+          ✕
+        </button>
+      </div>
+      <p className="text-xs text-muted mt-1 leading-relaxed">
+        {c.profileBody(
+          fmtNum(locale, data.loyalty.rules.birth_date_added ?? 0),
+          fmtNum(locale, data.loyalty.rules.party_profile_added ?? 0),
+        )}
+      </p>
+      <div className="flex items-center gap-2 mt-3">
+        <button className="chip !bg-amber !text-sea-dark" onClick={() => onGo("settings")}>
+          {c.profileAction}
+        </button>
+        <button className="chip" onClick={dismiss}>
+          {c.profileLater}
+        </button>
       </div>
     </div>
   );

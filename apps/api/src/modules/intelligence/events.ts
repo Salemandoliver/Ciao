@@ -70,6 +70,29 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "partner.voucher_issued": "partnerId, value, points",
   "partner.voucher_redeemed": "partnerId, value, points",
   "promo.applied": "code, discount, kind",
+  /*
+   * Declared profile data.
+   *
+   * These carry the *shape* of what a member told us and never the data
+   * itself: an age band, not a date of birth; counts and bands, not a family.
+   * That is guardrail 2 (no PII in props) doing real work rather than
+   * ceremonial work — the events table is the least protected place this
+   * information could sit, and a birth date in it would leak into every
+   * downstream aggregate that ever gets exported.
+   */
+  "profile.birth_date_added": "ageBand, birthMonth",
+  "profile.party_added": "adults, children, bands[]",
+  "profile.occasions_added": "kinds[], months[]",
+  "profile.planned_event_added": "kind, monthsAway",
+  "auth.signed_out": "everywhere",
+  /*
+   * Proactive campaigns. `campaign.sent` is emitted whether or not a message
+   * went out, with `messaged` recording which — so the birthday points and the
+   * birthday message stay separately attributable, and an opt-out is visible
+   * in the funnel instead of looking like a delivery failure.
+   */
+  "campaign.sent": "campaign, channel, messaged",
+  "campaign.converted": "campaign, bookingId, daysSinceSend",
 };
 
 export interface EmitOptions {

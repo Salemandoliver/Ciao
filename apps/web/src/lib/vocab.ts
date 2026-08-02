@@ -47,12 +47,16 @@ export const AREAS: Record<Locale, Vocab> = {
     tajoura: "تاجوراء",
     ain_zara: "عين زارة",
     airport_road: "طريق المطار",
+    // The aggregation's fallback bucket when an event carried neither an area
+    // nor a city. A key from the API, labelled here.
+    all: "الكل",
   },
   en: {
     janzour: "Janzour",
     tajoura: "Tajoura",
     ain_zara: "Ain Zara",
     airport_road: "Airport Road",
+    all: "All areas",
   },
 };
 

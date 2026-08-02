@@ -31,7 +31,53 @@ export function setTokens(access: string, refresh?: string) {
 
 export function clearTokens() {
   accessToken = null;
-  if (typeof window !== "undefined") localStorage.removeItem("ciao_refresh");
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("ciao_refresh");
+    localStorage.removeItem(NAME_KEY);
+  }
+}
+
+/**
+ * The member's display name, kept beside the refresh token.
+ *
+ * The greeting on the home page has to be right on the first paint or not
+ * appear at all — a name that arrives a second late is a layout shift, and a
+ * wrong name is worse than none. Both sign-in paths already hand back
+ * `user.displayName`, so we keep it rather than spending a request on it.
+ *
+ * A phone number is never a name. Older accounts were created with the number
+ * in that column, and «صباح الخير، 0912345678» is both cold and a small
+ * privacy leak on a shared phone, so anything that looks like a number is
+ * dropped and the greeting falls back to its nameless form.
+ */
+const NAME_KEY = "ciao_name";
+
+function looksLikePhone(value: string): boolean {
+  return /^[+\d\s()٠-٩-]+$/.test(value);
+}
+
+export function rememberDisplayName(name: string | null | undefined) {
+  if (typeof window === "undefined") return;
+  const clean = name?.trim();
+  if (!clean || looksLikePhone(clean)) {
+    localStorage.removeItem(NAME_KEY);
+    return;
+  }
+  try {
+    localStorage.setItem(NAME_KEY, clean.slice(0, 80));
+  } catch {
+    /* private mode — the greeting falls back to fetching it */
+  }
+}
+
+export function storedDisplayName(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = localStorage.getItem(NAME_KEY)?.trim();
+    return value && !looksLikePhone(value) ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 export function hasSession(): boolean {
@@ -62,16 +108,44 @@ export function sessionClaims(): { role?: string; phone?: string; sub?: string }
   }
 }
 
-async function refreshSession(): Promise<boolean> {
-  if (typeof window === "undefined") return false;
-  const refresh = localStorage.getItem("ciao_refresh");
-  if (!refresh) return false;
-  const res = await fetch(`${API_URL}/v1/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken: refresh }),
-  });
+/**
+ * The in-flight refresh, shared by every caller that wants one.
+ *
+ * Refresh tokens rotate: presenting one revokes it and issues a replacement.
+ * That is the right security design and it means a *second* concurrent refresh
+ * is guaranteed to fail, because it is presenting a token the first one just
+ * revoked — and the failure path signs the member out.
+ *
+ * Which is exactly what was happening. Loading the home page while signed in
+ * fires `/v1/me` and `/v1/wishlist/ids` together; both 401 on an expired
+ * access token, both call this, the first rotates, the second is rejected as a
+ * replayed token, and the member's session is wiped. To them the app "keeps
+ * logging me out" at random — the kind of fault that is maddening to live with
+ * and nearly impossible to report usefully.
+ *
+ * One flight, shared. Everyone waiting gets the same answer.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function performRefresh(refresh: string): Promise<boolean> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/v1/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken: refresh }),
+    });
+  } catch {
+    /*
+     * The network failed, not the token. Signing someone out because a request
+     * timed out would be its own bug on a connection that drops several times
+     * an hour — they keep their session and the next call tries again.
+     */
+    return false;
+  }
   if (!res.ok) {
+    // The server refused the token: it is expired, revoked, or not ours. That
+    // is a real end of session and the only case that should clear it.
     clearTokens();
     return false;
   }
@@ -80,11 +154,37 @@ async function refreshSession(): Promise<boolean> {
   return true;
 }
 
+async function refreshSession(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (refreshInFlight) return refreshInFlight;
+  const refresh = localStorage.getItem("ciao_refresh");
+  if (!refresh) return false;
+  const flight = performRefresh(refresh);
+  refreshInFlight = flight;
+  try {
+    return await flight;
+  } finally {
+    // Cleared only if we are still the current flight, so a refresh that
+    // started while this one was settling is not orphaned.
+    if (refreshInFlight === flight) refreshInFlight = null;
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
     public code: string,
     message: string,
+    /**
+     * The rest of the error envelope, verbatim.
+     *
+     * Some refusals are written to explain themselves — the under-18 birth
+     * date, for one — and carry an English twin in `messageEn` plus the field
+     * and problem they refer to. `message` alone would strand an English
+     * reader with the Arabic, so the whole object travels and the caller
+     * picks the sentence its reader can read.
+     */
+    public detail: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -114,12 +214,13 @@ export async function api<T>(
   }
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
-      error?: { code: string; message: string };
+      error?: { code: string; message: string } & Record<string, unknown>;
     };
     throw new ApiError(
       res.status,
       body.error?.code ?? "CIAO-5000",
       body.error?.message ?? (apiLocale === "en" ? "Something went wrong" : "حدث خطأ"),
+      body.error ?? {},
     );
   }
   return res.json() as Promise<T>;

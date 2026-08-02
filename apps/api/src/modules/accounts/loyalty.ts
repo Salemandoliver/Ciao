@@ -45,6 +45,34 @@ export const POINT_RULES = {
   referral_qualified: 10000,
   /** Being invited and completing your first stay. */
   referred_welcome: 5000,
+  /**
+   * Telling us your birthday.
+   *
+   * Paying for this rather than demanding it at signup is a data-quality
+   * decision before it is a courtesy one. A required date-of-birth field on a
+   * phone-first signup produces 01/01/1990 in bulk — and a birthday campaign
+   * that fires on one day for a third of the base is worse than no campaign,
+   * because it is visibly fake. People give you the real date when there is a
+   * reason to.
+   */
+  birth_date_added: 500,
+  /**
+   * Telling us who usually travels with you — how many adults, how many
+   * children, which age bands. Worth more than an email because it changes
+   * what we can put in front of you: the ranker stops guessing party size from
+   * behaviour and uses the number you gave it.
+   */
+  party_profile_added: 1000,
+  /**
+   * The annual birthday gift.
+   *
+   * The points are a loyalty benefit and are awarded whether or not the member
+   * accepts marketing — they joined the programme, this is the programme. The
+   * *message* saying so is marketing and only goes to people who opted in
+   * (Law 6/2022). Conflating those two is how a nice gesture becomes an
+   * unsolicited-communications complaint.
+   */
+  birthday_gift: 2500,
 } as const;
 
 export type PointReason = keyof typeof POINT_RULES;

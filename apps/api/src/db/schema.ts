@@ -695,6 +695,59 @@ export const userPreferences = pgTable("user_preferences", {
   marketingOptIn: boolean("marketing_opt_in").notNull().default(false),
   earlyAccessOptIn: boolean("early_access_opt_in").notNull().default(false),
   favouriteAreas: jsonb("favourite_areas").notNull().default(sql`'[]'::jsonb`),
+
+  /**
+   * Date of birth — declared, optional, and stored here rather than on the
+   * user row on purpose: it is something a member chose to tell us so we can
+   * greet them and time an offer, not part of their identity with us. Their
+   * identity is their phone number.
+   *
+   * Only the day and month ever leave this table. The year resolves to a
+   * coarse age band before it reaches the intelligence layer, so nothing
+   * downstream — events, profiles, dashboards — ever carries a precise age.
+   */
+  birthDate: date("birth_date", { mode: "string" }),
+
+  /**
+   * Who usually travels with them — the *shape* of the party, never who is in
+   * it.
+   *
+   * Salem asked for family information so offers can be timed and sized well.
+   * This is the version of that which stays on the right side of the
+   * intelligence layer's third guardrail: "books for 8 adults and 3 children"
+   * is a party profile; "has three daughters, aged 4, 7 and 11" is a register
+   * of a family, and in a market built on satar that register is a liability
+   * no amount of personalization would justify. Counts and bands answer every
+   * question an offer needs to ask, and they do not go stale the way a named
+   * child's age does.
+   *
+   * Bands are coarse on purpose: `toddler` (0–3), `child` (4–9), `teen`
+   * (10–17). We record which bands are present, not how many are in each, and
+   * we use them only to size and screen a property — never to target a child.
+   */
+  partyAdults: integer("party_adults"),
+  partyChildren: integer("party_children"),
+  childAgeBands: jsonb("child_age_bands").notNull().default(sql`'[]'::jsonb`),
+
+  /**
+   * Recurring occasions, as a month and nothing else.
+   *
+   * "Your anniversary is next month" needs a month. It does not need the year
+   * you married, the day, or your spouse — so we do not hold them.
+   */
+  occasions: jsonb("occasions").notNull().default(sql`'[]'::jsonb`),
+
+  /**
+   * One upcoming event they are actively planning — the declared version of
+   * the wedding pipeline the intelligence skill asks for. A stated date beats
+   * inferring intent from a cluster of hall views, and it is honest: the
+   * member knows why we are asking.
+   */
+  plannedEventKind: varchar("planned_event_kind", { length: 20 }),
+  plannedEventDate: date("planned_event_date", { mode: "string" }),
+
+  /** Stamped when the party profile is first completed, so the reward pays once. */
+  profileCompletedAt: ts("profile_completed_at"),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
 

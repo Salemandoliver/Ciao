@@ -160,6 +160,28 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.send({ accessToken, refreshToken: rotated.newToken });
   });
 
+  /**
+   * Sign out.
+   *
+   * Revoking server-side matters more here than in most products. Phones get
+   * shared inside a family, and «خروج» that only cleared localStorage would
+   * leave a live 30-day refresh token behind for whoever picks the phone up
+   * next — on an account holding a wallet balance and a host's address.
+   *
+   * `everywhere` exists for the same reason: when someone realises another
+   * person has been on their account, the honest answer is "sign out on every
+   * device", not "clear this browser".
+   */
+  app.post("/v1/auth/logout", async (req, reply) => {
+    const claims = await authenticate(req);
+    const body = z
+      .object({ refreshToken: z.string().optional(), everywhere: z.boolean().optional() })
+      .parse(req.body ?? {});
+    const { signOut } = await import("../accounts/profile.js");
+    await signOut(claims.sub, body.refreshToken, body.everywhere ?? false);
+    return reply.send({ ok: true });
+  });
+
   app.get("/v1/me", async (req, reply) => {
     const claims = await authenticate(req);
     const [user] = await db
