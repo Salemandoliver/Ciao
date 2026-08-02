@@ -145,9 +145,30 @@ export function SearchResults({
    */
   const withoutPin = items.filter((i) => !i.approxLocation?.lat).length;
 
-  // Map click → bring the card to the guest rather than making them hunt.
+  /*
+   * Map pin → bring the card to the guest rather than making them hunt.
+   *
+   * Only from the map. This used to fire on any selection change, and cards
+   * select themselves on hover to light up their pin — so moving the mouse
+   * across the results scrolled the page under the cursor, which is
+   * disorienting on its own and became untenable once the cards grew photo
+   * arrows: reaching for "next photo" made the page slide away from you.
+   *
+   * Hovering says "highlight this on the map". Clicking a pin says "show me
+   * that one". Only the second is a request to move.
+   */
+  const selectionSource = useRef<"map" | "hover" | null>(null);
+  const selectFromMap = useCallback((id: string) => {
+    selectionSource.current = "map";
+    setSelectedId(id);
+  }, []);
+  const selectFromHover = useCallback((id: string) => {
+    selectionSource.current = "hover";
+    setSelectedId(id);
+  }, []);
+
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || selectionSource.current !== "map") return;
     const el = document.getElementById(`card-${selectedId}`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [selectedId]);
@@ -223,7 +244,7 @@ export function SearchResults({
     maps,
     drawing,
     polygon,
-    onSelect: setSelectedId,
+    onSelect: selectFromMap,
     onDrawn: runAreaSearch,
     onDrawCancelled: () => setDrawing(false),
   };
@@ -291,7 +312,7 @@ export function SearchResults({
               <div
                 key={l.id}
                 id={`card-${l.id}`}
-                onMouseEnter={() => anyCoords && setSelectedId(l.id)}
+                onMouseEnter={() => anyCoords && selectFromHover(l.id)}
                 className={`rounded-bubble transition-shadow ${
                   selectedId === l.id ? "ring-2 ring-sea shadow-lg" : ""
                 }`}

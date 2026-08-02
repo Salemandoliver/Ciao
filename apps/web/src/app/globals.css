@@ -245,6 +245,42 @@ body {
   color: #e6eef5;
 }
 
+/**
+ * A scroll strip with no visible scrollbar.
+ *
+ * Used by the card photo carousel, where a permanent grey bar across the
+ * bottom of every photograph would be the loudest thing on a search page. The
+ * strip stays scrollable by finger, wheel and keyboard — only the chrome goes.
+ */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/**
+ * The card link pattern.
+ *
+ * A result card is one big link to a property, but it also carries buttons —
+ * a wishlist heart, photo arrows, position dots. Nesting those inside an
+ * `<a>` is invalid HTML and gives a screen reader an unusable link, so the
+ * anchor wraps only the title and this pseudo-element stretches it over the
+ * whole card. The controls sit above it on z-index, so a tap on an arrow is
+ * an arrow press and a tap anywhere else opens the property.
+ */
+.card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.card-controls {
+  position: relative;
+  z-index: 2;
+}
+
 /* Offline indicator */
 .offline-banner {
   @apply fixed top-0 inset-x-0 z-50 bg-amber text-sea-dark text-center text-sm py-1 font-bold;

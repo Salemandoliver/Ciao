@@ -19,7 +19,7 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "page.view": "path, ref",
   "search.performed": "vertical, city, area, filters[], checkIn, checkOut, guests, resultCount",
   "listing.viewed": "listingId, vertical, city, area, source, priceNightly",
-  "listing.gallery_swiped": "listingId, photoIndex",
+  "listing.gallery_swiped": "listingId, photoIndex, source",
   "quote.viewed": "listingId, checkIn, checkOut, nights, total, deposit, leadDays",
   "package.viewed": "listingId, packageId, totalPrice, guestCountMax",
   // auth funnel (server)

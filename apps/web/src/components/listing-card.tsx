@@ -3,6 +3,7 @@ import { Link, useLocale } from "@/lib/locale";
 import type { PublicListing } from "@/lib/types";
 import { fmtLyd } from "@/lib/api";
 import { Heart } from "./heart";
+import { CardGallery } from "./card-gallery";
 import { listingTitle, textProps } from "@/lib/content";
 import { AMENITIES, SERVICE_CATEGORY_LABELS, fmtDate, placeLabel, term } from "@/lib/vocab";
 import type { Locale } from "@/lib/i18n";
@@ -97,19 +98,21 @@ export function ListingCard({ l }: { l: PublicListing }) {
   const c = copy[locale];
   const title = listingTitle(locale, l);
   const generator = l.amenities.find((a) => a.key === "generator" && a.present);
-  const cover = l.media.find((m) => m.kind === "photo");
+  const photos = l.media.filter((m) => m.kind === "photo");
+  /*
+   * The card used to be one big `<Link>` with a button inside it. That was
+   * already invalid HTML and an unusable link for a screen reader; adding photo
+   * arrows and dots would have made it three buttons inside an anchor. So the
+   * card is now a plain container, the anchor wraps the title, and
+   * `.card-link::after` stretches it across the whole card — the standard
+   * pattern, and the one that lets a tap on "next photo" mean next photo while
+   * a tap anywhere else still opens the property.
+   */
   return (
-    <Link href={`/l/${l.slug}`} className="card block hover:shadow-md transition-shadow">
-      <div className="relative aspect-[4/3] photo-placeholder">
-        {cover ? (
-          <img
-            src={cover.url}
-            alt={title.text}
-            loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : null}
-        <div className="absolute top-2 start-2 flex flex-col gap-1 items-start">
+    <div className="card group relative block hover:shadow-md transition-shadow">
+      <div className="relative aspect-[4/3] photo-placeholder card-controls">
+        <CardGallery photos={photos} alt={title.text} listingId={l.id} href={`/l/${l.slug}`} />
+        <div className="absolute top-2 start-2 flex flex-col gap-1 items-start pointer-events-none">
           {l.verified ? <VerifiedBadge /> : null}
           {l.familyOnly ? <span className="chip-on-photo">{c.familyOnly}</span> : null}
         </div>
@@ -124,7 +127,9 @@ export function ListingCard({ l }: { l: PublicListing }) {
         {/* `lang`/`dir` so an untranslated Arabic title still reads correctly
             inside an English page — and is spoken, not spelled, by a reader. */}
         <h3 className="font-bold text-base leading-snug" {...textProps(title)}>
-          {title.text}
+          <Link href={`/l/${l.slug}`} className="card-link">
+            {title.text}
+          </Link>
         </h3>
         <Stars rating={l.rating} source={l.ratingSource} count={l.reviewCount} />
         <p className="text-sm text-muted">{placeLabel(locale, l.city, l.area)}</p>
@@ -152,7 +157,7 @@ export function ListingCard({ l }: { l: PublicListing }) {
           ) : null}
         </p>
       </div>
-    </Link>
+    </div>
   );
 }
 
