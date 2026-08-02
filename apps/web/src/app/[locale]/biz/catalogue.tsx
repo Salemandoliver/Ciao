@@ -136,6 +136,27 @@ const copy = {
     arabicNow: "العربي المنشور حاليًا",
     fTitleEn: "العنوان بالإنجليزية (اختياري)",
     fDescriptionEn: "الوصف بالإنجليزية (اختياري)",
+    locButton: "📍 الموقع",
+    locTitleFor: (name: string) => `الموقع: ${name}`,
+    locLead:
+      "هذا قرار المزوّدة، مش قرارك. اسألها، سجّل اللي تقوله، وخلاص. أغلب من يعرضن خدماتهن على تشاو نساء يشتغلن من بيوتهن — نشر موقع بيت مش شي بسيط، ومش من حقنا ننشره نيابة عنها.",
+    locWarn:
+      "لو مش متأكد، خلّيها كما هي. «المنطقة فقط» هو الخيار الآمن — ما حدش اشتكى يومًا إنه صعب يتلقّى، والعكس ما ينفعش يترجع.",
+    locArea: "المنطقة فقط — بلا موقع على الخريطة، أبدًا",
+    locAreaBody:
+      "الزبون يشوف الحي وبس، ولا شي أدق من هذا. هي ترسل موقعها بنفسها بعد ما تتفق على الشغل. المكان يبقى يظهر في البحث وفي البحث بالرسم على الخريطة — تتلقّى ولا تتحدد.",
+    locStaged: "مرحلي — موقع تقريبي الآن، والدقيق بعد العربون",
+    locStagedBody:
+      "دائرة تقريبية على الخريطة العامة. الموقع الدقيق والعنوان المكتوب يظهران لحظة دفع العربون.",
+    locPublic: "عام — موقع يشوفه أي حد",
+    locPublicBody:
+      "للمكان اللي عنده واجهة على الشارع: صالون، استوديو، قاعة على طريق رئيسي. ولا تختارها إلا إذا طلبها صاحب المكان بنفسه.",
+    locDefaultFor: "الوضع الافتراضي لهذا النوع",
+    locCurrent: "المسجّل حاليًا",
+    locSaved: "✅ حُفظ",
+    locNotAccepted:
+      "لم يُحفظ — الواجهة البرمجية ما زالت لا تقبل هذا الحقل. لا تخبر صاحب المكان أنه تغيّر.",
+    locSaveFailed: "تعذر الحفظ",
     editorLoadFailed: "تعذر تحميل الإعلان",
     editorSaved: "✅ حُفظ النص الإنجليزي",
     editorCleared: "✅ حُذف النص الإنجليزي — الزوار الإنجليز يشوفون العربي",
@@ -204,6 +225,27 @@ const copy = {
     arabicNow: "Arabic currently published",
     fTitleEn: "English title (optional)",
     fDescriptionEn: "English description (optional)",
+    locButton: "📍 Location",
+    locTitleFor: (name: string) => `Location: ${name}`,
+    locLead:
+      "This is the provider's decision, not yours. Ask her, set what she tells you, and leave it there. Most of the people selling services on Ciao are women working out of their own homes — putting a pin on someone's home is not a small thing, and it is not ours to do on her behalf.",
+    locWarn:
+      "If you are not sure, leave it as it is. Area only is the safe answer — nobody has ever complained about being hard to find, and a published address cannot be taken back.",
+    locArea: "Area only — never a pin",
+    locAreaBody:
+      "The customer sees the neighbourhood and nothing finer. She sends her exact location herself, once she has agreed the job. The place still turns up in search and inside a hand-drawn area — findable without being locatable.",
+    locStaged: "Staged — an approximate pin now, the exact one after the deposit",
+    locStagedBody:
+      "A rough circle on the public map. The exact pin and the written address appear the moment the guest pays the deposit.",
+    locPublic: "Public — a pin anyone can see",
+    locPublicBody:
+      "For a place with a shopfront: a salon, a studio, a hall on a main road. Only pick this if the provider has asked for it.",
+    locDefaultFor: "The default for this type of venue",
+    locCurrent: "Currently set to",
+    locSaved: "✅ Saved",
+    locNotAccepted:
+      "Not saved — the API does not accept this field yet. Do not tell the provider it has changed.",
+    locSaveFailed: "Could not save",
     editorLoadFailed: "Could not load the listing",
     editorSaved: "✅ English copy saved",
     editorCleared: "✅ English copy cleared — English visitors will see the Arabic",
@@ -226,6 +268,7 @@ export function CatalogueTab() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [mediaFor, setMediaFor] = useState<BizListing | null>(null);
   const [englishFor, setEnglishFor] = useState<BizListing | null>(null);
+  const [locationFor, setLocationFor] = useState<BizListing | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -629,6 +672,12 @@ export function CatalogueTab() {
                     >
                       {l.titleEn ? c.englishSet : c.englishMissing}
                     </button>
+                    <button
+                      className="chip !text-[11px] !py-0.5"
+                      onClick={() => setLocationFor(l)}
+                    >
+                      {c.locButton}
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -655,6 +704,10 @@ export function CatalogueTab() {
 
       {englishFor ? (
         <EnglishEditor listing={englishFor} onClose={() => setEnglishFor(null)} onSaved={load} />
+      ) : null}
+
+      {locationFor ? (
+        <LocationEditor listing={locationFor} onClose={() => setLocationFor(null)} />
       ) : null}
     </div>
   );
@@ -808,6 +861,193 @@ function EnglishEditor({
                 />
               </label>
             </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type Disclosure = "area" | "staged" | "public";
+
+/**
+ * Mirrors the API's `defaultDisclosure`. A venue nobody has set behaves as
+ * this, and the operator should be able to see which one that is rather than
+ * guessing from a blank radio group — the whole screen exists to stop people
+ * changing a setting they do not understand.
+ */
+function defaultDisclosure(venueType: string): Disclosure {
+  return venueType === "service" ? "area" : "staged";
+}
+
+/**
+ * Who may see where this venue is.
+ *
+ * The dangerous operator here is not the careless one, it is the helpful one:
+ * someone tidying the catalogue, noticing that half the providers have no pin,
+ * and setting them all to `public` so the map looks finished. That would put
+ * house numbers of women who work from home onto a public marketplace, and it
+ * cannot be undone by changing the setting back.
+ *
+ * So the screen leads with whose decision this is, states plainly why the
+ * default is what it is, and puts the safe option first. The three
+ * descriptions are written for someone on the phone to a provider, in the
+ * words they would use to her — not as definitions of the enum.
+ *
+ * API GAP — `PATCH /v1/biz/listings/:id` neither accepts `locationDisclosure`
+ * (it is not in the route's Zod object, so it is silently stripped) nor could
+ * store it if it did: the column lives on `venues`, and that handler writes to
+ * `listings`. Rather than pretend, the save reads the endpoint's own `changed`
+ * array and says out loud when nothing moved. The moment the API takes the
+ * field this screen starts working with no edit.
+ */
+function LocationEditor({
+  listing,
+  onClose,
+}: {
+  listing: BizListing;
+  onClose: () => void;
+}) {
+  const locale = useLocale();
+  const c = copy[locale];
+  const [venueType, setVenueType] = useState("");
+  const [initial, setInitial] = useState<Disclosure | null>(null);
+  const [value, setValue] = useState<Disclosure | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      try {
+        const res = await api<{
+          venue: { type: string; locationDisclosure: string | null };
+        }>(`/v1/biz/businesses/${listing.listingId}`);
+        if (!live) return;
+        const current = (["area", "staged", "public"] as const).includes(
+          res.venue.locationDisclosure as Disclosure,
+        )
+          ? (res.venue.locationDisclosure as Disclosure)
+          : defaultDisclosure(res.venue.type);
+        setVenueType(res.venue.type);
+        setInitial(current);
+        setValue(current);
+        setLoaded(true);
+      } catch {
+        if (live) setMsg(copy[locale].editorLoadFailed);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [listing.listingId, locale]);
+
+  const options: { key: Disclosure; title: string; body: string }[] = [
+    { key: "area", title: c.locArea, body: c.locAreaBody },
+    { key: "staged", title: c.locStaged, body: c.locStagedBody },
+    { key: "public", title: c.locPublic, body: c.locPublicBody },
+  ];
+
+  async function save() {
+    if (!value) return;
+    setBusy(true);
+    setMsg("");
+    try {
+      const res = await api<{ ok: boolean; changed?: string[] }>(
+        `/v1/biz/listings/${listing.listingId}`,
+        { method: "PATCH", body: JSON.stringify({ locationDisclosure: value }) },
+      );
+      if (res.changed?.includes("locationDisclosure")) {
+        setInitial(value);
+        setMsg(c.locSaved);
+      } else {
+        // The endpoint answered 200 and dropped the field. Saying "saved"
+        // here would have an operator ring a provider and tell her something
+        // untrue about where her house is published.
+        setMsg(c.locNotAccepted);
+      }
+    } catch {
+      setMsg(c.locSaveFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-sea-dark/60 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-surface w-full sm:max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-bubble shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-surface/95 backdrop-blur border-b border-sand px-4 py-3 flex items-center justify-between gap-2">
+          <h2 className="font-bold text-sea truncate text-sm">
+            {c.locTitleFor(listing.venueNameAr)}
+          </h2>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              className="btn-primary !py-1.5 !px-4 !text-sm disabled:opacity-40"
+              disabled={!loaded || busy || value === initial}
+              onClick={save}
+            >
+              {busy ? "…" : c.save}
+            </button>
+            <button
+              onClick={onClose}
+              aria-label={c.close}
+              className="w-8 h-8 rounded-full bg-sand text-sea font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4">
+          {msg ? <p className="mb-3 text-sm font-bold text-sea">{msg}</p> : null}
+
+          {/* Whose decision this is, before any of the options are readable. */}
+          <p className="text-sm text-muted leading-relaxed">{c.locLead}</p>
+          <p className="text-xs text-faint leading-relaxed mt-2">{c.locWarn}</p>
+
+          {!loaded ? (
+            <p className="text-sm text-faint mt-4">{c.loading}</p>
+          ) : (
+            <div className="space-y-2 mt-4">
+              {options.map((o) => {
+                const isDefault = o.key === defaultDisclosure(venueType);
+                return (
+                  <label
+                    key={o.key}
+                    className={`flex gap-3 rounded-2xl p-3 cursor-pointer ${
+                      value === o.key ? "bg-sand" : "bg-sand/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="locationDisclosure"
+                      className="mt-1 shrink-0"
+                      checked={value === o.key}
+                      onChange={() => setValue(o.key)}
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold text-sea">{o.title}</span>
+                      <span className="block text-xs text-muted leading-relaxed mt-0.5">
+                        {o.body}
+                      </span>
+                      <span className="flex flex-wrap gap-1 mt-1.5">
+                        {isDefault ? <Pill tone="slate">{c.locDefaultFor}</Pill> : null}
+                        {o.key === initial ? <Pill tone="green">{c.locCurrent}</Pill> : null}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

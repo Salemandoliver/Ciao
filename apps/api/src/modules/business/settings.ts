@@ -27,6 +27,30 @@ export interface HeroImage {
  * default; the console renders it and the app reads it with no other plumbing.
  */
 export const SETTING_DEFAULTS = {
+  /**
+   * Maps.
+   *
+   * `provider` is a control-plane decision, not a build-time one, because the
+   * trade-off is commercial: Google's tiles are what everyone in Libya
+   * recognises — which is the whole point when someone is drawing an area near
+   * their parents' house — and they cost $7 per 1,000 map loads above a free
+   * 10,000 a month. OpenStreetMap is free and thinner on Libyan detail.
+   *
+   * Setting `google` without a key configured falls back to OSM rather than
+   * rendering a broken map, so this can be switched on the day the key exists
+   * and the domain it is locked to.
+   *
+   * Note what is NOT here: any Places API usage. "What's nearby" is recorded
+   * by our own agents on the verification visit (see listings/neighbours.ts) —
+   * $32 per 1,000 calls, uncacheable under Google's terms, for data that
+   * cannot tell a family whether a café will seat them.
+   */
+  "maps.provider": "osm" as "osm" | "google",
+  /** Where a map opens when there is nothing better to centre on. */
+  "maps.defaultCentre": { lat: 32.8872, lng: 13.1913, zoom: 11 },
+  /** Let guests search by drawing an area rather than picking a city. */
+  "maps.drawSearch": true,
+
   /** Home hero rotation (§3.2). Order is display order. */
   "home.hero": {
     intervalMs: 6000,
@@ -237,6 +261,11 @@ export async function publicSettings() {
       reviews: all["features.reviews"],
       accounts: all["features.accounts"],
       loyalty: all["features.loyalty"],
+    },
+    maps: {
+      provider: all["maps.provider"],
+      defaultCentre: all["maps.defaultCentre"],
+      drawSearch: all["maps.drawSearch"],
     },
     paymentRails: all["payments.enabledRails"],
     loyalty: {

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/client.js";
+import { geoUri, navigationUrl, revealedLocation } from "../listings/location.js";
 import { CiaoError } from "../../lib/errors.js";
 import { authenticate, requireRole } from "../../lib/guards.js";
 import { consumeActionToken } from "../../lib/auth.js";
@@ -108,13 +109,34 @@ export async function bookingRoutes(app: FastifyInstance) {
             nameAr: venue.nameAr,
             city: venue.city,
             area: venue.area,
-            // Voucher data — revealed post-deposit only (§6.1 step 5)
+            // Voucher data — revealed post-deposit only (§6.1 step 5), and
+            // only as far as this venue's disclosure setting allows. A
+            // provider who chose area-only is not overruled by a deposit; the
+            // UI reads `withheldReason` and says she will share it herself.
             ...(b.contactRevealed
-              ? {
-                  addressAr: venue.addressAr,
-                  exactLocation: { lat: venue.exactLat, lng: venue.exactLng },
-                  hostPhone: host?.phone,
-                }
+              ? (() => {
+                  const loc = revealedLocation(venue);
+                  return {
+                    addressAr: loc.addressAr,
+                    exactLocation: loc.exact,
+                    locationWithheldReason: loc.withheldReason,
+                    /*
+                     * The link that actually gets a family to the gate.
+                     *
+                     * Most istirahas have no street address, so a written one
+                     * is often useless and a pin is the only real answer. This
+                     * costs nothing — no API, no key, no per-load billing —
+                     * and opens whatever maps app the guest already has. The
+                     * `geo:` twin covers phones without Google services, and
+                     * the raw coordinates are on the voucher for the method
+                     * that beats every link: reading them down the phone to
+                     * someone who knows the road.
+                     */
+                    navigationUrl: loc.exact ? navigationUrl(loc.exact) : null,
+                    geoUri: loc.exact ? geoUri(loc.exact, venue.nameAr) : null,
+                    hostPhone: host?.phone,
+                  };
+                })()
               : {}),
           }
         : null,

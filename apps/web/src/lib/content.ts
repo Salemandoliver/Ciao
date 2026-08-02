@@ -61,6 +61,24 @@ export function listingDescription(
   return choose(locale, listing.descriptionAr, listing.descriptionEn);
 }
 
+/**
+ * Any other Arabic-first pair of columns: a neighbour's name and the sentence
+ * the agent wrote about it, an amenity's detail, a package line.
+ *
+ * This is the same `choose` the two functions above use, exposed under a name
+ * that does not lie. Callers had been reaching for `listingTitle(locale, {
+ * titleAr: someOtherThing })` to get at it, which works and reads as a bug —
+ * and every one of those call sites is a place where the fallback marking
+ * matters just as much as it does on a title.
+ */
+export function hostText(
+  locale: Locale,
+  ar: string | undefined | null,
+  en?: string | undefined | null,
+): LocalisedText | null {
+  return choose(locale, ar, en);
+}
+
 /** Props to spread onto the element rendering a LocalisedText. */
 export function textProps(t: LocalisedText) {
   return { lang: t.lang, dir: t.lang === "ar" ? ("rtl" as const) : ("ltr" as const) };

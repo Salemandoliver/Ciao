@@ -51,10 +51,24 @@ export const TEMPLATES: Record<string, MessageTemplate> = {
     en: "Temporary payment-network issue — booking {{code}} is held for 6 hours. Complete payment here: {{link}}",
     critical: true,
   },
+  /**
+   * The pre-arrival reminder is where the map link belongs.
+   *
+   * Not the confirmation — that arrives weeks early, when nobody is thinking
+   * about the road. This one lands two days out, and it is the message a
+   * family actually has open in the car. Most istirahas have no street
+   * address, so «الطريق» is not a convenience here; it is the difference
+   * between arriving and phoning the host from a roundabout.
+   *
+   * The SMS variant carries the map link and drops the voucher link: an SMS
+   * fallback means the network is already struggling, and directions beat a
+   * web page at that point.
+   */
   pre_arrival_reminder: {
     key: "pre_arrival_reminder",
-    ar: "تذكير: حجزك {{code}} بعد غدٍ في {{venue}}. الباقي {{balance}} د.ل نقدًا. القسيمة: {{link}}",
-    en: "Reminder: booking {{code}} is in 2 days at {{venue}}. Balance {{balance}} LYD in cash. Voucher: {{link}}",
+    ar: "تذكير: حجزك {{code}} بعد غدٍ في {{venue}}. الباقي {{balance}} د.ل نقدًا. القسيمة: {{link}}{{directions}}",
+    en: "Reminder: booking {{code}} is in 2 days at {{venue}}. Balance {{balance}} LYD in cash. Voucher: {{link}}{{directions}}",
+    smsAr: "تشاو: حجزك {{code}} بعد غدٍ. الطريق: {{mapLink}}",
     critical: false,
   },
   host_reconfirm_request: {

@@ -176,16 +176,31 @@ for (const theme of ["light", "dark"]) {
      * marketplace whose entire claim is "we went there and took these photos
      * ourselves", missing photography is not a cosmetic defect.
      */
-    const broken = await page.evaluate(() =>
-      [...document.querySelectorAll("img")]
-        .filter((i) => i.currentSrc && i.complete && i.naturalWidth === 0)
-        .map((i) => i.currentSrc)
-        .slice(0, 6),
-    );
-    if (broken.length) {
-      failures += broken.length;
-      console.log(`\n### ${theme} ${path} — ${broken.length} broken image(s)`);
-      for (const src of broken) console.log(`  ✗ ${src}`);
+    const broken = await page.evaluate(() => {
+      const all = [...document.querySelectorAll("img")].filter(
+        (i) => i.currentSrc && i.complete && i.naturalWidth === 0,
+      );
+      const ours = (src) => new URL(src, location.href).origin === location.origin;
+      return {
+        ours: all.filter((i) => ours(i.currentSrc)).map((i) => i.currentSrc).slice(0, 6),
+        thirdParty: all.filter((i) => !ours(i.currentSrc)).map((i) => i.currentSrc).slice(0, 3),
+      };
+    });
+    if (broken.ours.length) {
+      failures += broken.ours.length;
+      console.log(`\n### ${theme} ${path} — ${broken.ours.length} broken image(s)`);
+      for (const src of broken.ours) console.log(`  ✗ ${src}`);
+    }
+    if (broken.thirdParty.length) {
+      /*
+       * Reported, never failed. A map tile that did not arrive is the sandbox
+       * (or Libya) having a bad minute with someone else's CDN, and a check
+       * that goes red for that gets ignored within a week — at which point it
+       * stops catching the thing it was built for, which was our own assets
+       * 404ing behind a routing change.
+       */
+      console.log(`  · ${broken.thirdParty.length} third-party image(s) did not load (not failed)`);
+      for (const src of broken.thirdParty) console.log(`      ${src}`);
     }
 
     const bad = [];

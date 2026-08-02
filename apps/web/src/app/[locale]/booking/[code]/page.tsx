@@ -14,6 +14,7 @@ import { JoinPrompt } from "@/components/join-prompt";
 import { Logo } from "@/components/logo";
 import { api, ensureSession, fmtLyd } from "@/lib/api";
 import { listingTitle, textProps } from "@/lib/content";
+import { trackClient } from "@/lib/tracker";
 import {
   BOOKING_STATUS,
   BOOKING_STATUS_HINT,
@@ -37,7 +38,14 @@ const copy = {
     depositPaid: "العربون المدفوع",
     balance: "الباقي نقدًا عند الوصول",
     address: "📍 العنوان (ظهر بعد دفع العربون)",
-    openMaps: "افتح في الخرائط",
+    directions: "🧭 الطريق إلى المكان",
+    geoAlt: "افتح في تطبيق خرائط ثاني",
+    coords: "الإحداثيات",
+    coordsHint: "انسخها، أو اقراها في التلفون لواحد يعرف الطريق.",
+    withheldProvider:
+      "المزوّدة تشارك موقعها بنفسها بعد ما تأكد الحجز — هكي اختارت، وهكي تمشي الأمور عادةً.",
+    withheldNotRecorded:
+      "ما عندناش نقطة على الخريطة لهذا المكان لحدّ الآن. كلّم المضيف على الرقم فوق وهو يوصّفلك الطريق.",
     review: "⭐ قيّم إقامتك (يفتح لك رصيد خصم)",
     timeline: "سجل الحجز",
     deadlinePassed: "انتهت المهلة — سيتم إرجاع عربونك تلقائيًا إن لم يؤكد المضيف",
@@ -54,7 +62,14 @@ const copy = {
     depositPaid: "Deposit paid",
     balance: "Rest in cash on arrival",
     address: "📍 Address (shown once the deposit is paid)",
-    openMaps: "Open in Maps",
+    directions: "🧭 Directions",
+    geoAlt: "Open in another maps app",
+    coords: "Coordinates",
+    coordsHint: "Copy them, or read them down the phone to someone who knows the road.",
+    withheldProvider:
+      "She shares her location herself once she has confirmed. That is how she has set it up, and how this usually works here.",
+    withheldNotRecorded:
+      "We do not have a pin for this place yet. Call the host on the number above and they will talk you in.",
     review: "⭐ Rate your stay (it unlocks credit)",
     timeline: "Booking history",
     deadlinePassed:
@@ -143,33 +158,7 @@ export default function BookingPage({ params }: { params: Promise<{ code: string
             <Info label={c.balance} value={fmtLyd(b.balanceOnArrival, locale)} />
           </div>
 
-          {showVoucher && b.venue?.addressAr ? (
-            <div className="rounded-xl bg-sand p-3 space-y-1">
-              <p className="font-bold text-sea">{c.address}</p>
-              {/* The address is written in Arabic by the agent who stood in
-                  front of the gate. It is shown as it is, marked as Arabic, so
-                  it orders correctly on an English page and is read aloud
-                  rather than spelled out. */}
-              <p lang="ar" dir="rtl">{b.venue.addressAr}</p>
-              {b.venue.hostPhone ? (
-                <p dir="ltr" className="font-inter">
-                  ☎ <a className="underline" href={`tel:${b.venue.hostPhone}`}>{b.venue.hostPhone}</a>
-                  {" · "}
-                  <a className="underline" href={`https://wa.me/${b.venue.hostPhone.replace("+", "")}`}>
-                    WhatsApp
-                  </a>
-                </p>
-              ) : null}
-              {b.venue.exactLocation?.lat ? (
-                <a
-                  className="underline text-sea text-sm"
-                  href={`https://maps.google.com/?q=${b.venue.exactLocation.lat},${b.venue.exactLocation.lng}`}
-                >
-                  {c.openMaps}
-                </a>
-              ) : null}
-            </div>
-          ) : null}
+          {showVoucher && b.venue ? <GettingThere booking={b} venue={b.venue} /> : null}
 
           {b.state === "completed" ? (
             <Link href={`/booking/${b.code}/review`} className="btn-amber block text-center">
@@ -204,6 +193,116 @@ export default function BookingPage({ params }: { params: Promise<{ code: string
         {err ? <p className="text-link text-sm text-center">{err}</p> : null}
       </div>
     </Shell>
+  );
+}
+
+/**
+ * How the guest actually gets there.
+ *
+ * This is the screen someone is holding at a gate, at night, on a coast road
+ * with one bar of signal and a car full of family, so it is built for that and
+ * not for the happy path:
+ *
+ *  - The link is rebuilt locally when the cached payload predates the API
+ *    sending one. The voucher is offline-cached (§12.2) and a button that only
+ *    works when the network does is not a button.
+ *  - The raw coordinates are selectable text, because the method that beats
+ *    every link is reading them down the phone to someone who knows the road.
+ *  - `geo:` sits underneath, for a phone with no Google services.
+ *
+ * When there is no pin, this says why. A provider who chose to keep her
+ * address to herself has not caused an error and is not a missing feature —
+ * she shares it herself once she has confirmed, which is how this market works
+ * anyway. A venue we simply have not walked to yet is our gap, not hers, and
+ * the honest answer there is the host's phone.
+ */
+function GettingThere({
+  booking,
+  venue,
+}: {
+  booking: BookingDetail;
+  venue: NonNullable<BookingDetail["venue"]>;
+}) {
+  const c = copy[useLocale()];
+  const exact = venue.exactLocation ?? null;
+  const coords = exact ? `${exact.lat},${exact.lng}` : null;
+  const navUrl =
+    venue.navigationUrl ??
+    (coords
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(coords)}`
+      : null);
+  const geo =
+    venue.geoUri ??
+    (coords ? `geo:${coords}?q=${coords}(${encodeURIComponent(venue.nameAr)})` : null);
+  const withheld = venue.locationWithheldReason ?? null;
+
+  // Nothing to say at all — no address, no pin, no reason, no phone.
+  if (!venue.addressAr && !navUrl && !withheld && !venue.hostPhone) return null;
+
+  const open = (target: "maps" | "geo") =>
+    trackClient("navigation.opened", { bookingId: booking.id, target });
+
+  return (
+    <div className="rounded-xl bg-sand p-3 space-y-2">
+      <p className="font-bold text-sea">{c.address}</p>
+      {/* The address is written in Arabic by the agent who stood in front of
+          the gate. It is shown as it is, marked as Arabic, so it orders
+          correctly on an English page and is read aloud rather than spelled
+          out. */}
+      {venue.addressAr ? (
+        <p lang="ar" dir="rtl">
+          {venue.addressAr}
+        </p>
+      ) : null}
+
+      {venue.hostPhone ? (
+        <p dir="ltr" className="font-inter">
+          ☎{" "}
+          <a className="underline" href={`tel:${venue.hostPhone}`}>
+            {venue.hostPhone}
+          </a>
+          {" · "}
+          <a className="underline" href={`https://wa.me/${venue.hostPhone.replace("+", "")}`}>
+            WhatsApp
+          </a>
+        </p>
+      ) : null}
+
+      {navUrl ? (
+        <div className="space-y-2 pt-1">
+          <a
+            href={navUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => open("maps")}
+            className="btn-primary block text-center"
+          >
+            {c.directions}
+          </a>
+          {coords ? (
+            <div>
+              <p className="text-faint text-xs">{c.coords}</p>
+              {/* Selectable, and selected whole on a single tap — a long-press
+                  drag to catch a decimal point is not something to ask of
+                  someone standing in the dark. */}
+              <p dir="ltr" className="font-inter font-bold select-all">
+                {coords}
+              </p>
+              <p className="text-muted text-xs">{c.coordsHint}</p>
+            </div>
+          ) : null}
+          {geo ? (
+            <a href={geo} onClick={() => open("geo")} className="text-link text-sm underline">
+              {c.geoAlt}
+            </a>
+          ) : null}
+        </div>
+      ) : withheld === "provider_choice" ? (
+        <p className="text-muted text-sm">{c.withheldProvider}</p>
+      ) : withheld === "not_recorded" ? (
+        <p className="text-muted text-sm">{c.withheldNotRecorded}</p>
+      ) : null}
+    </div>
   );
 }
 

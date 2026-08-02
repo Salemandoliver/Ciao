@@ -1,31 +1,69 @@
 "use client";
 /**
- * Map with Arabic price pins (Airbnb-style), designed to live PERMANENTLY
- * beside the results list rather than as a hidden toggle — the map is how
- * people actually think about "which strip of coast is this?".
+ * The map, whichever one it is.
  *
- * Leaflet is a lazy chunk from our own origin (3G budget §12.3); tiles are
- * OpenStreetMap (no key, no cost). Pins are APPROXIMATE locations only (§7.1):
- * exact coordinates never leave the server before the deposit is paid.
+ * Designed to live PERMANENTLY beside the results list rather than as a hidden
+ * toggle — the map is how people actually think about "which strip of coast is
+ * this?". Pins are APPROXIMATE locations only (§7.1); a venue whose provider
+ * chose area-only carries no coordinates at all and gets no pin, ever, in
+ * either implementation.
+ *
+ * ## Why there are two implementations
+ *
+ * OpenStreetMap costs nothing and needs no account, so it is what ships and
+ * what works today. Google's tiles are the ones Libyans recognise — the
+ * informal names and the coast turnings are on Google and nowhere else — but
+ * Google bills per map load, and Salem has bought neither the key nor the
+ * domain yet.
+ *
+ * So the provider is an operator setting (`maps.provider`), and this file is
+ * the seam. Two conditions must both hold for Google to render: the console
+ * says so, and `NEXT_PUBLIC_GOOGLE_MAPS_KEY` is in the build. Otherwise it is
+ * OSM, silently — a key we have not bought is a procurement fact, not
+ * something to tell a guest looking for a beach house. The day the key lands,
+ * a rebuild switches maps with no code change.
+ *
+ * Both implementations are lazy chunks (§12.3): a mapping library must not be
+ * on the critical path of someone reading a listing on 3G, and the one the
+ * operator is not using must not be downloaded at all.
  */
-import { useEffect, useRef } from "react";
-import "leaflet/dist/leaflet.css";
-import { trackClient } from "@/lib/tracker";
-import { useLocale } from "@/lib/locale";
-import { fmtNum } from "@/lib/vocab";
-import { dirOf, type Locale } from "@/lib/i18n";
+import dynamic from "next/dynamic";
+import { DEFAULT_MAPS, resolveProvider, type MapLatLng, type MapsSettings } from "./map-geo";
 import type { PublicListing } from "@/lib/types";
 
-/**
- * Pin labels. A price pin has room for two or three words, so these are the
- * shortest honest form: what you would say pointing at the map.
- */
-const copy = {
-  ar: { dinars: (n: string) => `${n} د.ل`, service: "خدمة", packages: "باقات" },
-  en: { dinars: (n: string) => `${n} LYD`, service: "Service", packages: "Packages" },
-} satisfies Record<Locale, unknown>;
+export type { MapLatLng, MapsSettings } from "./map-geo";
+export {
+  DEFAULT_MAPS,
+  TINY_AREA_KM2,
+  encodePolygon,
+  polygonAreaKm2,
+  polygonCentre,
+  resolveProvider,
+  round3,
+} from "./map-geo";
 
-type MarkerHandle = { setIcon(icon: unknown): void };
+/*
+ * `ssr: false` is load-bearing rather than a convenience: both libraries touch
+ * `window` at import time. It also keeps either one out of the server render
+ * and out of the first HTML payload.
+ */
+const LeafletMap = dynamic(() => import("./map-leaflet"), {
+  ssr: false,
+  loading: MapSkeleton,
+});
+const GoogleMap = dynamic(() => import("./map-google"), {
+  ssr: false,
+  loading: MapSkeleton,
+});
+
+/**
+ * A quiet block of surface while the chunk arrives — never a spinner. On a
+ * connection bad enough for the wait to be visible, a spinner is a promise we
+ * might not keep.
+ */
+function MapSkeleton() {
+  return <div className="h-full w-full bg-sand" />;
+}
 
 export function MapView({
   items,
@@ -33,118 +71,38 @@ export function MapView({
   selectedId,
   onSelect,
   className = "",
+  maps,
+  drawing = false,
+  polygon = null,
+  onDrawn,
+  onDrawCancelled,
 }: {
   items: PublicListing[];
   vertical: string;
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   className?: string;
+  /** From `/v1/settings/public`. Absent → OpenStreetMap, centred on Tripoli. */
+  maps?: MapsSettings;
+  drawing?: boolean;
+  polygon?: MapLatLng[] | null;
+  onDrawn?: (points: MapLatLng[]) => void;
+  onDrawCancelled?: () => void;
 }) {
-  const locale = useLocale();
-  const ref = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<{ remove(): void; setView(c: [number, number], z: number): void } | null>(
-    null,
+  const settings = maps ?? DEFAULT_MAPS;
+  const Impl = resolveProvider(settings) === "google" ? GoogleMap : LeafletMap;
+  return (
+    <Impl
+      items={items}
+      vertical={vertical}
+      selectedId={selectedId}
+      onSelect={onSelect}
+      className={className}
+      centre={settings.defaultCentre}
+      drawing={drawing}
+      polygon={polygon}
+      onDrawn={onDrawn}
+      onDrawCancelled={onDrawCancelled}
+    />
   );
-  const markersRef = useRef<Record<string, MarkerHandle>>({});
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const LRef = useRef<any>(null);
-  const onSelectRef = useRef(onSelect);
-  onSelectRef.current = onSelect;
-
-  // Build the map once per result set.
-  useEffect(() => {
-    let cancelled = false;
-    trackClient("map.opened", { vertical, resultCount: items.length });
-
-    import("leaflet")
-      .then((L) => {
-        if (cancelled || !ref.current || mapRef.current) return;
-        LRef.current = L;
-        const withCoords = items.filter((i) => i.approxLocation?.lat);
-        const center: [number, number] = withCoords.length
-          ? [
-              withCoords.reduce((s, i) => s + Number(i.approxLocation!.lat), 0) /
-                withCoords.length,
-              withCoords.reduce((s, i) => s + Number(i.approxLocation!.lng), 0) /
-                withCoords.length,
-            ]
-          : [32.8, 13.18]; // Tripoli
-
-        const map = L.map(ref.current, { zoomControl: true, attributionControl: true });
-        mapRef.current = map as never;
-        map.setView(center, 11);
-        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 17,
-          attribution: "© OpenStreetMap",
-        }).addTo(map);
-
-        const bounds: [number, number][] = [];
-        for (const item of withCoords) {
-          const lat = Number(item.approxLocation!.lat);
-          const lng = Number(item.approxLocation!.lng);
-          bounds.push([lat, lng]);
-          const marker = L.marker([lat, lng], {
-            icon: priceIcon(L, item, false, locale),
-          }).addTo(map);
-          marker.on("click", () => {
-            onSelectRef.current?.(item.id);
-            trackClient("map.pin_selected", { listingId: item.id, vertical });
-          });
-          markersRef.current[item.id] = marker as MarkerHandle;
-          // Honest about the ~500m fuzzing (§7.1).
-          L.circle([lat, lng], {
-            radius: item.approxLocation!.radiusM ?? 500,
-            color: "#1B4F72",
-            weight: 1,
-            fillColor: "#1B4F72",
-            fillOpacity: 0.06,
-          }).addTo(map);
-        }
-        if (bounds.length > 1) map.fitBounds(bounds, { padding: [48, 48] });
-      })
-      .catch(() => {
-        /* chunk failed offline — the list is always there */
-      });
-
-    return () => {
-      cancelled = true;
-      mapRef.current?.remove();
-      mapRef.current = null;
-      markersRef.current = {};
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, locale]);
-
-  // Repaint pins when the selection changes (either direction: map ⇄ list).
-  useEffect(() => {
-    const L = LRef.current;
-    if (!L) return;
-    for (const item of items) {
-      const m = markersRef.current[item.id];
-      if (m) m.setIcon(priceIcon(L, item, item.id === selectedId, locale));
-    }
-  }, [selectedId, items, locale]);
-
-  return <div ref={ref} className={className} />;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function priceIcon(L: any, item: PublicListing, active: boolean, locale: Locale) {
-  const c = copy[locale];
-  const price =
-    item.baseNightly > 0
-      ? c.dinars(fmtNum(locale, Math.round(item.baseNightly / 1000)))
-      : item.type === "service"
-        ? c.service
-        : c.packages;
-  const bg = active ? "#1B4F72" : "#fff";
-  const fg = active ? "#fff" : "#1B4F72";
-  // The pin is raw HTML handed to Leaflet, outside React and outside the
-  // document's `dir`, so it has to state its own direction and face.
-  const font = locale === "en" ? "Inter,Almarai,Tahoma,sans-serif" : "Almarai,Tahoma,sans-serif";
-  return L.divIcon({
-    className: "",
-    html: `<div style="background:${bg};border:1.5px solid #1B4F72;color:${fg};font-weight:800;font-family:${font};font-size:12px;padding:3px 9px;border-radius:999px;box-shadow:0 1px 5px rgba(0,0,0,.28);white-space:nowrap;direction:${dirOf(locale)};transform:scale(${active ? 1.12 : 1});transition:transform .15s">${price}</div>`,
-    iconAnchor: [24, 14],
-  });
 }

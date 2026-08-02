@@ -1,3 +1,24 @@
+/**
+ * Something our agent noted standing outside the property (§8.10).
+ *
+ * Not a Places API result and not shaped like one: the note is the payload and
+ * everything else is context for it. `lat`/`lng` are present only when the
+ * agent walked over and dropped a pin, and they are safe to publish even for
+ * an area-only venue — a bakery on the main road is a public business, not the
+ * provider's front door.
+ */
+export interface NeighbourRecord {
+  kind: string;
+  nameAr: string;
+  nameEn?: string;
+  walkMinutes?: number;
+  driveMinutes?: number;
+  noteAr?: string;
+  noteEn?: string;
+  lat?: string;
+  lng?: string;
+}
+
 export interface PublicListing {
   id: string;
   slug: string;
@@ -8,7 +29,17 @@ export interface PublicListing {
   type: "coast" | "hall" | "service";
   city: string;
   area?: string;
+  /*
+   * §7.1, decided server-side by `location.ts` — never re-derived here.
+   * `approxLocation` is the ~500m-fuzzed point the map may draw; a radius of 0
+   * means the venue publishes an exact shopfront and wants a plain pin.
+   * `locationAreaOnly` is a provider who works from home: she appears in
+   * results and in a drawn-area search, and she gets no pin.
+   */
   approxLocation: { lat: string; lng: string; radiusM: number } | null;
+  exactLocation?: { lat: string; lng: string } | null;
+  locationAreaOnly?: boolean;
+  neighbours?: NeighbourRecord[];
   verified: boolean;
   verifiedAt?: string;
   amenities: {
@@ -90,8 +121,19 @@ export interface BookingDetail {
     nameAr: string;
     city: string;
     area?: string;
-    addressAr?: string;
-    exactLocation?: { lat: string; lng: string };
+    /*
+     * Everything from `addressAr` down is post-deposit only (§6.1 step 5) and
+     * arrives already filtered by the venue's disclosure setting.
+     * `locationWithheldReason` says why there is no pin when there isn't one,
+     * so the voucher can explain rather than show an empty space:
+     *   `provider_choice` — she shares her location herself, by design
+     *   `not_recorded`    — we simply have not walked to this gate yet
+     */
+    addressAr?: string | null;
+    exactLocation?: { lat: string; lng: string } | null;
+    navigationUrl?: string | null;
+    geoUri?: string | null;
+    locationWithheldReason?: "provider_choice" | "not_recorded" | null;
     hostPhone?: string;
   };
   timeline: { seq: number; to: string; actor: string; at: string }[];

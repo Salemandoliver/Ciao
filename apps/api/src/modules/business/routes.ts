@@ -24,6 +24,7 @@ import { z } from "zod";
 import { and, count, desc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { normalizePhone } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
+import { normaliseNeighbours } from "../listings/neighbours.js";
 import { CiaoError } from "../../lib/errors.js";
 import { authenticate, requireRole } from "../../lib/guards.js";
 import {
@@ -623,8 +624,20 @@ export async function businessRoutes(app: FastifyInstance) {
         familyOnly: z.boolean().optional(),
         cancellationTier: z.enum(["flexible", "moderate", "strict"]).optional(),
         status: z.enum(["draft", "live", "paused", "delisted"]).optional(),
+        /*
+         * Venue-level fields, accepted here because the console edits a
+         * listing and its venue as one thing. They are written to `venues`
+         * below — a listing update that silently dropped them (as this
+         * endpoint did until now) is the worst outcome available, because the
+         * screen reports success and the provider is told her location setting
+         * changed when it did not.
+         */
+        locationDisclosure: z.enum(["area", "staged", "public"]).optional(),
+        neighbours: z.array(z.record(z.unknown())).max(8).optional(),
       })
       .parse(req.body);
+
+    const { locationDisclosure, neighbours, ...listingFields } = body;
 
     const [before] = await db
       .select()
@@ -646,16 +659,32 @@ export async function businessRoutes(app: FastifyInstance) {
         throw new CiaoError("VALIDATION", "cannot_publish_without_media");
     }
 
-    await db
-      .update(schema.listings)
-      .set({ ...body, updatedAt: new Date() })
-      .where(eq(schema.listings.id, id));
+    if (Object.keys(listingFields).length > 0) {
+      await db
+        .update(schema.listings)
+        .set({ ...listingFields, updatedAt: new Date() })
+        .where(eq(schema.listings.id, id));
+    }
 
-    const changed = Object.fromEntries(
-      Object.entries(body).filter(
+    const venuePatch: Record<string, unknown> = {};
+    if (locationDisclosure !== undefined) venuePatch.locationDisclosure = locationDisclosure;
+    if (neighbours !== undefined) venuePatch.neighbours = normaliseNeighbours(neighbours);
+    if (Object.keys(venuePatch).length > 0) {
+      await db
+        .update(schema.venues)
+        .set({ ...venuePatch, updatedAt: new Date() })
+        .where(eq(schema.venues.id, before.venueId));
+    }
+
+    const changed: Record<string, unknown> = Object.fromEntries(
+      Object.entries(listingFields).filter(
         ([k, v]) => JSON.stringify((before as Record<string, unknown>)[k]) !== JSON.stringify(v),
       ),
     );
+    // Venue fields are reported as changed whenever they were sent: the
+    // console uses `changed` to decide whether to tell the operator it saved,
+    // and "we wrote it" is the honest answer even when the value matched.
+    for (const key of Object.keys(venuePatch)) changed[key] = venuePatch[key];
     await audit(claims.sub, "listing.update", "listing", id, { changed });
     return reply.send({ ok: true, changed: Object.keys(changed) });
   });

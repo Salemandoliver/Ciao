@@ -15,6 +15,8 @@ import { Logo } from "@/components/logo";
 import { LanguageToggle } from "@/components/language-toggle";
 import { api, ensureSession, ApiError } from "@/lib/api";
 import type { Locale } from "@/lib/i18n";
+import type { NeighbourRecord } from "@/lib/types";
+import { NEIGHBOUR_KINDS_LABELS, NEIGHBOUR_KIND_EMOJI, NEIGHBOUR_KIND_KEYS, term } from "@/lib/vocab";
 
 interface Bundle {
   bundleId: string;
@@ -28,8 +30,47 @@ interface Bundle {
   privacy?: { walledPool: boolean; overlooked: boolean; separateFamilyEntrance: boolean };
   safetyBasics?: { gasStorageSane: boolean; poolDepthMarked: boolean };
   evidenceMedia: { ref: string; kind: string }[];
+  /**
+   * What is around the place, recorded while the agent is still standing in
+   * front of it. It rides in the verification bundle rather than going out as
+   * its own save because that is the only request this screen is allowed to
+   * make: the console runs as `agent`, and `PATCH /v1/biz/listings/:id` is
+   * behind the ops guard.
+   *
+   * API GAP — the sync endpoint's `checklistSchema` does not list `neighbours`
+   * yet, so Zod strips it and the ops approval step has nothing to copy onto
+   * `venues.neighbours`. The capture, the offline queue and the payload are
+   * all correct; three lines in the API turn them on. Do not paper over this
+   * with a second endpoint.
+   */
+  neighbours?: NeighbourRecord[];
   notes?: string;
 }
+
+/** What one row of the nearby form holds before it is cleaned into a record. */
+interface NeighbourDraft {
+  kind: string;
+  nameAr: string;
+  walkMinutes: string;
+  driveMinutes: string;
+  noteAr: string;
+  lat?: string;
+  lng?: string;
+}
+
+/**
+ * Six, not eight. The API accepts eight; asking for eight in the field
+ * produces two good lines and six that say "nice supermarket".
+ */
+const MAX_NEIGHBOURS = 6;
+
+const EMPTY_NEIGHBOUR: NeighbourDraft = {
+  kind: "supermarket",
+  nameAr: "",
+  walkMinutes: "",
+  driveMinutes: "",
+  noteAr: "",
+};
 
 const QUEUE_KEY = "ciao_agent_queue";
 
@@ -63,6 +104,19 @@ const copy = {
     safetyTitle: "⚠️ أساسيات السلامة",
     gasSane: "تخزين الغاز سليم",
     poolDepthMarked: "عمق المسبح مُعلَّم",
+    neighboursTitle: "🧭 ما حول المكان — من ٤ إلى ٦",
+    neighboursIntro:
+      "الملاحظة هي المهم، مش الاسم. اكتب الشي اللي ما يعرفوش إلا اللي وقف هنا: «قسم عائلي في الطابق الأول»، «يفتح ٦ الصبح حتى في العيد».",
+    nName: "الاسم — مخبزة النور",
+    nWalk: "مشي (د)",
+    nDrive: "سيارة (د)",
+    nNote: "الملاحظة — قسم عائلي في الطابق الأول",
+    nPin: "📍 خذ الموقع",
+    nPinned: "📍 اتسجّل ✓",
+    nRemove: "احذف",
+    nAdd: "＋ أضف مكان",
+    nCount: (n: number) => `${n} من ${MAX_NEIGHBOURS}`,
+    nNeedFour: "أربعة على الأقل — الباقي ما يستاهلش الزيارة",
     notesPlaceholder: "ملاحظات (تسعير مقترح، حالة الطريق، ملاحظات المضيف…)",
     save: "📸 احفظ الحزمة (يعمل بدون شبكة)",
     photoNote:
@@ -97,6 +151,19 @@ const copy = {
     safetyTitle: "⚠️ Safety basics",
     gasSane: "Gas stored safely",
     poolDepthMarked: "Pool depth marked",
+    neighboursTitle: "🧭 What's nearby — 4 to 6",
+    neighboursIntro:
+      "The note is what matters, not the name. Write the thing only someone standing here would know: \"family section on the first floor\", \"opens at 6, even on Eid\".",
+    nName: "Name — Al-Nour bakery",
+    nWalk: "Walk (min)",
+    nDrive: "Drive (min)",
+    nNote: "The note — family section on the first floor",
+    nPin: "📍 Take the pin",
+    nPinned: "📍 Pinned ✓",
+    nRemove: "Remove",
+    nAdd: "＋ Add a place",
+    nCount: (n: number) => `${n} of ${MAX_NEIGHBOURS}`,
+    nNeedFour: "Four at the least — anything less was not worth the trip",
     notesPlaceholder: "Notes (suggested price, road condition, host's remarks…)",
     save: "📸 Save bundle (works offline)",
     photoNote:
@@ -135,6 +202,52 @@ export default function AgentPage() {
     poolDepthMarked: false,
     notes: "",
   });
+  // Four rows up front, because an empty list with an "add" button gets
+  // skipped and a form that is already open gets filled in.
+  const [neighbours, setNeighbours] = useState<NeighbourDraft[]>(() =>
+    Array.from({ length: 4 }, () => ({ ...EMPTY_NEIGHBOUR })),
+  );
+
+  function setNeighbour<K extends keyof NeighbourDraft>(i: number, k: K, v: NeighbourDraft[K]) {
+    setNeighbours((list) => list.map((n, j) => (j === i ? { ...n, [k]: v } : n)));
+  }
+
+  /** The pin for one neighbour — the agent walks over, or does not bother. */
+  function pinNeighbour(i: number) {
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        setNeighbours((list) =>
+          list.map((n, j) =>
+            j === i
+              ? { ...n, lat: String(pos.coords.latitude), lng: String(pos.coords.longitude) }
+              : n,
+          ),
+        ),
+      () => undefined,
+      { timeout: 5000, enableHighAccuracy: true },
+    );
+  }
+
+  /** Drafts → records. A row with no name never happened. */
+  function cleanNeighbours(): NeighbourRecord[] {
+    const minutes = (v: string) => {
+      const n = Math.trunc(Number(v));
+      return Number.isFinite(n) && n > 0 && n <= 120 ? n : undefined;
+    };
+    return neighbours
+      .filter((n) => n.nameAr.trim())
+      .slice(0, MAX_NEIGHBOURS)
+      .map((n) => ({
+        kind: n.kind,
+        nameAr: n.nameAr.trim(),
+        walkMinutes: minutes(n.walkMinutes),
+        driveMinutes: minutes(n.driveMinutes),
+        noteAr: n.noteAr.trim() || undefined,
+        lat: n.lat,
+        lng: n.lng,
+      }));
+  }
 
   useEffect(() => {
     ensureSession().then((ok) => {
@@ -145,6 +258,7 @@ export default function AgentPage() {
 
   function capture() {
     if (!form.venueId) return setMsg(c.needVenueId);
+    const nearby = cleanNeighbours();
     const bundle: Bundle = {
       bundleId: crypto.randomUUID(),
       venueId: form.venueId,
@@ -175,6 +289,7 @@ export default function AgentPage() {
         poolDepthMarked: form.poolDepthMarked,
       },
       evidenceMedia: [],
+      neighbours: nearby.length ? nearby : undefined,
       notes: form.notes || undefined,
     };
     // GPS pin if available.
@@ -311,6 +426,97 @@ export default function AgentPage() {
           <p className="font-bold text-sm mb-1">{c.safetyTitle}</p>
           <Toggle label={c.gasSane} k="gasStorageSane" />
           <Toggle label={c.poolDepthMarked} k="poolDepthMarked" />
+        </div>
+
+        {/*
+          What's nearby. Laid out for a thumb in the sun: a native select for
+          the kind, then the note in the widest field on the screen, because
+          the note is the line a family will read and the name is not.
+        */}
+        <div className="rounded-xl bg-sand p-3">
+          <p className="font-bold text-sm">{c.neighboursTitle}</p>
+          <p className="text-xs text-muted mt-0.5 mb-2 leading-relaxed">{c.neighboursIntro}</p>
+          <div className="space-y-3">
+            {neighbours.map((n, i) => (
+              <div key={i} className="rounded-xl bg-surface p-2 space-y-1.5">
+                <div className="flex gap-1.5">
+                  <select
+                    className="input !py-2 !text-sm"
+                    value={n.kind}
+                    onChange={(e) => setNeighbour(i, "kind", e.target.value)}
+                  >
+                    {NEIGHBOUR_KIND_KEYS.map((k) => (
+                      <option key={k} value={k}>
+                        {NEIGHBOUR_KIND_EMOJI[k]} {term(NEIGHBOUR_KINDS_LABELS, locale, k)}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    aria-label={c.nRemove}
+                    className="chip shrink-0 px-3"
+                    onClick={() => setNeighbours((list) => list.filter((_, j) => j !== i))}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <input
+                  className="input !py-2 !text-sm"
+                  dir="rtl"
+                  lang="ar"
+                  placeholder={c.nName}
+                  value={n.nameAr}
+                  onChange={(e) => setNeighbour(i, "nameAr", e.target.value)}
+                />
+                <div className="flex gap-1.5">
+                  <input
+                    className="input !py-2 !text-sm"
+                    inputMode="numeric"
+                    placeholder={c.nWalk}
+                    value={n.walkMinutes}
+                    onChange={(e) => setNeighbour(i, "walkMinutes", e.target.value)}
+                  />
+                  <input
+                    className="input !py-2 !text-sm"
+                    inputMode="numeric"
+                    placeholder={c.nDrive}
+                    value={n.driveMinutes}
+                    onChange={(e) => setNeighbour(i, "driveMinutes", e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={`chip shrink-0 whitespace-nowrap ${n.lat ? "badge-success" : ""}`}
+                    onClick={() => pinNeighbour(i)}
+                  >
+                    {n.lat ? c.nPinned : c.nPin}
+                  </button>
+                </div>
+                {/* The point of the whole section — so it is the biggest box. */}
+                <textarea
+                  className="input !py-2 min-h-16 font-bold"
+                  dir="rtl"
+                  lang="ar"
+                  placeholder={c.nNote}
+                  value={n.noteAr}
+                  onChange={(e) => setNeighbour(i, "noteAr", e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-2 mt-2">
+            <button
+              type="button"
+              className="chip disabled:opacity-40"
+              disabled={neighbours.length >= MAX_NEIGHBOURS}
+              onClick={() => setNeighbours((list) => [...list, { ...EMPTY_NEIGHBOUR }])}
+            >
+              {c.nAdd}
+            </button>
+            <span className="text-xs text-muted">
+              {c.nCount(neighbours.filter((n) => n.nameAr.trim()).length)}
+              {neighbours.filter((n) => n.nameAr.trim()).length < 4 ? ` · ${c.nNeedFour}` : ""}
+            </span>
+          </div>
         </div>
 
         <textarea

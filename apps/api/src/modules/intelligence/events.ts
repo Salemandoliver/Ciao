@@ -93,6 +93,20 @@ export const EVENT_TAXONOMY: Record<string, string> = {
    */
   "campaign.sent": "campaign, channel, messaged",
   "campaign.converted": "campaign, bookingId, daysSinceSend",
+  /*
+   * A hand-drawn search area is the strongest demand signal this marketplace
+   * can collect — a person outlining the piece of Libya they want to be in.
+   * Recorded as the shape's centre (3 decimal places, ~100m) and its size,
+   * never the outline: a small enough polygon traced around a single house is
+   * a home address, and an events table is the wrong place for one.
+   */
+  "search.area_drawn": "vertical, shape, centreLat, centreLng, areaKm2, resultCount",
+  /*
+   * Someone tapped through to directions. `target` is "maps" | "geo" |
+   * "neighbour"; `bookingId` is absent for a neighbour link, which is opened
+   * from a public listing page by someone who has not booked anything.
+   */
+  "navigation.opened": "bookingId?, target",
 };
 
 export interface EmitOptions {

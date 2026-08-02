@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "../../db/client.js";
 import { authenticate, requireRole } from "../../lib/guards.js";
 import { CiaoError } from "../../lib/errors.js";
+import { NEIGHBOUR_KINDS, normaliseNeighbours } from "../listings/neighbours.js";
 import { privacyScore } from "@ciao/shared";
 
 /**
@@ -26,6 +27,32 @@ const checklistSchema = z.object({
       detail: z.string().optional(),
     }),
   ),
+  /**
+   * What's around the place, written down while the agent is standing in it.
+   *
+   * It rides in the verification bundle rather than getting its own endpoint
+   * because it is verification data: it is only trustworthy *because* someone
+   * from Ciao was there, and it should reach the public listing by the same
+   * route and the same approval as the amenity table. It also inherits the
+   * bundle's offline queue for free, which matters when the agent is on a
+   * coast road with no signal.
+   */
+  neighbours: z
+    .array(
+      z.object({
+        kind: z.enum(NEIGHBOUR_KINDS),
+        nameAr: z.string().min(1).max(80),
+        nameEn: z.string().max(80).optional(),
+        walkMinutes: z.number().int().min(1).max(120).optional(),
+        driveMinutes: z.number().int().min(1).max(120).optional(),
+        noteAr: z.string().max(160).optional(),
+        noteEn: z.string().max(160).optional(),
+        lat: z.string().max(16).optional(),
+        lng: z.string().max(16).optional(),
+      }),
+    )
+    .max(8)
+    .optional(),
   generatorRunTest: z
     .object({ ran: z.boolean(), kva: z.number().optional(), fuelIncluded: z.boolean().optional() })
     .optional(),
@@ -123,6 +150,10 @@ export async function verificationRoutes(app: FastifyInstance) {
           verificationExpiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000),
           badgeRevoked: false,
           amenities,
+          // Same trip, same approval, same badge. Normalised on the way in so
+          // a bundle from an older agent build cannot write a shape the
+          // listing page does not expect.
+          neighbours: normaliseNeighbours(checklist.neighbours ?? []),
           ...(privacy ? { privacy } : {}),
           ...(v.gpsLat ? { exactLat: v.gpsLat, exactLng: v.gpsLng } : {}),
           updatedAt: new Date(),

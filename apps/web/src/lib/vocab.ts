@@ -149,6 +149,83 @@ export const AMENITIES: Record<Locale, Vocab> = {
 };
 
 /**
+ * What sort of thing a neighbour is — the eleven kinds our agents record.
+ *
+ * The list is short by design (see the API's `listings/neighbours.ts`): a long
+ * form makes a bored agent and a bored agent writes filler. The label is only
+ * the bucket; the sentence the agent wrote about the place is what a family
+ * actually reads, so nothing here tries to be clever.
+ *
+ * «منفذ إلى الشاطئ» rather than «شاطئ»: on this coast the question is never
+ * whether the sea is there, it is whether there is a way down to it from the
+ * property without getting back in the car.
+ */
+export const NEIGHBOUR_KINDS_LABELS: Record<Locale, Vocab> = {
+  ar: {
+    supermarket: "سوبرماركت",
+    bakery: "مخبزة",
+    cafe: "مقهى",
+    restaurant: "مطعم",
+    pharmacy: "صيدلية",
+    clinic: "عيادة",
+    mosque: "مسجد",
+    petrol: "محطة وقود",
+    atm: "صراف آلي",
+    beach_access: "نزلة البحر",
+    playground: "ملعب أطفال",
+  },
+  en: {
+    supermarket: "Supermarket",
+    bakery: "Bakery",
+    cafe: "Café",
+    restaurant: "Restaurant",
+    pharmacy: "Pharmacy",
+    clinic: "Clinic",
+    mosque: "Mosque",
+    petrol: "Petrol station",
+    atm: "ATM",
+    beach_access: "Way down to the beach",
+    playground: "Playground",
+  },
+};
+
+/**
+ * One glyph per kind, so a list of six scans in a glance rather than being
+ * read. Not per-locale — a bakery is a bakery in both — and deliberately old
+ * emoji: 🛝 (the obvious playground glyph) is Emoji 14 and renders as a blank
+ * box on the cheap Android phones a lot of this audience is holding, so the
+ * carousel horse does the job instead.
+ */
+export const NEIGHBOUR_KIND_EMOJI: Record<string, string> = {
+  supermarket: "🛒",
+  bakery: "🥖",
+  cafe: "☕",
+  restaurant: "🍽",
+  pharmacy: "💊",
+  clinic: "🏥",
+  mosque: "🕌",
+  petrol: "⛽",
+  atm: "🏧",
+  beach_access: "🏖",
+  playground: "🎠",
+};
+
+/** The kinds in the order the agent's picker offers them. */
+export const NEIGHBOUR_KIND_KEYS = [
+  "supermarket",
+  "bakery",
+  "cafe",
+  "restaurant",
+  "pharmacy",
+  "clinic",
+  "mosque",
+  "petrol",
+  "atm",
+  "beach_access",
+  "playground",
+] as const;
+
+/**
  * The dimensions a guest scores after a stay (§8.8).
  *
  * «الستر» is scored together with privacy because that is how guests talk about

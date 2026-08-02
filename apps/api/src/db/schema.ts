@@ -115,6 +115,52 @@ export const venues = pgTable(
     exactLat: text("exact_lat"),
     exactLng: text("exact_lng"),
     addressAr: text("address_ar"), // revealed post-deposit
+
+    /**
+     * How much of this venue's location the world may see.
+     *
+     * §7.1 was written for chalets, where the risk runs one way: a guest who
+     * has paid a deposit needs to find the gate, and until they have paid,
+     * publishing the pin invites people to turn up uninvited. `staged` encodes
+     * that — approximate before, exact after.
+     *
+     * Services broke the assumption. Most providers in this market are women
+     * working from home, and a pin on a woman's front door is a category of
+     * risk that a chalet does not carry — it is not a booking-integrity
+     * question, it is a safety one, and it is hers to answer. So the provider
+     * chooses when they join:
+     *
+     *   `area`   — never a pin, at any stage. Customers see the area, and she
+     *              sends her location herself in chat once she has agreed the
+     *              job. The default for services.
+     *   `staged` — the chalet rule: approximate publicly, exact once a deposit
+     *              is paid. The default for coast and hall venues.
+     *   `public` — a pin anyone can see. For a salon, a studio, a hall with a
+     *              shopfront: places that want to be found.
+     *
+     * Drawn-area search works under all three, because it matches on the
+     * approximate point, which every venue has.
+     */
+    locationDisclosure: varchar("location_disclosure", { length: 10 })
+      .notNull()
+      .default("staged"), // area|staged|public
+
+    /**
+     * What is around it — recorded by our agent while they are standing there.
+     *
+     * The alternative was a Places API call per listing view, which costs $32
+     * per thousand and, under Google's terms, may not be cached — so it would
+     * be a bill that grows with traffic, forever, for data every competitor
+     * can show. The agent is already at the property for the verification
+     * visit, and what they can write down is strictly better: whether the café
+     * suits families, whether the bakery opens on Friday, whether the
+     * supermarket is still reachable when the power is out. Google does not
+     * know any of that, and it is the same promise as the rest of the badge.
+     *
+     * Shape: NeighbourRecord[] — { kind, nameAr, nameEn?, walkMinutes?,
+     * driveMinutes?, noteAr?, noteEn?, lat?, lng? }.
+     */
+    neighbours: jsonb("neighbours").notNull().default(sql`'[]'::jsonb`),
     verificationGrade: varchar("verification_grade", { length: 30 })
       .notNull()
       .default("unverified"), // deed|utility_bill_attestation|local_attestation|unverified

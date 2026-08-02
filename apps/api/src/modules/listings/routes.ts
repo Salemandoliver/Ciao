@@ -8,6 +8,15 @@ import { quoteStay } from "@ciao/shared";
 import { effectiveFees } from "../business/settings.js";
 import { track } from "../intelligence/events.js";
 import { verifyAccessToken } from "../../lib/auth.js";
+import { publicLocation } from "./location.js";
+import { normaliseNeighbours } from "./neighbours.js";
+import {
+  parseBoundingBox,
+  parsePolygon,
+  pointInPolygon,
+  polygonBounds,
+  type BoundingBox,
+} from "./geo.js";
 
 /**
  * Public listing/search endpoints.
@@ -31,10 +40,22 @@ export async function listingRoutes(app: FastifyInstance) {
         maxNightly: z.coerce.number().optional(), // dirhams
         checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        /*
+         * Search by a shape the guest drew, rather than a city they picked
+         * from a list. `poly` is the drawn outline; `bbox` is the simpler
+         * "what's on screen right now" case. Both match against the published
+         * approximate point — see geo.ts for why that is safe and why it is
+         * what makes area-only providers searchable without being locatable.
+         */
+        bbox: z.string().max(120).optional(),
+        poly: z.string().max(1600).optional(),
         limit: z.coerce.number().max(50).default(20),
         offset: z.coerce.number().default(0),
       })
       .parse(req.query);
+
+    const polygon = parsePolygon(q.poly);
+    const box: BoundingBox | null = polygon ? polygonBounds(polygon) : parseBoundingBox(q.bbox);
 
     const conditions = [
       eq(schema.listings.status, "live"),
@@ -60,6 +81,21 @@ export async function listingRoutes(app: FastifyInstance) {
         sql`exists (select 1 from jsonb_array_elements(${schema.venues.amenities}) a
              where a ->> 'key' = 'generator' and (a ->> 'present')::boolean)`,
       );
+    /*
+     * Geo filter, in two stages: the bounding box narrows in SQL (indexable,
+     * cheap), and the exact point-in-polygon test runs in JS over what
+     * survives. A venue with no recorded coordinates simply cannot match a
+     * drawn area — which is a real gap in the catalogue today, not a bug here:
+     * most venues have no pin yet, and the verification flow is where that
+     * gets fixed.
+     */
+    if (box) {
+      conditions.push(
+        sql`${schema.venues.approxLat} is not null and ${schema.venues.approxLng} is not null
+            and (${schema.venues.approxLat})::numeric between ${box.south} and ${box.north}
+            and (${schema.venues.approxLng})::numeric between ${box.west} and ${box.east}`,
+      );
+    }
     // Date availability: exclude listings with any blocked/booked/live-held day
     // in the requested range (missing calendar rows = open).
     if (q.checkIn && q.checkOut && q.checkOut > q.checkIn)
@@ -104,8 +140,20 @@ export async function listingRoutes(app: FastifyInstance) {
       .limit(q.limit)
       .offset(q.offset);
 
-    return reply.send({
-      items: rows.map(({ listing, venue, reliability, reviewCount, guestRating }) => {
+    const items = rows
+      /*
+       * Second stage of the geo filter: the drawn outline itself. The SQL box
+       * has already thrown away everything obviously outside, so this runs
+       * over a handful of rows.
+       */
+      .filter(({ venue }) => {
+        if (!polygon) return true;
+        const lat = Number(venue.approxLat);
+        const lng = Number(venue.approxLng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+        return pointInPolygon({ lat, lng }, polygon);
+      })
+      .map(({ listing, venue, reliability, reviewCount, guestRating }) => {
         const count = Number(reviewCount ?? 0);
         const base = publicListing(listing, venue, reliability, count);
         if (count >= 3 && guestRating != null) {
@@ -113,8 +161,20 @@ export async function listingRoutes(app: FastifyInstance) {
           base.ratingSource = "guests";
         }
         return base;
-      }),
-    });
+      });
+
+    /*
+     * The `search.area_drawn` event is emitted from the client, not here.
+     *
+     * Discovery events are client-emitted throughout (`search.performed` is
+     * the neighbouring case), and for a good reason: the tracker attaches the
+     * anon/user identity that makes an event foldable into a profile, which a
+     * server emit inside a public unauthenticated GET does not have. Emitting
+     * from both places would have double-counted every drawn search in the
+     * funnel while only half of them attributed to anybody.
+     */
+
+    return reply.send({ items });
   });
 
   app.get("/v1/listings/:slug", async (req, reply) => {
@@ -350,10 +410,19 @@ function publicListing(
     city: venue.city,
     area: venue.area,
     // §7.1: approximate location only pre-deposit
-    approxLocation:
-      venue.approxLat && venue.approxLng
-        ? { lat: venue.approxLat, lng: venue.approxLng, radiusM: 500 }
-        : null,
+    /*
+     * One module decides what a caller may see (location.ts). Inlining the
+     * rule here is how a serializer eventually forgets it.
+     */
+    ...(() => {
+      const loc = publicLocation(venue);
+      return {
+        approxLocation: loc.approx,
+        exactLocation: loc.exact,
+        locationAreaOnly: loc.areaOnly,
+      };
+    })(),
+    neighbours: normaliseNeighbours(venue.neighbours),
     verified: Boolean(venue.verifiedAt) && !venue.badgeRevoked,
     verifiedAt: venue.verifiedAt,
     verificationGrade: venue.verifiedAt ? "verified" : "unverified", // internal grade stays internal (§11.2)

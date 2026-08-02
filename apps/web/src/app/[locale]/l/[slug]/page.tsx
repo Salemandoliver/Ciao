@@ -6,6 +6,7 @@ import { Stars, VerifiedBadge } from "@/components/listing-card";
 import { API_URL, fmtLyd } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
 import { BookingWidget } from "./booking-widget";
+import { Nearby } from "./nearby";
 import { TrackEvent } from "@/components/track";
 import { Heart } from "@/components/heart";
 import { TrustButton, TrustStars } from "@/components/trust-dialog";
@@ -405,6 +406,10 @@ export default async function ListingPage({
               <p className="text-sm text-faint mt-3">{c.packagesNote}</p>
             </div>
           ) : null}
+
+          {/* What our agent found around the place. Renders nothing at all
+              until someone has actually stood there and written it down. */}
+          <Nearby listingId={l.id} neighbours={l.neighbours} verifiedAt={l.verifiedAt} />
 
           {/* أشياء تعرفها — Airbnb "Things to know" (3 columns) */}
           <div className="card p-4">

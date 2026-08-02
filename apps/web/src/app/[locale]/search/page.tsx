@@ -4,6 +4,10 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { HeroSearch } from "@/components/hero-search";
 import { TrackEvent } from "@/components/track";
 import { SearchResults } from "./results";
+// From `map-geo`, not `map-view`: this is a server component, and everything a
+// "use client" module exports crosses the boundary as a client reference —
+// including a plain settings object, which would arrive here as a proxy.
+import { DEFAULT_MAPS, type MapsSettings } from "@/components/map-geo";
 import { API_URL } from "@/lib/api";
 import { serviceCategories } from "@/lib/services";
 import { VERTICALS, term } from "@/lib/vocab";
@@ -73,6 +77,17 @@ export default async function SearchPage({
   } catch {
     /* offline → SW serves cached page */
   }
+
+  const maps = await getMapsSettings();
+
+  /*
+   * The same filters, without the page's own limit, so that a drawn area
+   * narrows the search the guest already has rather than starting a new one.
+   * `type` is in there, which is what makes drawing work on services and halls
+   * and not only on the coast.
+   */
+  const areaQuery = new URLSearchParams(qs);
+  areaQuery.delete("limit");
 
   const filterLink = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(qs);
@@ -183,7 +198,35 @@ export default async function SearchPage({
         )}
       </div>
 
-      <SearchResults items={items} vertical={type} />
+      <SearchResults
+        items={items}
+        vertical={type}
+        maps={maps}
+        query={areaQuery.toString()}
+      />
     </main>
   );
+}
+
+/**
+ * Which map to draw, and whether the guest may draw on it.
+ *
+ * An operator decision (business console → الإعدادات), fetched with the page
+ * rather than from the browser so the map does not wait on a second round trip
+ * over a Libyan 3G connection. If the control plane is unreachable the map
+ * still opens: OpenStreetMap, centred on Tripoli.
+ */
+async function getMapsSettings(): Promise<MapsSettings> {
+  try {
+    const res = await fetch(`${API_URL}/v1/settings/public`, { next: { revalidate: 300 } });
+    if (!res.ok) return DEFAULT_MAPS;
+    const body = (await res.json()) as { maps?: Partial<MapsSettings> };
+    return {
+      provider: body.maps?.provider === "google" ? "google" : "osm",
+      defaultCentre: body.maps?.defaultCentre ?? DEFAULT_MAPS.defaultCentre,
+      drawSearch: body.maps?.drawSearch !== false,
+    };
+  } catch {
+    return DEFAULT_MAPS;
+  }
 }

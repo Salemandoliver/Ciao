@@ -140,6 +140,16 @@ async function handle(job: Job): Promise<void> {
         .where(eq(schema.venues.id, b.venueId))
         .limit(1);
       if (guest) {
+        /*
+         * Directions go out only when the venue's disclosure policy allows a
+         * pin at this stage — the deposit is paid by now, but an area-only
+         * provider still shares her location herself, and a reminder that
+         * quietly linked to her house would undo that in one message.
+         */
+        const { navigationUrl, revealedLocation } = await import("./modules/listings/location.js");
+        const loc = venue ? revealedLocation(venue) : null;
+        const mapLink = loc?.exact ? navigationUrl(loc.exact) : "";
+        const isArabic = guest.locale !== "en";
         await notify({
           templateKey: "pre_arrival_reminder",
           toPhone: guest.phone,
@@ -150,6 +160,12 @@ async function handle(job: Job): Promise<void> {
             venue: venue?.nameAr ?? "",
             balance: lyd(b.balanceOnArrival),
             link: `${config.webBaseUrl}/booking/${b.code}`,
+            mapLink,
+            directions: mapLink
+              ? isArabic
+                ? ` · الطريق على الخريطة: ${mapLink}`
+                : ` · Directions: ${mapLink}`
+              : "",
           },
         });
       }

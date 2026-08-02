@@ -84,6 +84,46 @@ const COORDS: Record<string, { lat: string; lng: string }> = {
   "kaakat-cakes-tripoli": { lat: "32.8730", lng: "13.3390" },
 };
 
+/**
+ * What's around each place — the kind of thing our agent writes down on the
+ * verification visit. Seeded so the demo shows the feature working; in
+ * production these arrive through the verification bundle and its approval.
+ *
+ * Note what makes each line worth reading: not that a café exists, but whether
+ * a family can sit in it, and whether the shop still trades when the power is
+ * out. That is the part no map API can tell you, and the reason this is
+ * collected by a person rather than bought per request.
+ */
+const NEIGHBOURS: Record<string, unknown[]> = {
+  "tajoura-golden-sands": [
+    { kind: "supermarket", nameAr: "بقالة النور", nameEn: "Al-Noor Market", walkMinutes: 5,
+      noteAr: "تفتح إلى منتصف الليل ومعها مولّد", noteEn: "Open until midnight and has its own generator" },
+    { kind: "cafe", nameAr: "مقهى الشط", nameEn: "Al-Shatt Cafe", walkMinutes: 8,
+      noteAr: "قسم عائلي في الطابق الأول", noteEn: "Family section on the first floor" },
+    { kind: "bakery", nameAr: "مخبز تاجوراء", nameEn: "Tajoura Bakery", walkMinutes: 6,
+      noteAr: "يفتح ٦ صباحًا، حتى أيام العيد", noteEn: "Opens at 6am, even during Eid" },
+    { kind: "pharmacy", nameAr: "صيدلية البحر", nameEn: "Al-Bahr Pharmacy", driveMinutes: 4,
+      noteAr: "أقرب صيدلية مناوبة ليلًا", noteEn: "The nearest pharmacy on night duty" },
+  ],
+  "janzour-marina-villa": [
+    { kind: "supermarket", nameAr: "سوق جنزور المركزي", nameEn: "Janzour Central Market", driveMinutes: 6,
+      noteAr: "أكبر سوق قريب، وفيه قسم لحوم", noteEn: "The biggest market nearby, with a butcher" },
+    { kind: "beach_access", nameAr: "نزلة البحر الغربية", nameEn: "West beach path", walkMinutes: 3,
+      noteAr: "نزلة ممهّدة، مناسبة للعربات والأطفال", noteEn: "A made path — fine for prams and small children" },
+    { kind: "restaurant", nameAr: "مطعم الشاطئ", nameEn: "Al-Shati Restaurant", walkMinutes: 12,
+      noteAr: "أسماك طازجة، ويقبل الحجز للعائلات", noteEn: "Fresh fish, and takes family bookings" },
+    { kind: "mosque", nameAr: "جامع جنزور الكبير", nameEn: "Janzour Grand Mosque", walkMinutes: 7 },
+  ],
+  "ain-zara-palms": [
+    { kind: "supermarket", nameAr: "بقالة الواحة", nameEn: "Al-Waha Market", walkMinutes: 4,
+      noteAr: "قريبة جدًا، لكن تقفل بعد المغرب", noteEn: "Very close, but shuts after sunset" },
+    { kind: "petrol", nameAr: "محطة عين زارة", nameEn: "Ain Zara petrol station", driveMinutes: 5,
+      noteAr: "املأ قبل الوصول — الطوابير طويلة أحيانًا", noteEn: "Fill up before you arrive — the queues can be long" },
+    { kind: "playground", nameAr: "حديقة الأطفال", nameEn: "Children's park", walkMinutes: 9,
+      noteAr: "مسوّرة وفيها إضاءة ليلية", noteEn: "Walled, and lit at night" },
+  ],
+};
+
 /** Always keep listing media + copy in sync with the shipped files (idempotent). */
 async function syncMedia() {
   for (const [slug, media] of Object.entries(MEDIA)) {
@@ -105,7 +145,12 @@ async function syncMedia() {
       if (row) {
         await db
           .update(schema.venues)
-          .set({ approxLat: c.lat, approxLng: c.lng, updatedAt: new Date() })
+          .set({
+            approxLat: c.lat,
+            approxLng: c.lng,
+            ...(NEIGHBOURS[slug] ? { neighbours: NEIGHBOURS[slug] } : {}),
+            updatedAt: new Date(),
+          })
           .where(eq(schema.venues.id, row.venueId));
       }
     }
@@ -272,6 +317,9 @@ async function syncServices() {
         city: "tripoli",
         area: svc.area,
         hostId: host!.id,
+        // Most service providers here work from home. Area-only is the default
+        // they would choose; widening it is theirs to do, not ours.
+        locationDisclosure: "area",
         verificationGrade: "local_attestation",
         verifiedAt: new Date(),
         verificationExpiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000),
