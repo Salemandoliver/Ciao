@@ -755,6 +755,29 @@ export const userPreferences = pgTable("user_preferences", {
   birthDate: date("birth_date", { mode: "string" }),
 
   /**
+   * When the birth date was put on file, and how many times it has moved.
+   *
+   * Both exist because of one exploit. Points are awarded for giving us a
+   * birth date, and again every year on the day — so the cheapest attack on
+   * the programme is to join, set your birthday to tomorrow, and collect the
+   * annual gift within a day. On the numbers as first shipped that took a
+   * fresh account to exactly the redemption floor without a single booking:
+   * 1,000 signup + 500 for the date + 1,000 for the party profile + 2,500 for
+   * the "birthday" = 5,000, which buys a coffee at a partner that Ciao then
+   * settles in cash.
+   *
+   * `birthDateSetAt` closes it: a gift is only paid once the date has been on
+   * file for a while, so a date typed yesterday earns nothing this year.
+   * `birthDateChanges` protects the other casualty — a birth date that can be
+   * dialled is not data, and the whole reason for collecting it was to know
+   * when to say something. One correction is allowed, because people mistype;
+   * after that it stops being editable and support has to do it, which is how
+   * every other business treats a date of birth.
+   */
+  birthDateSetAt: ts("birth_date_set_at"),
+  birthDateChanges: integer("birth_date_changes").notNull().default(0),
+
+  /**
    * Who usually travels with them — the *shape* of the party, never who is in
    * it.
    *

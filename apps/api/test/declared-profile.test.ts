@@ -22,6 +22,8 @@ import {
   partySize,
 } from "../src/modules/accounts/profile-data.js";
 import { runBirthdayCampaign } from "../src/modules/accounts/profile.js";
+import { BIRTHDAY_TENURE_DAYS } from "../src/modules/accounts/profile-data.js";
+import { MIN_REDEEM_POINTS, POINT_RULES } from "../src/modules/accounts/loyalty.js";
 import { emptyTraits, foldEvent, scoreListing } from "../src/modules/intelligence/profile.js";
 
 let app: FastifyInstance;
@@ -241,12 +243,19 @@ describe("the birthday campaign", () => {
     const birthDate = `1990-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(
       today.getUTCDate(),
     ).padStart(2, "0")}`;
+    /*
+     * `birthDateSetAt` is backdated because this test is about idempotency,
+     * not tenure — the gift only pays once the date has been on file for
+     * BIRTHDAY_TENURE_DAYS, and a fixture that ignored that would be testing a
+     * state no real member can be in. The tenure rule has its own tests below.
+     */
+    const onFileSince = new Date(Date.now() - 400 * 24 * 3600 * 1000);
     await db
       .insert(schema.userPreferences)
-      .values({ userId, birthDate, marketingOptIn: false })
+      .values({ userId, birthDate, birthDateSetAt: onFileSince, marketingOptIn: false })
       .onConflictDoUpdate({
         target: schema.userPreferences.userId,
-        set: { birthDate, marketingOptIn: false },
+        set: { birthDate, birthDateSetAt: onFileSince, marketingOptIn: false },
       });
 
     const first = await runBirthdayCampaign();
@@ -267,5 +276,194 @@ describe("the birthday campaign", () => {
       );
     expect(mine[0]!.n).toBe(1);
     expect(second.awarded).toBe(0);
+  });
+});
+
+/**
+ * Farming the profile rewards.
+ *
+ * Salem asked the right question: what stops someone typing a fake birthday
+ * for the points? The answer is not that we can detect a lie — we cannot, and
+ * any system that claims to is really just punishing honest people who mistype
+ * a year. The answer is that lying has to be worth less than the effort, and
+ * that the one path where invented data turns into real cash is closed.
+ *
+ * The path was specific and cheap: a brand-new account earns 1,000 for signing
+ * up, 500 for a date of birth and 1,000 for a party profile — 2,500, below
+ * every redemption floor and therefore harmless. Set the birthday to tomorrow
+ * and the annual 2,500 gift lands the next morning, taking the account to
+ * exactly 5,000: the redemption floor, which buys a voucher at a partner café
+ * that Ciao settles in cash. One SIM, one day, no booking.
+ *
+ * These tests pin that shut, and pin the arithmetic that makes it matter.
+ */
+describe("resistance to farming", () => {
+  /*
+   * Its own member, deliberately. The birthday gift is idempotent per calendar
+   * year, so a test that shared the user above would be measuring "already
+   * paid this year" and reporting it as "the tenure rule worked" — a green
+   * test that proves nothing.
+   */
+  let farmId: string;
+  let farmAuth: () => { authorization: string };
+  const farmPhone = `+2189${Math.floor(10_000_000 + Math.random() * 89_999_999)}`;
+
+  beforeAll(async () => {
+    const [u] = await db.insert(schema.users).values({ phone: farmPhone, role: "guest" }).returning();
+    farmId = u!.id;
+    const t = await signAccessToken({ sub: farmId, role: "guest", phone: farmPhone });
+    farmAuth = () => ({ authorization: `Bearer ${t}` });
+  });
+
+  afterAll(async () => {
+    await db.delete(schema.loyaltyLedger).where(eq(schema.loyaltyLedger.userId, farmId));
+    await db.delete(schema.userPreferences).where(eq(schema.userPreferences.userId, farmId));
+    await db.delete(schema.events).where(eq(schema.events.userId, farmId));
+    await db.delete(schema.users).where(eq(schema.users.id, farmId));
+  });
+
+  it("keeps a fresh account's unearned points below the redemption floor", async () => {
+    const rules = POINT_RULES;
+    const unearned = rules.signup + rules.birth_date_added + rules.party_profile_added;
+    // Everything a new account can claim without booking, reviewing, or
+    // referring anybody. It must not reach the floor on its own.
+    expect(unearned).toBeLessThan(MIN_REDEEM_POINTS);
+    // And the birthday gift is exactly what used to close the gap — which is
+    // why it is the one that carries a tenure rule.
+    expect(unearned + rules.birthday_gift).toBeGreaterThanOrEqual(MIN_REDEEM_POINTS);
+  });
+
+  it("pays no birthday gift on a date typed yesterday", async () => {
+    const today = new Date();
+    const birthDate = `1990-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(
+      today.getUTCDate(),
+    ).padStart(2, "0")}`;
+    // The attack, exactly: set your birthday to today, on a date-of-birth
+    // field you filled in a moment ago.
+    await db
+      .insert(schema.userPreferences)
+      .values({ userId: farmId, birthDate, birthDateSetAt: new Date(), marketingOptIn: false })
+      .onConflictDoUpdate({
+        target: schema.userPreferences.userId,
+        set: { birthDate, birthDateSetAt: new Date() },
+      });
+
+    const result = await runBirthdayCampaign();
+    const mine = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(schema.loyaltyLedger)
+      .where(
+        and(
+          eq(schema.loyaltyLedger.userId, farmId),
+          eq(schema.loyaltyLedger.reason, "birthday_gift"),
+        ),
+      );
+    expect(mine[0]!.n).toBe(0);
+    expect(result.awarded).toBe(0);
+  });
+
+  it("pays it once the date has been on file long enough", async () => {
+    const today = new Date();
+    const birthDate = `1990-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(
+      today.getUTCDate(),
+    ).padStart(2, "0")}`;
+    const longAgo = new Date(Date.now() - (BIRTHDAY_TENURE_DAYS + 1) * 24 * 3600 * 1000);
+    await db
+      .update(schema.userPreferences)
+      .set({ birthDate, birthDateSetAt: longAgo })
+      .where(eq(schema.userPreferences.userId, farmId));
+
+    const paid = await runBirthdayCampaign();
+    expect(paid.awarded).toBeGreaterThanOrEqual(1);
+    const mine = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(schema.loyaltyLedger)
+      .where(
+        and(
+          eq(schema.loyaltyLedger.userId, farmId),
+          eq(schema.loyaltyLedger.reason, "birthday_gift"),
+        ),
+      );
+    expect(mine[0]!.n).toBe(1);
+  });
+
+  it("restarts the clock when the date moves, so the lock cannot be waited out", async () => {
+    /*
+     * The subtler version of the attack: set a real date, wait out the tenure,
+     * then spend your one correction on "tomorrow" and collect immediately.
+     */
+    const [before] = await db
+      .select()
+      .from(schema.userPreferences)
+      .where(eq(schema.userPreferences.userId, farmId));
+    expect(before!.birthDateSetAt!.getTime()).toBeLessThan(Date.now() - 1000);
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/v1/me/declared-profile",
+      headers: farmAuth(),
+      payload: { birthDate: "1991-06-15" },
+    });
+    expect(res.statusCode).toBe(200);
+
+    const [after] = await db
+      .select()
+      .from(schema.userPreferences)
+      .where(eq(schema.userPreferences.userId, farmId));
+    // Clock reset, correction counted.
+    expect(after!.birthDateSetAt!.getTime()).toBeGreaterThan(Date.now() - 10_000);
+    expect(after!.birthDateChanges).toBeGreaterThanOrEqual(1);
+  });
+
+  it("locks the date after one correction, with a message that explains itself", async () => {
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/v1/me/declared-profile",
+      headers: farmAuth(),
+      payload: { birthDate: "1992-07-20" },
+    });
+    expect(res.statusCode).toBe(422);
+    const body = res.json() as { error: { problem: string; message: string } };
+    expect(body.error.problem).toBe("locked");
+    expect(body.error.message.length).toBeGreaterThan(40);
+  });
+
+  it("still lets a member withdraw the date entirely", async () => {
+    // Locking corrections must never lock someone out of sharing less. A
+    // privacy control that can only be tightened by support is a trap.
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/v1/me/declared-profile",
+      headers: farmAuth(),
+      payload: { birthDate: null },
+    });
+    expect(res.statusCode).toBe(200);
+    expect((res.json() as { profile: { birthDate: null } }).profile.birthDate).toBeNull();
+  });
+
+  it("pays for a party profile exactly once, however often it is rewritten", async () => {
+    /*
+     * An invented "40 adults" earns the same 1,000 as an honest answer and
+     * cannot be re-earned — and it makes that member's own recommendations
+     * worse, which is the right incentive and needs no enforcement. The thing
+     * worth guarding is the till, not the truth.
+     */
+    const first = await app.inject({
+      method: "PATCH",
+      url: "/v1/me/declared-profile",
+      headers: farmAuth(),
+      payload: { party: { adults: 40, children: 20, bands: ["toddler"] } },
+    });
+    expect((first.json() as { earned: number }).earned).toBe(POINT_RULES.party_profile_added);
+
+    for (let i = 0; i < 3; i++) {
+      const again = await app.inject({
+        method: "PATCH",
+        url: "/v1/me/declared-profile",
+        headers: farmAuth(),
+        payload: { party: { adults: 2 + i, children: 0, bands: [] } },
+      });
+      expect((again.json() as { earned: number }).earned).toBe(0);
+    }
   });
 });

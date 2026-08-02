@@ -126,6 +126,8 @@ const copy = {
     } as Record<string, string>,
     earnNote:
       "مكافأة الدعوة تُصرف حين يُتمّ صديقك أول حجز فعليًا، لا عند تسجيله — حتى لا يُستغل البرنامج بحسابات وهمية. لكل حساب دعوة واحدة فقط، ولا يمكنك استخدام كودك أنت.",
+    birthdayNote:
+      "هدية عيد الميلاد تبدأ بعد مرور شهر على إضافة تاريخ ميلادك. لو أضفته قبل عيدك بأيام، تصلك الهدية في السنة القادمة — القاعدة موجودة لأن التاريخ يُضاف مرة ويبقى، لا ليُغيَّر وقت الحاجة. ولك تصحيح واحد إن أخطأت في الكتابة.",
 
     useTitle: "كيف تستخدمها",
     useCreditTitle: "١. رصيد داخل تشاو",
@@ -233,6 +235,8 @@ const copy = {
     } as Record<string, string>,
     earnNote:
       "The invite reward is paid when your friend actually completes a first booking, not when they sign up — so the programme cannot be worked with fake accounts. Each account can use one invite only, and you cannot use your own code.",
+    birthdayNote:
+      "The birthday gift starts once your date of birth has been on your account for a month. Add it a few days before your birthday and the first gift comes the following year — the rule is there because a birth date is something you tell us once, not a dial to turn when a gift is due. You get one correction if you mistype it.",
 
     useTitle: "How you use them",
     useCreditTitle: "1. Credit inside Ciao",
@@ -357,6 +361,7 @@ export default async function RewardsPage({ params }: { params: Promise<{ locale
           </table>
         </div>
         <p className="text-xs text-faint mt-2 leading-relaxed">{c.earnNote}</p>
+        <p className="text-xs text-faint mt-2 leading-relaxed">{c.birthdayNote}</p>
       </section>
 
       <section className="mt-4">

@@ -1,0 +1,2 @@
+ALTER TABLE "user_preferences" ADD COLUMN "birth_date_set_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "user_preferences" ADD COLUMN "birth_date_changes" integer DEFAULT 0 NOT NULL;

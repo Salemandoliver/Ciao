@@ -288,6 +288,40 @@ export async function intelligenceRoutes(app: FastifyInstance) {
       .groupBy(sql`1`)
       .orderBy(sql`1`);
 
+    /*
+     * Loyalty integrity.
+     *
+     * Not fraud detection — two numbers an operator can watch, because the
+     * honest defence against farming is that it is bounded AND visible, not
+     * that it is impossible. Both are cheap to read and hard to argue with.
+     *
+     *  - `unearnedAtFloor`: members holding enough points to redeem who have
+     *    never completed a stay. Should be a trickle. A step change is a farm.
+     *  - `topSharedBirthDate`: the most common single date of birth. Real
+     *    birthdays spread; 1 January 1990 appearing forty times does not.
+     *    Deliberately a count with a denominator and no identities attached —
+     *    it tells an operator to go and look, which is the correct output of a
+     *    signal this weak.
+     */
+    const [integrity] = await db
+      .select({
+        unearnedAtFloor: sql<string>`count(*) filter (
+          where u.points_balance >= 5000 and u.completed_stays = 0)`,
+        membersWithPoints: sql<string>`count(*) filter (where u.points_balance > 0)`,
+      })
+      .from(sql`users u`);
+
+    const [sharedBirthDate] = await db
+      .select({
+        birthDate: sql<string | null>`birth_date::text`,
+        users: sql<string>`count(*)`,
+      })
+      .from(schema.userPreferences)
+      .where(sql`birth_date is not null`)
+      .groupBy(sql`birth_date`)
+      .orderBy(desc(sql`count(*)`))
+      .limit(1);
+
     return reply.send({
       windowDays: q.days,
       funnel: {
@@ -331,6 +365,12 @@ export async function intelligenceRoutes(app: FastifyInstance) {
        * ever narrow to a person. Nothing here can be filtered down to an
        * individual, because nothing here is joined to one.
        */
+      loyaltyIntegrity: {
+        unearnedAtFloor: Number(integrity?.unearnedAtFloor ?? 0),
+        membersWithPoints: Number(integrity?.membersWithPoints ?? 0),
+        topSharedBirthDate: sharedBirthDate?.birthDate ?? null,
+        topSharedBirthDateUsers: Number(sharedBirthDate?.users ?? 0),
+      },
       declaredProfiles: {
         withBirthDate: Number(declared?.withBirthDate ?? 0),
         withParty: Number(declared?.withParty ?? 0),

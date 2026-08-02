@@ -39,12 +39,14 @@ const BIRTH_DATE_MESSAGES: Record<"ar" | "en", Record<BirthDateProblem, string>>
     future: "تاريخ الميلاد لا يمكن أن يكون في المستقبل.",
     under_age: `الحجز في تشاو عقد يشمل عربونًا وعنوان المضيف، ولذلك يلزم أن يكون عمرك ${MIN_AGE_YEARS} سنة فأكثر. يمكن لأحد والديك الحجز نيابة عنك.`,
     implausible: "تأكد من سنة الميلاد — يبدو أن بها خطأ.",
+    locked: "عدّلت تاريخ ميلادك مرة من قبل. للتعديل مرة أخرى راسل الدعم — تاريخ الميلاد ليس إعدادًا يُغيَّر، ونعتمد عليه في تهنئتك في يومك.",
   },
   en: {
     malformed: "That date doesn't look right — enter it as day/month/year.",
     future: "A date of birth can't be in the future.",
     under_age: `Booking on Ciao is a contract involving a deposit and a host's address, so you need to be ${MIN_AGE_YEARS} or over. A parent can book on your behalf.`,
     implausible: "Please check the year — it looks like a typo.",
+    locked: "You've already corrected your date of birth once. Message support to change it again — a birth date isn't a setting, and we rely on it to greet you on the day.",
   },
 };
 import { randomUUID } from "node:crypto";

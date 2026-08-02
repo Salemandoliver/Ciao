@@ -53,6 +53,34 @@ export type AgeBand = (typeof AGE_BANDS)[number];
 
 export const MIN_AGE_YEARS = 18;
 
+/**
+ * How long a birth date must sit on file before it earns that year's gift.
+ *
+ * Without this, the cheapest attack on the loyalty programme is: join, set
+ * your birthday to tomorrow, collect. It is not a hypothetical — on the
+ * numbers as first shipped it took a brand-new account to exactly the
+ * redemption floor in one day, with no booking, which buys a coffee at a
+ * partner that Ciao settles in cash.
+ *
+ * Thirty days is chosen to be longer than a fraudster's patience and shorter
+ * than a real member's memory. The cost to an honest person is bounded and
+ * knowable: if you join in March and your birthday is in April, your first
+ * gift arrives the following April. We say that on the rewards page rather
+ * than letting it arrive as a silent non-event, because an unexplained missing
+ * gift is worse than a stated rule.
+ */
+export const BIRTHDAY_TENURE_DAYS = 30;
+
+/**
+ * Corrections allowed after the first entry.
+ *
+ * One, because people mistype a year. Not unlimited, because a birth date that
+ * can be edited freely is a dial rather than a fact — and the entire reason
+ * for asking was to know a real day. After that it is a support job, which is
+ * how every bank and airline treats the same field.
+ */
+export const MAX_BIRTH_DATE_CHANGES = 1;
+
 /** Whole years between a birth date and a reference day. */
 export function ageOn(birthDate: string, on: Date = new Date()): number {
   const [y, m, d] = birthDate.split("-").map(Number);
@@ -78,7 +106,13 @@ export function birthDayMonth(birthDate: string): { day: number; month: number }
   return { day: d!, month: m! };
 }
 
-export type BirthDateProblem = "malformed" | "future" | "under_age" | "implausible";
+export type BirthDateProblem =
+  | "malformed"
+  | "future"
+  | "under_age"
+  | "implausible"
+  /** Already corrected once; changing it again is a support job. */
+  | "locked";
 
 /**
  * Validate a declared birth date.

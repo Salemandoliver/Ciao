@@ -10,6 +10,8 @@ import {
   normaliseOccasions,
   normaliseParty,
   type BirthDateProblem,
+  BIRTHDAY_TENURE_DAYS,
+  MAX_BIRTH_DATE_CHANGES,
   type DeclaredParty,
   type Occasion,
 } from "./profile-data.js";
@@ -97,6 +99,26 @@ export async function saveProfile(
   let earned = 0;
 
   if (update.birthDate !== undefined) {
+    const movingIt = (row.birthDate ?? null) !== (update.birthDate ?? null);
+    /*
+     * A birth date is a fact, not a setting. One correction is allowed because
+     * people mistype a year; beyond that it is locked, because a date that can
+     * be dialled at will is worthless as data and is also the lever on the
+     * birthday gift. Support can still change it — this is a speed bump for
+     * the programme, not a wall for a real person.
+     *
+     * Withdrawing the date entirely (null) is deliberately NOT counted as a
+     * change: choosing to stop sharing something must always stay available,
+     * or the setting becomes a trap.
+     */
+    if (
+      movingIt &&
+      update.birthDate !== null &&
+      row.birthDate &&
+      row.birthDateChanges >= MAX_BIRTH_DATE_CHANGES
+    ) {
+      throw new ProfileInputError("locked");
+    }
     if (update.birthDate === null) {
       // Withdrawing it is always allowed, and does not claw back the reward —
       // punishing someone for changing their mind about what we hold is how
@@ -106,6 +128,15 @@ export async function saveProfile(
       const problem = checkBirthDate(update.birthDate);
       if (problem) throw new ProfileInputError(problem);
       patch.birthDate = update.birthDate;
+      if (movingIt) {
+        /*
+         * The clock restarts on every move. Otherwise the lock is trivially
+         * sidestepped: set a real date on day one, wait out the tenure, then
+         * spend your one correction on "tomorrow" and collect immediately.
+         */
+        patch.birthDateSetAt = new Date();
+        if (row.birthDate) patch.birthDateChanges = row.birthDateChanges + 1;
+      }
       if (!row.birthDate) {
         earned += await awardPoints(userId, "birth_date_added", userId, "profile");
         // Band and month only. The date itself stops here.
@@ -221,6 +252,20 @@ export async function runBirthdayCampaign(now: Date = new Date()): Promise<{
       and(
         sql`extract(month from ${schema.userPreferences.birthDate}) = ${month}`,
         sql`extract(day from ${schema.userPreferences.birthDate}) = ${day}`,
+        /*
+         * The date has to have been on file for a while. Without this, "join,
+         * set your birthday to tomorrow, collect" takes a brand-new account to
+         * the redemption floor in a day with no booking — 1,000 signup + 500
+         * for the date + 1,000 for the party profile + 2,500 for the
+         * "birthday" is exactly 5,000, which buys a coffee at a partner that
+         * we then settle in cash.
+         *
+         * Rows with no `birthDateSetAt` are dates that predate this column;
+         * they are grandfathered rather than punished for our schema change.
+         */
+        sql`(${schema.userPreferences.birthDateSetAt} is null
+             or ${schema.userPreferences.birthDateSetAt}
+                < now() - make_interval(days => ${BIRTHDAY_TENURE_DAYS}))`,
         eq(schema.users.disabled, false),
       ),
     )

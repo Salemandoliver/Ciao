@@ -85,7 +85,22 @@ export async function issueVoucher(userId: string, partnerId: string, value: num
     .where(eq(schema.partners.id, partnerId))
     .limit(1);
   if (!partner || !partner.active) throw new CiaoError("BOOKING_NOT_FOUND", "partner_not_found");
-  if (value < partner.minValue || value > partner.maxValue)
+  /*
+   * Two floors, and the programme's is the one that cannot be undercut.
+   *
+   * A partner sets its own minimum — a café will not issue a voucher worth
+   * less than a coffee. But the programme's `minRedeem` is the number the
+   * rewards page publishes and the number the economics were set against, and
+   * it is the only thing standing between a fresh account's unearned points
+   * and real cash leaving the business: signup plus a completed profile is
+   * 2,500 points, and if an operator ever set a partner minimum below that,
+   * those points would buy something we settle in cash for someone who has
+   * never booked anything.
+   *
+   * So a partner may raise the bar and never lower it.
+   */
+  const floor = Math.max(partner.minValue, cfg.minRedeem * cfg.pointToDirham);
+  if (value < floor || value > partner.maxValue)
     throw new CiaoError("VALIDATION", "value_out_of_range");
 
   const points = Math.ceil(value / cfg.pointToDirham);
