@@ -137,7 +137,10 @@ export async function buildApp(): Promise<FastifyInstance> {
    * with one curl from the affected machine.
    */
   app.get("/health", async (req) => {
-    const origin = String(req.headers.origin ?? "");
+    /* Normalised the same way `parseOrigins` normalises the allowlist:
+       otherwise "https://x/" reports as blocked while actually being
+       allowed, and a health check that lies costs more than none. */
+    const origin = String(req.headers.origin ?? "").replace(/\/+$/, "");
     return {
       ok: true,
       service: "ciao-api",

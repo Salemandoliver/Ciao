@@ -6,6 +6,20 @@ function req(name: string, fallback?: string): string {
   return v;
 }
 
+/**
+ * Split a comma-separated origin list the way a human types it.
+ *
+ * Exported so it can be tested directly: `config` reads the environment at
+ * import time, which makes the whole object awkward to exercise, and this is
+ * precisely the part that has already broken a deploy.
+ */
+export function parseOrigins(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((o) => o.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+}
+
 const isProd = process.env.NODE_ENV === "production";
 const isTest = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
 
@@ -39,18 +53,19 @@ export const config = {
    */
   consoleBaseUrl: process.env.CONSOLE_BASE_URL ?? "http://localhost:3003",
   apiBaseUrl: process.env.API_BASE_URL ?? "http://localhost:4000",
-  /*
-   * Parsed defensively because the failure is silent and absolute:
-   * `@fastify/cors` compares origins by exact string, so `a, b` yields
-   * `" https://b"`, matches nothing, logs nothing — and the browser reports
-   * only "we couldn't reach the server". Trim each entry, drop the trailing
-   * slash a person naturally pastes from an address bar, and drop empties
-   * from a trailing comma.
+  /**
+   * Allowed browser origins.
+   *
+   * Split, then trimmed, then stripped of a trailing slash, because this value
+   * is typed into a hosting dashboard by a human under time pressure and the
+   * failure mode is silent and total: `@fastify/cors` compares origins by exact
+   * string, so one space after a comma — `a, b` — yields `" https://b"`, which
+   * matches nothing, and the whole app answers "we couldn't reach the server"
+   * with no error anywhere to explain it. An origin has no meaningful trailing
+   * slash and no meaningful surrounding whitespace, so accepting both costs
+   * nothing and removes a trap that cost us a deploy cycle.
    */
-  corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:3000")
-    .split(",")
-    .map((o) => o.trim().replace(/\/+$/, ""))
-    .filter(Boolean),
+  corsOrigins: parseOrigins(process.env.CORS_ORIGINS ?? "http://localhost:3000"),
 
   // Payments (§10.2) — Plutu primary; mock provider used until credentials exist.
   paymentProvider: process.env.PAYMENT_PROVIDER ?? "mock",
