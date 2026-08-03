@@ -22,7 +22,7 @@ const phoneSchema = z
   .refine(isValidPhoneInput, "invalid phone")
   .transform(normalizePhone);
 
-function hashCode(code: string): string {
+export function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }
 

@@ -25,8 +25,9 @@ import { Link, useLocale, useRouter } from "@/lib/locale";
 import { localePath, type Locale } from "@/lib/i18n";
 import { Logo } from "@/components/logo";
 import { LanguageToggle } from "@/components/language-toggle";
-import { ApiError, api, clearTokens, ensureSession } from "@/lib/api";
+import { ApiError, api, ensureSession, signOut } from "@/lib/api";
 import { hostText, textProps } from "@/lib/content";
+import { SecurityTab } from "./security";
 import { TodayTab } from "./today";
 import { CalendarTab } from "./calendar";
 import { JobsTab } from "./jobs";
@@ -48,6 +49,7 @@ const TAB_KEYS = [
   "insights",
   "team",
   "settings",
+  "security",
 ] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
@@ -61,6 +63,7 @@ const TAB_EMOJI: Record<TabKey, string> = {
   insights: "📈",
   team: "👥",
   settings: "⚙️",
+  security: "🔒",
 };
 
 /** Which capability each tab needs. Absent capability, absent tab. */
@@ -74,6 +77,13 @@ const TAB_CAPABILITY: Record<TabKey, "diary" | "clients" | "money" | "settings" 
   insights: "money",
   team: "admin",
   settings: "settings",
+  /*
+   * Everyone gets Security — including a member of staff. It is where they
+   * change their own password and see the devices holding their own session,
+   * and gating that behind a business capability would mean the person least
+   * able to get help is the one who cannot lock their account.
+   */
+  security: "diary",
 };
 
 const copy = {
@@ -90,16 +100,16 @@ const copy = {
       insights: "الأرقام",
       team: "الفريق",
       settings: "الإعدادات",
+      security: "الأمان",
     },
-    app: "التطبيق",
+    signOut: "خروج",
     checking: "جارٍ التحقق…",
     loadFailed: "تعذر التحميل — تأكد من الاتصال وأعد المحاولة",
     retry: "أعد المحاولة",
-    deniedTitle: "هذه اللوحة لأصحاب الأنشطة",
+    deniedTitle: "حسابك ما هو مربوط بنشاط",
     deniedBody:
-      "ما لقينا نشاطًا مسجّلًا على رقمك. إن كنت صاحب شاليه أو استراحة أو قاعة أو تقدّم خدمة وتبي تنضم لتشاو، كلّمنا ونسجّلك.",
+      "دخلت بنجاح، لكن ما في نشاط مربوط برقمك بعد. إن كنت صاحب شاليه أو استراحة أو قاعة أو تقدّم خدمة، كلّم فريق تشاو وإحنا نربطه لك.",
     otherNumber: "الدخول برقم آخر",
-    backToApp: "العودة للتطبيق",
     switch: "النشاط",
   },
   en: {
@@ -115,16 +125,16 @@ const copy = {
       insights: "Numbers",
       team: "Team",
       settings: "Settings",
+      security: "Security",
     },
-    app: "The app",
+    signOut: "Sign out",
     checking: "Checking…",
     loadFailed: "Could not load — check your connection and try again",
     retry: "Try again",
-    deniedTitle: "This panel is for businesses",
+    deniedTitle: "Your account isn't linked to a business",
     deniedBody:
-      "We couldn't find a business registered to your number. If you run a chalet, an estiraha, a hall, or offer a service and want to join Ciao, get in touch and we'll set you up.",
+      "You're signed in, but no business is attached to your number yet. If you run a chalet, an estiraha, a hall or a service, talk to the Ciao team and we'll link it.",
     otherNumber: "Sign in with another number",
-    backToApp: "Back to the app",
     switch: "Business",
   },
 } satisfies Record<Locale, unknown>;
@@ -156,17 +166,22 @@ function PartnerConsole() {
 
   useEffect(() => {
     ensureSession().then((ok) => {
-      if (!ok) return router.push("/login?next=/partner");
+      if (!ok) return router.replace("/login");
       void load();
     });
   }, [router, load]);
+
+  async function doSignOut() {
+    await signOut();
+    router.replace("/login");
+  }
 
   function go(next: TabKey) {
     setTab(next);
     const query = partnerId ? `?tab=${next}&partnerId=${partnerId}` : `?tab=${next}`;
     // Through `localePath`, or an English-reading manager switching tab is
     // silently dropped back onto the Arabic console.
-    window.history.replaceState(null, "", localePath(`/partner${query}`, locale));
+    window.history.replaceState(null, "", localePath(`/${query}`, locale));
   }
 
   const can = (cap: string) => Boolean(me?.capabilities.includes(cap as never));
@@ -212,9 +227,15 @@ function PartnerConsole() {
           </div>
         </div>
         <nav className="flex items-center gap-2 text-xs font-bold text-sea shrink-0">
-          <Link href="/" className="chip !text-xs">
-            {c.app}
-          </Link>
+          {/*
+            No link to the marketplace. This is a separate product on its own
+            domain — a partner in the middle of their Thursday has no use for a
+            door into a holiday-booking site, and the two sessions are
+            deliberately unable to reach each other anyway.
+          */}
+          <button className="chip !text-xs font-bold" onClick={() => void doSignOut()}>
+            {c.signOut}
+          </button>
           <LanguageToggle />
         </nav>
       </header>
@@ -255,18 +276,9 @@ function PartnerConsole() {
           <p className="font-bold text-sea">{c.deniedTitle}</p>
           <p className="text-sm text-faint mt-2">{c.deniedBody}</p>
           <div className="flex flex-wrap gap-2 justify-center mt-4">
-            <button
-              className="btn-primary !py-2 !text-sm"
-              onClick={() => {
-                clearTokens();
-                router.push("/login?next=/partner");
-              }}
-            >
+            <button className="btn-primary !py-2 !text-sm" onClick={() => void doSignOut()}>
               {c.otherNumber}
             </button>
-            <Link href="/" className="chip">
-              {c.backToApp}
-            </Link>
           </div>
         </div>
       ) : me ? (
@@ -296,6 +308,7 @@ function PartnerConsole() {
             {activeTab === "insights" ? <InsightsTab me={me} onReload={load} /> : null}
             {activeTab === "team" ? <TeamTab me={me} /> : null}
             {activeTab === "settings" ? <SettingsTab me={me} onSaved={load} /> : null}
+            {activeTab === "security" ? <SecurityTab onSignedOut={() => void doSignOut()} /> : null}
           </div>
         </>
       ) : null}
@@ -303,7 +316,7 @@ function PartnerConsole() {
   );
 }
 
-export default function PartnerPage() {
+export default function PartnerConsolePage() {
   return (
     <Suspense fallback={<p className="p-6 text-faint">…</p>}>
       <PartnerConsole />

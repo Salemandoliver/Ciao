@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Ciao Partners app icon.
+
+    The same Greeting Bubble as the marketplace (§3.3) with the palette
+    reversed: sand ground, sea-blue bubble outline, amber sun. A partner and a
+    guest may both have Ciao installed, and two identical icons on one home
+    screen is a person opening the wrong app at seven in the morning. Reversed
+    rather than redrawn, because it still has to read as the same company.
+  -->
+  <rect x="32" y="32" width="448" height="416" rx="112" fill="#F5EFE3"/>
+  <path d="M120 448 L120 496 L192 448 Z" fill="#F5EFE3"/>
+  <rect x="64" y="64" width="384" height="352" rx="88" fill="none" stroke="#1B4F72" stroke-width="28"/>
+  <circle cx="256" cy="240" r="88" fill="#E8A33D"/>
+</svg>

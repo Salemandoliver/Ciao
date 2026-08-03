@@ -9,33 +9,71 @@ import type { UserRole } from "@ciao/shared";
 const jwtKey = new TextEncoder().encode(config.jwtSecret);
 const actionKey = new TextEncoder().encode(config.actionTokenSecret);
 
+/**
+ * Which product a token was minted for.
+ *
+ * `app` is the consumer marketplace; `partner` is the standalone control panel
+ * at partners.ciao.ly. They are separate products with separate sign-in
+ * mechanisms — a guest proves a phone number with an OTP, a partner signs in
+ * with a password — and a token from one must never be accepted by the other.
+ *
+ * Enforcing that with an audience claim rather than with discipline matters
+ * because the failure is silent and severe: without it, any guest who obtained
+ * a token could call the partner endpoints and be treated as the owner of
+ * whichever business their user id happened to host.
+ */
+export type TokenAudience = "app" | "partner";
+
 export interface SessionClaims {
   sub: string; // user id
   role: UserRole;
   phone: string;
+  aud: TokenAudience;
 }
 
-export async function signAccessToken(claims: SessionClaims): Promise<string> {
+export async function signAccessToken(
+  claims: Omit<SessionClaims, "aud">,
+  audience: TokenAudience = "app",
+): Promise<string> {
   return new SignJWT({ role: claims.role, phone: claims.phone })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(claims.sub)
     .setIssuedAt()
     .setIssuer("ciao.ly")
+    .setAudience(audience)
     .setExpirationTime("15m") // short-lived (§13.8)
     .sign(jwtKey);
 }
 
-export async function verifyAccessToken(token: string): Promise<SessionClaims> {
+/**
+ * Verify a token and assert what it was minted for.
+ *
+ * The audience is checked here rather than passed to `jwtVerify`, for one
+ * transitional reason: access tokens issued before the partner app existed
+ * carry no `aud` at all, and rejecting them outright would sign out every
+ * signed-in guest at the moment of deploy. A missing audience is read as
+ * `app`, which is what those tokens were. They live fifteen minutes, so this
+ * allowance stops mattering almost immediately — but it must never be widened
+ * to `partner`, because that would let a legacy token reach the control panel.
+ */
+export async function verifyAccessToken(
+  token: string,
+  expected: TokenAudience = "app",
+): Promise<SessionClaims> {
+  let payload;
   try {
-    const { payload } = await jwtVerify(token, jwtKey, { issuer: "ciao.ly" });
-    return {
-      sub: payload.sub as string,
-      role: payload.role as UserRole,
-      phone: payload.phone as string,
-    };
+    ({ payload } = await jwtVerify(token, jwtKey, { issuer: "ciao.ly" }));
   } catch {
     throw new CiaoError("AUTH_REQUIRED");
   }
+  const aud = (Array.isArray(payload.aud) ? payload.aud[0] : payload.aud) ?? "app";
+  if (aud !== expected) throw new CiaoError("AUTH_FORBIDDEN");
+  return {
+    sub: payload.sub as string,
+    role: payload.role as UserRole,
+    phone: payload.phone as string,
+    aud: aud as TokenAudience,
+  };
 }
 
 export function hashToken(raw: string): string {

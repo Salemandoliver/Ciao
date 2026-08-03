@@ -164,6 +164,27 @@ export const TEMPLATES: Record<string, MessageTemplate> = {
     en: "Your free season of Ciao Plus ends in {{days}} days. After that it's {{price}} LYD a month, taken from your payouts — your own numbers stay free forever: {{link}}",
     critical: false,
   },
+  /**
+   * The set-password link — how a partner account comes into existence.
+   *
+   * Critical priority: it is either the first thing a newly onboarded business
+   * is waiting for after a field visit, or it is a password reset, and both
+   * are worse for being delayed until morning.
+   */
+  partner_invite: {
+    key: "partner_invite",
+    ar: "أهلًا بك في تشاو للشركاء 👋 اضغط الرابط واختر كلمة سرّك — صالح ٧ أيام ولمرة واحدة: {{link}}",
+    en: "Welcome to Ciao Partners 👋 Tap the link and choose your password — valid 7 days, one use only: {{link}}",
+    smsAr: "تشاو للشركاء: اختر كلمة سرّك {{link}}",
+    critical: true,
+  },
+  partner_password_reset: {
+    key: "partner_password_reset",
+    ar: "رمز استعادة كلمة السر في تشاو للشركاء: {{code}} — صالح ٥ دقائق. لا تشاركه مع أحد، حتى لو طلبه أحد باسم تشاو.",
+    en: "Your Ciao Partners password-reset code: {{code}} — valid 5 minutes. Never share it, even with someone claiming to be from Ciao.",
+    smsAr: "تشاو: رمز استعادة كلمة السر {{code}}",
+    critical: true,
+  },
   calendar_attestation: {
     key: "calendar_attestation",
     ar: "تشاو الأسبوعي: هل عندك حجوزات خارج المنصة نحجبها من التقويم؟ رد بالتواريخ أو اضغط: {{link}}",

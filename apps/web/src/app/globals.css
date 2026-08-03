@@ -2,135 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /*
-   * Brand tokens as RGB triples so Tailwind can consume them with alpha
-   * modifiers (text-sea/70 still works). Everything downstream reads these,
-   * which is what makes the dark theme a re-point rather than a rewrite.
-   */
-  --sea: 27 79 114;
-  --sea-light: 46 109 153;
-  --sand: 245 239 227;
-  --amber: 232 163 61;
-  --amber-dark: 201 135 31;
-  --surface: 255 255 255;
-  --ink: 26 42 54;
-  /*
-   * Secondary and tertiary ink.
-   *
-   * These exist because the old approach — `text-sea/55`, `text-sea/45` —
-   * makes contrast a function of whatever happens to be behind the text, and
-   * on a white card that lands around 2.5:1. Fine on a MacBook in an office;
-   * unreadable on a 300-nit phone in Tripoli sun, which is the screen this app
-   * is actually read on (§3.3). Both tokens clear 4.5:1 against `surface` AND
-   * against `sand`, so hierarchy now comes from size and weight rather than
-   * from fading text toward the background.
-   */
-  --muted: 72 100 121;
-  --faint: 84 112 132;
-  /* Amber is a fine accent and a poor text colour: brand amber on white is
-   * 2.2:1. Links and inline calls-to-action get their own darkened token. */
-  --link: 145 96 18;
-  /*
-   * Status colours. Tailwind's `red-700` / `emerald-700` are chosen for light
-   * grounds and go invisible on a dark one — "تعذر تحميل" in dark red on a
-   * near-black card is a failure message nobody reads. Both flip.
-   */
-  /*
-   * `danger` has to clear AA twice over, because it is used two ways: as ink
-   * on a page, and as ink on its own 15% tint (`.badge-danger`). The tint is
-   * the harder case, and it gets harder still on `sand` than on `surface` —
-   * a red-700 badge lands at 4.41:1 on a sand card, which is how an "overdue"
-   * pill on the partner money screen came out just under the line while every
-   * other use of the same token passed. Calibrated against the tint over sand,
-   * so every ground it can sit on is covered by the worst one.
-   */
-  --danger: 168 25 25;
-  --success: 6 95 70;
-  /*
-   * `sea-dark` is not "a darker sea" — it is the ink that sits on amber.
-   * Amber stays light in both themes, so this token stays dark in both.
-   * Naming it by role rather than by shade is what stops it flipping.
-   */
-  --sea-dark: 20 60 87;
-}
-
-/*
- * Dark mode.
- *
- * Not a novelty here: the app gets opened at night, at a chalet gate, on a
- * phone at 8% during a power cut. A dark surface draws measurably less power
- * on the OLED panels common in this market's mid-range Androids, and is
- * kinder to read in a car at 1am.
- *
- * `sea` inverts because it is overwhelmingly used as ink. Where it is used as
- * a *background* (primary buttons, active tabs) the rules below re-point it to
- * a mid blue that still carries white text.
- */
-.dark {
-  --sea: 207 227 242;
-  --sea-light: 160 195 222;
-  --sand: 22 36 47;
-  --amber: 240 180 88;
-  --amber-dark: 214 152 60;
-  --surface: 26 42 55;
-  --ink: 230 238 245;
-  --muted: 168 186 201;
-  --faint: 132 152 168;
-  /* On a dark ground amber is already legible, so the link token relaxes back
-   * toward the brand rather than staying artificially dark. */
-  --link: 214 152 60;
-  --danger: 252 140 140;
-  --success: 52 211 153;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  background: rgb(var(--sand));
-  color: rgb(var(--ink));
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Photography stays the hero; it just stops glaring at 1am. */
-.dark img {
-  filter: brightness(0.92);
-}
-
-/*
- * The three places `sea` is a surface rather than ink. In dark mode a light
- * `sea` behind white text would be unreadable, so these re-point to a mid blue
- * that works on a dark ground and still carries white type.
- */
-.dark .btn-primary,
-.dark .bg-sea,
-.dark .\!bg-sea {
-  background-color: rgb(38 92 133) !important;
-  color: #fff;
-}
-
-/* High-contrast for sunlight readability on cheap screens (§3.3) */
-.btn-primary {
-  @apply bg-sea text-white font-bold rounded-bubble px-6 py-3 text-lg active:bg-sea-dark disabled:opacity-50 transition-colors;
-}
-.btn-amber {
-  @apply bg-amber text-sea-dark font-bold rounded-bubble px-6 py-3 text-lg active:bg-amber-dark disabled:opacity-50 transition-colors;
-}
-.card {
-  @apply bg-surface rounded-bubble shadow-sm overflow-hidden;
-}
-.chip {
-  @apply inline-flex items-center gap-1 rounded-full bg-sand px-3 py-1 text-sm text-sea;
-}
-.input {
-  @apply w-full rounded-xl border border-sea/20 bg-surface text-[color:rgb(var(--ink))] px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-sea/40;
-}
-/* Placeholders inherit `ink` at full strength otherwise, which reads as a value. */
-.input::placeholder {
-  color: rgb(var(--ink) / 0.4);
-}
+@import "../../../../packages/shared/styles/tokens.css";
 
 /**
  * Chips and badges that sit on top of a photograph — "موثّق من تشاو",
@@ -164,6 +36,7 @@ body {
     rgb(27 79 114 / 0.15)
   );
 }
+
 .photo-scrim-strong {
   background-image: linear-gradient(
     to top,
@@ -172,6 +45,7 @@ body {
     rgb(27 79 114 / 0.25)
   );
 }
+
 /* The placeholder wash behind a card photo while it loads — same logic. */
 .photo-placeholder {
   background-image: linear-gradient(to bottom, rgb(46 109 153 / 0.3), rgb(27 79 114 / 0.6));
@@ -197,37 +71,6 @@ body {
 .tab-on-photo {
   background: rgb(20 60 87 / 0.45);
   color: #fff;
-}
-
-/**
- * Status tints in the business console.
- *
- * A Tailwind `-50` tint is white with a hint of colour in it. On a dark page
- * ground that reads as a lit panel and drowns out the number it is meant to
- * qualify, so dark mode uses a low-alpha wash of the same hue instead: the
- * meaning (red = needs attention, green = healthy) survives the theme, the
- * glare does not.
- */
-.tone-warn {
-  background: rgb(var(--danger) / 0.1);
-  box-shadow: inset 0 0 0 1px rgb(var(--danger) / 0.4);
-}
-.tone-good {
-  background: rgb(var(--success) / 0.1);
-  box-shadow: inset 0 0 0 1px rgb(var(--success) / 0.4);
-}
-
-/* Status badges — the tint is derived from the status ink, so it follows it. */
-.badge-danger {
-  @apply bg-danger/15 text-danger;
-}
-.badge-success {
-  @apply bg-success/15 text-success;
-}
-
-/* Cards deepen slightly in dark so they lift off the page ground. */
-.dark .card {
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
 }
 
 /**

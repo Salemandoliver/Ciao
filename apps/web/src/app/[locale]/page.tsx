@@ -146,7 +146,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/wishlist" aria-label={c.wishlist}>🤍</Link>
           <Link href="/about">{c.about}</Link>
-          <Link href="/host">{c.hosts}</Link>
+          <Link href="/about#hosts">{c.hosts}</Link>
           <Link href="/account">{c.account}</Link>
           <LanguageToggle />
         </nav>

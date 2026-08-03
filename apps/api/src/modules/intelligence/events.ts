@@ -67,6 +67,7 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "partner.command_received": "command, dayCount, refused",
   "partner.agenda_sent": "jobCount, channel",
   "partner.team_changed": "action, role",
+  "partner.signed_in": "mustChange",
   // engagement (client + server)
   "rail.selected": "rail",
   "share.clicked": "listingId, channel",

@@ -19,6 +19,7 @@ import { trustRoutes } from "./modules/trust/routes.js";
 import { businessRoutes } from "./modules/business/routes.js";
 import { accountRoutes } from "./modules/accounts/routes.js";
 import { partnerRoutes } from "./modules/partner/routes.js";
+import { partnerAuthRoutes } from "./modules/partner/auth-routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -57,7 +58,20 @@ export async function buildApp(): Promise<FastifyInstance> {
     credentials: true,
   });
   await app.register(rateLimit, {
-    max: 300,
+    /*
+     * The global cap is sized for a person browsing a marketplace.
+     *
+     * It is lifted under test for one reason: every test in the suite arrives
+     * from 127.0.0.1, so the whole suite counts as a single very busy visitor,
+     * and adding tests eventually starts failing unrelated ones at random. An
+     * intermittently red suite is worse than no suite — people stop reading it.
+     *
+     * Nothing about the limits that actually matter is relaxed. The routes
+     * worth attacking — sign-in, password reset, the payout destination —
+     * carry their own per-route caps, those are untouched here, and the tests
+     * that prove them present as distinct clients rather than being exempted.
+     */
+    max: config.isTest ? 100_000 : 300,
     timeWindow: "1 minute",
     /*
      * Whatever this returns is *thrown*, not sent — so returning a bare
@@ -128,6 +142,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(businessRoutes);
   await app.register(accountRoutes);
   await app.register(partnerRoutes);
+  await app.register(partnerAuthRoutes);
 
   return app;
 }

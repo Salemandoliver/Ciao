@@ -1401,6 +1401,87 @@ export const partnerSubscriptions = pgTable("partner_subscriptions", {
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
 
+/**
+ * ───────────────── Partner sign-in: passwords and sessions ─────────────────
+ *
+ * The consumer app has no passwords and should not have any: a guest signs in
+ * with a phone number and an OTP, which is right for someone who books twice a
+ * summer. The partner app is a different product with different users, and the
+ * reasons to depart are concrete:
+ *
+ *  - **A business has staff.** A hall's receptionist needs her own login, and
+ *    the alternative today is that everyone shares the owner's phone. That is
+ *    why "who cancelled that booking" is unanswerable in this market.
+ *  - **OTP costs money per sign-in and needs signal at the moment of use.**
+ *    Someone opening their diary six times a day during a power cut cannot
+ *    depend on an SMS arriving each time.
+ *  - **A password survives a changed SIM**, which a phone-only identity does
+ *    not, and SIM turnover here is high.
+ *
+ * OTP does not go away — it becomes the recovery channel, which is the one job
+ * it is unambiguously best at in Libya. Passkeys remain available on top.
+ */
+export const partnerCredentials = pgTable("partner_credentials", {
+  userId: uuid("user_id").primaryKey().references(() => users.id),
+  /**
+   * `scrypt$N$r$p$salt$hash`, all base64url.
+   *
+   * scrypt because it is in Node's standard library — no dependency to keep
+   * patched — and because it is memory-hard, which is the property that
+   * matters when the threat is someone who has already taken a copy of the
+   * table and is grinding it offline.
+   */
+  passwordHash: text("password_hash").notNull(),
+  passwordSetAt: ts("password_set_at").notNull().defaultNow(),
+  /**
+   * Set when ops issues a credential rather than the owner choosing one, so
+   * the first sign-in forces a change. A password somebody else knows is not
+   * a password.
+   */
+  mustChange: boolean("must_change").notNull().default(false),
+  /**
+   * Lockout state. Throttling by IP alone does not protect one account from a
+   * distributed guess, and a business account whose payouts can be redirected
+   * is worth the effort of one.
+   */
+  failedAttempts: integer("failed_attempts").notNull().default(0),
+  lockedUntil: ts("locked_until"),
+  lastLoginAt: ts("last_login_at"),
+  lastLoginIp: varchar("last_login_ip", { length: 45 }),
+  createdAt: now(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * Partner sessions — deliberately a separate table from `refresh_tokens`.
+ *
+ * Sharing one table would mean a token minted for the consumer app could be
+ * presented to the partner app and vice versa. Two tables and two JWT
+ * audiences make that structurally impossible rather than a matter of
+ * remembering to check, and they let a partner see and revoke their own
+ * devices without touching their guest account.
+ */
+export const partnerSessions = pgTable(
+  "partner_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    tokenHash: text("token_hash").notNull(),
+    /** "Chrome on Android" — coarse on purpose; enough to recognise a device. */
+    deviceLabel: text("device_label"),
+    ip: varchar("ip", { length: 45 }),
+    lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
+    expiresAt: ts("expires_at").notNull(),
+    rotatedAt: ts("rotated_at"),
+    revokedAt: ts("revoked_at"),
+    createdAt: now(),
+  },
+  (t) => [
+    index("partner_sessions_user_idx").on(t.userId),
+    uniqueIndex("partner_sessions_token_uq").on(t.tokenHash),
+  ],
+);
+
 /** Ops audit log (§13.8). */
 export const auditLog = pgTable(
   "audit_log",

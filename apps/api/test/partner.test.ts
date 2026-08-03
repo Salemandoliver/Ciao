@@ -49,12 +49,19 @@ let venueId = "";
 
 const auth = (t: string) => ({ authorization: `Bearer ${t}` });
 
+/**
+ * A partner and their token.
+ *
+ * The `"partner"` audience is the point: the control panel is a separate
+ * product with its own sign-in, and a token minted for the marketplace is
+ * refused by every route in this file. `crossAudience` below proves it.
+ */
 async function makeUser(phone: string) {
   const [user] = await db
     .insert(schema.users)
     .values({ phone, role: "host", displayName: `partner-${phone.slice(-4)}` })
     .returning();
-  const token = await signAccessToken({ sub: user!.id, role: "host", phone });
+  const token = await signAccessToken({ sub: user!.id, role: "host", phone }, "partner");
   return { id: user!.id, token };
 }
 

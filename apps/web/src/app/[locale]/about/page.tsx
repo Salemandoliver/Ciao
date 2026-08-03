@@ -413,7 +413,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
         </Link>
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/search?type=coast">{c.navBrowse}</Link>
-          <Link href="/host">{c.navHosts}</Link>
+          <a href="#hosts">{c.navHosts}</a>
           <Link href="/login">{c.navSignIn}</Link>
           <LanguageToggle />
         </nav>
@@ -529,11 +529,19 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
           <p className="text-sm text-muted mt-1">{c.ctaGuestBody}</p>
           <span className="inline-block mt-3 text-link font-bold text-sm">{c.ctaGuestLink}</span>
         </Link>
-        <Link href="/host" className="card p-5 hover:shadow-md transition-shadow">
+        {/*
+          Information for businesses, not a door into their console. The
+          partner control panel is a separate product on its own domain with
+          its own sign-in, and the marketplace deliberately does not link into
+          it — a guest browsing chalets has no business one tap away from
+          somebody's diary. Businesses are onboarded by a field visit and
+          receive the address with their sign-in link.
+        */}
+        <div id="hosts" className="card p-5">
           <h3 className="font-bold text-sea">{c.ctaHostTitle}</h3>
           <p className="text-sm text-muted mt-1">{c.ctaHostBody}</p>
           <span className="inline-block mt-3 text-link font-bold text-sm">{c.ctaHostLink}</span>
-        </Link>
+        </div>
       </section>
 
       <footer className="mt-12 text-center text-sm text-faint space-y-1">

@@ -7,9 +7,11 @@ function req(name: string, fallback?: string): string {
 }
 
 const isProd = process.env.NODE_ENV === "production";
+const isTest = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
 
 export const config = {
   isProd,
+  isTest,
   port: Number(process.env.PORT ?? 4000),
   databaseUrl: req(
     "DATABASE_URL",
@@ -22,6 +24,14 @@ export const config = {
     isProd ? undefined : "dev-action-secret-change-me",
   ),
   webBaseUrl: process.env.WEB_BASE_URL ?? "http://localhost:3000",
+  /**
+   * The partner control panel's own origin.
+   *
+   * A separate product on its own subdomain, so its links cannot be built from
+   * `webBaseUrl` — a set-password link that lands on the consumer site is a
+   * partner staring at a marketplace wondering where their business went.
+   */
+  partnerBaseUrl: process.env.PARTNER_BASE_URL ?? "http://localhost:3002",
   apiBaseUrl: process.env.API_BASE_URL ?? "http://localhost:4000",
   corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:3000").split(","),
 

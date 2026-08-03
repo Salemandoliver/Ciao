@@ -1,0 +1,3 @@
+# A business's diary, client book and payout details are not content.
+User-agent: *
+Disallow: /

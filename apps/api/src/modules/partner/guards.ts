@@ -76,7 +76,14 @@ export async function partnerContext(
   req: FastifyRequest,
   partnerIdParam?: string | null,
 ): Promise<PartnerContext> {
-  const claims = await authenticate(req);
+  /*
+   * `"partner"` is the whole point of the argument. The control panel is a
+   * separate product on its own domain with its own sign-in, and a token
+   * minted for the consumer marketplace must not reach it — otherwise any
+   * guest who happens to host a venue could drive their own business's money
+   * screens from a session they got by typing an SMS code.
+   */
+  const claims = await authenticate(req, "partner");
   let partnerId = claims.sub;
   let role: PartnerRole = "owner";
 

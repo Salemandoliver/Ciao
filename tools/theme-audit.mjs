@@ -10,6 +10,17 @@
  */
 import { chromium } from "playwright";
 import { mintRefreshToken, bootScript } from "./audit-session.mjs";
+import { mintPartnerRefresh, partnerBootScript, partnerPhone } from "./partner-session.mjs";
+
+/*
+ * The partner control panel is a separate app with a separate sign-in, so the
+ * audits need a different session for it. Setting PARTNER_PHONE switches them
+ * over — one flag rather than a second copy of each tool.
+ */
+const usePartner = Boolean(partnerPhone);
+const mintSession = () => (usePartner ? mintPartnerRefresh() : mintRefreshToken());
+const boot = (theme, refresh) =>
+  usePartner ? partnerBootScript(theme, refresh) : bootScript(theme, refresh);
 
 const BASE = process.env.BASE ?? "http://localhost:3111";
 const PAGES = process.argv.slice(2).length
@@ -127,8 +138,8 @@ for (const theme of ["light", "dark"]) {
    * does.
    */
   const ctx = await browser.newContext({ viewport: { width: 420, height: 900 } });
-  const refresh = await mintRefreshToken();
-  await ctx.addInitScript(bootScript(theme, refresh));
+  const refresh = await mintSession();
+  await ctx.addInitScript(boot(theme, refresh));
   const page = await ctx.newPage();
   for (const path of PAGES) {
     /*
