@@ -21,8 +21,13 @@ const actionKey = new TextEncoder().encode(config.actionTokenSecret);
  * because the failure is silent and severe: without it, any guest who obtained
  * a token could call the partner endpoints and be treated as the owner of
  * whichever business their user id happened to host.
+ *
+ * `biz` is the business console — Ciao's own control panel, a third product on
+ * its own origin with its own password sign-in. The same rule applies in every
+ * direction: a marketplace or partner token is refused by every `/v1/biz`
+ * route, and a console token buys nothing on the other two.
  */
-export type TokenAudience = "app" | "partner";
+export type TokenAudience = "app" | "partner" | "biz";
 
 export interface SessionClaims {
   sub: string; // user id
@@ -54,7 +59,8 @@ export async function signAccessToken(
  * signed-in guest at the moment of deploy. A missing audience is read as
  * `app`, which is what those tokens were. They live fifteen minutes, so this
  * allowance stops mattering almost immediately — but it must never be widened
- * to `partner`, because that would let a legacy token reach the control panel.
+ * to `partner` or `biz`, because that would let a legacy token reach a
+ * control panel.
  */
 export async function verifyAccessToken(
   token: string,

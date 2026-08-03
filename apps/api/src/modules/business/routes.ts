@@ -26,7 +26,8 @@ import { normalizePhone } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
 import { normaliseNeighbours } from "../listings/neighbours.js";
 import { CiaoError } from "../../lib/errors.js";
-import { authenticate, requireRole } from "../../lib/guards.js";
+import { bizGuard } from "./guards.js";
+import type { BizCapability } from "@ciao/shared";
 import {
   SETTING_KEYS,
   getAllSettings,
@@ -90,16 +91,23 @@ export async function businessRoutes(app: FastifyInstance) {
     await db.insert(schema.auditLog).values({ actorId, action, targetType, targetId, detail });
   }
 
-  /** Ops-and-above for everything in this module unless stated otherwise. */
-  async function opsGuard(req: Parameters<typeof authenticate>[0]) {
-    const claims = await authenticate(req);
-    requireRole(claims, "ops");
-    return claims;
+  /*
+   * Every route in this module goes through `bizGuard` with a capability from
+   * the matrix in `packages/shared/src/biz.ts`. The console sign-in mints the
+   * only tokens the guard accepts (`biz` audience) — a marketplace or partner
+   * session is refused structurally, which is the change that made this a
+   * standalone product rather than a tab of the consumer app.
+   *
+   * The old names are kept as thin wrappers so each route reads as it always
+   * did: `opsGuard` is the daily work (parameterised by which screen it is),
+   * `adminGuard` is `govern` — the actions that change what guests are
+   * charged and who holds power.
+   */
+  async function opsGuard(req: Parameters<typeof bizGuard>[0], capability: BizCapability) {
+    return bizGuard(req, capability);
   }
-  async function adminGuard(req: Parameters<typeof authenticate>[0]) {
-    const claims = await authenticate(req);
-    requireRole(claims, "admin");
-    return claims;
+  async function adminGuard(req: Parameters<typeof bizGuard>[0]) {
+    return bizGuard(req, "govern");
   }
 
   // ============================================================= public config
@@ -204,7 +212,7 @@ export async function businessRoutes(app: FastifyInstance) {
    * health, and what needs a human today.
    */
   app.get("/v1/biz/overview", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "overview");
     const { days } = z
       .object({ days: z.coerce.number().min(1).max(365).default(30) })
       .parse(req.query);
@@ -344,7 +352,7 @@ export async function businessRoutes(app: FastifyInstance) {
    * their verification is about to lapse.
    */
   app.get("/v1/biz/businesses", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "catalogue");
     const q = z
       .object({
         type: z.enum(["coast", "hall", "service", "all"]).default("all"),
@@ -441,7 +449,7 @@ export async function businessRoutes(app: FastifyInstance) {
    * that should follow a field visit (§11.2).
    */
   app.post("/v1/biz/businesses", async (req, reply) => {
-    const claims = await opsGuard(req);
+    const claims = await opsGuard(req, "catalogue");
     const body = z
       .object({
         vertical: z.enum(["coast", "hall", "service"]),
@@ -552,7 +560,7 @@ export async function businessRoutes(app: FastifyInstance) {
 
   /** Full business record for the detail screen. */
   app.get("/v1/biz/businesses/:listingId", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "catalogue");
     const { listingId } = z.object({ listingId: z.string().uuid() }).parse(req.params);
 
     const [row] = await db
@@ -601,7 +609,7 @@ export async function businessRoutes(app: FastifyInstance) {
 
   /** Edit the commercial and descriptive fields of a listing. */
   app.patch("/v1/biz/listings/:id", async (req, reply) => {
-    const claims = await opsGuard(req);
+    const claims = await opsGuard(req, "catalogue");
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const body = z
       .object({
@@ -699,7 +707,7 @@ export async function businessRoutes(app: FastifyInstance) {
    * console never has to reason about partial state.
    */
   app.get("/v1/biz/listings/:id/media", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "catalogue");
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const [listing] = await db
       .select({ media: schema.listings.media, slug: schema.listings.slug })
@@ -711,7 +719,7 @@ export async function businessRoutes(app: FastifyInstance) {
   });
 
   app.put("/v1/biz/listings/:id/media", async (req, reply) => {
-    const claims = await opsGuard(req);
+    const claims = await opsGuard(req, "catalogue");
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const body = z.object({ media: z.array(MEDIA_ITEM).max(24) }).parse(req.body);
 
@@ -746,7 +754,7 @@ export async function businessRoutes(app: FastifyInstance) {
    * from memory. (Direct upload lands with the CDN — launch gate 4.)
    */
   app.get("/v1/biz/media/library", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "catalogue");
     const rows = await db
       .select({ slug: schema.listings.slug, media: schema.listings.media })
       .from(schema.listings);
@@ -768,7 +776,7 @@ export async function businessRoutes(app: FastifyInstance) {
    * the books are square.
    */
   app.get("/v1/biz/finance", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "finance");
     const { days } = z
       .object({ days: z.coerce.number().min(1).max(730).default(90) })
       .parse(req.query);
@@ -892,7 +900,7 @@ export async function businessRoutes(app: FastifyInstance) {
 
   /** Per-business earnings — who to keep, who to coach, who to drop. */
   app.get("/v1/biz/finance/by-business", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "finance");
     const { days } = z
       .object({ days: z.coerce.number().min(1).max(730).default(90) })
       .parse(req.query);
@@ -948,10 +956,10 @@ export async function businessRoutes(app: FastifyInstance) {
 
   // ================================================================ 5. people
   app.get("/v1/biz/users", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "people");
     const q = z
       .object({
-        role: z.enum(["guest", "host", "agent", "ops", "admin", "all"]).default("all"),
+        role: z.enum(["guest", "host", "agent", "finance", "ops", "admin", "all"]).default("all"),
         search: z.string().optional(),
         limit: z.coerce.number().min(1).max(200).default(50),
       })
@@ -1000,7 +1008,7 @@ export async function businessRoutes(app: FastifyInstance) {
     const claims = await adminGuard(req);
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const { role } = z
-      .object({ role: z.enum(["guest", "host", "agent", "ops", "admin"]) })
+      .object({ role: z.enum(["guest", "host", "agent", "finance", "ops", "admin"]) })
       .parse(req.body);
 
     const [before] = await db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
@@ -1009,13 +1017,25 @@ export async function businessRoutes(app: FastifyInstance) {
       throw new CiaoError("VALIDATION", "cannot_demote_yourself");
 
     await db.update(schema.users).set({ role }).where(eq(schema.users.id, id));
+    /*
+     * Leaving the console team kills the console sessions now, not at the end
+     * of a fourteen-day session. Token rotation would catch it within fifteen
+     * minutes anyway; this closes even that window, because "we removed her
+     * access" said to a founder must mean it already happened.
+     */
+    const wasBiz = ["admin", "ops", "finance"].includes(before.role);
+    const isBiz = ["admin", "ops", "finance"].includes(role);
+    if (wasBiz && !isBiz) {
+      const { revokeAllBizSessions } = await import("./auth.js");
+      await revokeAllBizSessions(id);
+    }
     await audit(claims.sub, "user.role", "user", id, { from: before.role, to: role });
     return reply.send({ ok: true, from: before.role, to: role });
   });
 
   // ============================================================== 6. settings
   app.get("/v1/biz/settings", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "settings");
     const rows = await Promise.all(SETTING_KEYS.map((k) => settingRow(k)));
     return reply.send({ settings: rows });
   });
@@ -1056,7 +1076,7 @@ export async function businessRoutes(app: FastifyInstance) {
    * promise you cannot size is a risk.
    */
   app.get("/v1/biz/loyalty", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "marketing");
 
     const [outstanding] = await db
       .select({ total: sql<string>`coalesce(sum(${schema.loyaltyLedger.delta}), 0)` })
@@ -1117,7 +1137,7 @@ export async function businessRoutes(app: FastifyInstance) {
 
   // ---------------- partners
   app.get("/v1/biz/partners", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "marketing");
     const rows = await db
       .select({
         partner: schema.partners,
@@ -1147,7 +1167,7 @@ export async function businessRoutes(app: FastifyInstance) {
   });
 
   app.post("/v1/biz/partners", async (req, reply) => {
-    const claims = await opsGuard(req);
+    const claims = await opsGuard(req, "marketing");
     const body = z
       .object({
         nameAr: z.string().min(2).max(120),
@@ -1196,7 +1216,7 @@ export async function businessRoutes(app: FastifyInstance) {
   });
 
   app.patch("/v1/biz/partners/:id", async (req, reply) => {
-    const claims = await opsGuard(req);
+    const claims = await opsGuard(req, "marketing");
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const body = z
       .object({
@@ -1241,7 +1261,7 @@ export async function businessRoutes(app: FastifyInstance) {
 
   // ---------------- promo codes
   app.get("/v1/biz/promos", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "marketing");
     const rows = await db
       .select({
         promo: schema.promoCodes,
@@ -1332,7 +1352,7 @@ export async function businessRoutes(app: FastifyInstance) {
 
   // ================================================================ 7. audit
   app.get("/v1/biz/audit", async (req, reply) => {
-    await opsGuard(req);
+    await opsGuard(req, "audit");
     const q = z
       .object({
         action: z.string().optional(),

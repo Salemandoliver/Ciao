@@ -4,3 +4,4 @@ export * from "./errors";
 export * from "./pricing";
 export * from "./phone";
 export * from "./partner";
+export * from "./biz";

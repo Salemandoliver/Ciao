@@ -45,24 +45,9 @@ import {
 import { partnerMemberships } from "./guards.js";
 import { ensureProfile } from "./service.js";
 
-const passwordSchema = z.string().min(1).max(200);
+import { PASSWORD_MESSAGES } from "../../lib/passwords.js";
 
-/** One sentence per refusal, in both languages, so the form can explain itself. */
-const PASSWORD_MESSAGES: Record<string, { ar: string; en: string }> = {
-  short: {
-    ar: "كلمة السر لازم تكون ١٠ حروف أو أكثر — الطول أهم من الرموز.",
-    en: "Your password must be at least 10 characters — length matters more than symbols.",
-  },
-  long: { ar: "كلمة السر طويلة جدًا.", en: "That password is too long." },
-  common: {
-    ar: "كلمة السر هذي من أكثر الكلمات استعمالًا — اختر غيرها.",
-    en: "That's one of the most commonly used passwords — pick another.",
-  },
-  phone: {
-    ar: "لا تستعمل رقم تلفونك في كلمة السر — هو أول شيء يُجرَّب.",
-    en: "Don't put your phone number in your password — it's the first thing anyone tries.",
-  },
-};
+const passwordSchema = z.string().min(1).max(200);
 
 export async function partnerAuthRoutes(app: FastifyInstance) {
   const ipMeta = (req: { ip: string; headers: Record<string, unknown> }) => ({
@@ -340,8 +325,10 @@ export async function partnerAuthRoutes(app: FastifyInstance) {
   app.post("/v1/biz/partners/:userId/invite", {
     config: { rateLimit: { max: 30, timeWindow: "1 hour" } },
     handler: async (req, reply) => {
-      const claims = await authenticate(req);
-      requireRole(claims, "ops");
+      // Issued from the business console, so it carries the `biz` audience
+      // and the supply team's capability — onboarding is catalogue work.
+      const { bizGuard } = await import("../business/guards.js");
+      const claims = await bizGuard(req, "catalogue");
       const { userId } = z.object({ userId: z.string().uuid() }).parse(req.params);
       const body = z.object({ send: z.boolean().default(true) }).parse(req.body ?? {});
 

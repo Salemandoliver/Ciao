@@ -29,6 +29,14 @@ export async function authenticate(
 
 const ROLE_RANK: Record<UserRole, number> = {
   guest: 0,
+  /*
+   * `finance` ranks with guest on purpose. It is a business-console role, and
+   * its power lives in the console's capability matrix (`bizCan`) behind the
+   * `biz` token audience — on the marketplace ladder it must confer nothing,
+   * or granting an accountant the books would quietly also hand them the
+   * field-agent and ops surfaces of the consumer app.
+   */
+  finance: 0,
   host: 1,
   agent: 2,
   ops: 3,

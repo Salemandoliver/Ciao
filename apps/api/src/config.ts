@@ -32,8 +32,25 @@ export const config = {
    * partner staring at a marketplace wondering where their business went.
    */
   partnerBaseUrl: process.env.PARTNER_BASE_URL ?? "http://localhost:3002",
+  /**
+   * The business console's own origin — the third product. Invite links are
+   * built from this, so if it points at the wrong app, a new team member's
+   * set-password link lands them on a marketplace.
+   */
+  consoleBaseUrl: process.env.CONSOLE_BASE_URL ?? "http://localhost:3003",
   apiBaseUrl: process.env.API_BASE_URL ?? "http://localhost:4000",
-  corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:3000").split(","),
+  /*
+   * Parsed defensively because the failure is silent and absolute:
+   * `@fastify/cors` compares origins by exact string, so `a, b` yields
+   * `" https://b"`, matches nothing, logs nothing — and the browser reports
+   * only "we couldn't reach the server". Trim each entry, drop the trailing
+   * slash a person naturally pastes from an address bar, and drop empties
+   * from a trailing comma.
+   */
+  corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:3000")
+    .split(",")
+    .map((o) => o.trim().replace(/\/+$/, ""))
+    .filter(Boolean),
 
   // Payments (§10.2) — Plutu primary; mock provider used until credentials exist.
   paymentProvider: process.env.PAYMENT_PROVIDER ?? "mock",

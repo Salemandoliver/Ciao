@@ -1482,6 +1482,50 @@ export const partnerSessions = pgTable(
   ],
 );
 
+/**
+ * Business-console credentials — Ciao's own team (admin / ops / finance).
+ *
+ * Mirrors `partner_credentials` deliberately and shares none of its rows: the
+ * console is a third product with its own origin, own sign-in and own `biz`
+ * token audience. A person who is both a partner and on Ciao's team (it
+ * happens — a founder who also lists a family chalet) holds two independent
+ * passwords, and compromising one buys nothing on the other.
+ */
+export const bizCredentials = pgTable("biz_credentials", {
+  userId: uuid("user_id").primaryKey().references(() => users.id),
+  /** `scrypt$N$r$p$salt$hash` — same format and parameters as partner_credentials. */
+  passwordHash: text("password_hash").notNull(),
+  passwordSetAt: ts("password_set_at").notNull().defaultNow(),
+  mustChange: boolean("must_change").notNull().default(false),
+  failedAttempts: integer("failed_attempts").notNull().default(0),
+  lockedUntil: ts("locked_until"),
+  lastLoginAt: ts("last_login_at"),
+  lastLoginIp: varchar("last_login_ip", { length: 45 }),
+  createdAt: now(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/** Console sessions — separate table so a refresh token cannot cross products. */
+export const bizSessions = pgTable(
+  "biz_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    tokenHash: text("token_hash").notNull(),
+    deviceLabel: text("device_label"),
+    ip: varchar("ip", { length: 45 }),
+    lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
+    expiresAt: ts("expires_at").notNull(),
+    rotatedAt: ts("rotated_at"),
+    revokedAt: ts("revoked_at"),
+    createdAt: now(),
+  },
+  (t) => [
+    index("biz_sessions_user_idx").on(t.userId),
+    uniqueIndex("biz_sessions_token_uq").on(t.tokenHash),
+  ],
+);
+
 /** Ops audit log (§13.8). */
 export const auditLog = pgTable(
   "audit_log",

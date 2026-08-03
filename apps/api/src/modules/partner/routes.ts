@@ -945,8 +945,10 @@ export async function partnerRoutes(app: FastifyInstance) {
    * to keep them apart even though the console copy does not.
    */
   app.get("/v1/biz/partner-panel", async (req, reply) => {
-    const claims = await authenticate(req);
-    requireRole(claims, "ops");
+    // Console-audience gate like every other /v1/biz route — the panel moved
+    // to the standalone business console along with the rest of them.
+    const { bizGuard } = await import("../business/guards.js");
+    await bizGuard(req, "catalogue");
     const [totals] = await db
       .select({
         profiles: sql<string>`count(*)`,

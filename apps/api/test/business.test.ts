@@ -43,7 +43,16 @@ async function loginAs(phone: string, role: "ops" | "admin" | "guest") {
     await db.update(schema.users).set({ role }).where(eq(schema.users.id, user.id));
     user = { ...user, role };
   }
-  const token = await signAccessToken({ sub: user!.id, role, phone: e164 });
+  /*
+   * Console roles get console tokens (`biz` audience) — the business routes
+   * refuse anything else since the console became a standalone product. The
+   * guest keeps a marketplace token: the assertion it supports is precisely
+   * that a marketplace session buys nothing here.
+   */
+  const token = await signAccessToken(
+    { sub: user!.id, role, phone: e164 },
+    role === "guest" ? "app" : "biz",
+  );
   return { token, id: user!.id };
 }
 

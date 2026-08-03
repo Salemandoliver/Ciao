@@ -10,10 +10,10 @@
 # failure is silent in exactly the way that matters: the theme audit once
 # walked a whole console of unhydrated "…" placeholders and reported it clean.
 #
-# Usage: tools/serve-standalone.sh [web|partner] [port]
+# Usage: tools/serve-standalone.sh [web|partner|console] [port]
 set -euo pipefail
 APP_NAME="${1:-web}"
-PORT="${2:-$([ "$APP_NAME" = "partner" ] && echo 3112 || echo 3111)}"
+PORT="${2:-$([ "$APP_NAME" = "partner" ] && echo 3112 || ([ "$APP_NAME" = "console" ] && echo 3113 || echo 3111))}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/apps/$APP_NAME"
 DIST="$APP/.next/standalone/apps/$APP_NAME"
@@ -28,7 +28,7 @@ rm -rf "$DIST/.next/static" "$DIST/public"
 cp -r "$APP/.next/static" "$DIST/.next/static"
 [ -d "$APP/public" ] && cp -r "$APP/public" "$DIST/public"
 
-# Kill whatever holds this port, so web and partner can run side by side.
+# Kill whatever holds this port, so web, partner and console can run side by side.
 #
 # By port, not by command line: Next renames its process to "next-server
 # (vX.Y.Z)" once it boots, so `pkill -f server.js` matches nothing and the old

@@ -25,7 +25,20 @@ interface BizUser {
   gmv: number;
 }
 
-const ROLE_KEYS = ["guest", "host", "agent", "ops", "admin"];
+const ROLE_KEYS = ["guest", "host", "agent", "finance", "ops", "admin"];
+
+interface TeamMember {
+  id: string;
+  phone: string;
+  displayName: string | null;
+  role: string;
+  disabled: boolean;
+  hasPassword: boolean;
+  mustChange: boolean;
+  lastLoginAt: string | null;
+  lockedUntil: string | null;
+  inviteOutstanding: boolean;
+}
 
 const copy = {
   ar: {
@@ -47,6 +60,22 @@ const copy = {
     thSpend: "إنفاق",
     thSince: "منذ",
     noResults: "لا نتائج",
+    team: "فريق التشغيل",
+    teamBody:
+      "كل من يحمل صلاحية دخول هذا النظام، وحالة حسابه. الدعوة ترسل رابطًا لمرة واحدة يختار منه كلمة سرّه — لا أحد في تشاو يعرف كلمة سر أحد.",
+    thState: "الحساب",
+    stActive: "نشط",
+    stLocked: "موقوف مؤقتًا",
+    stMustChange: "ينتظر تغيير كلمة السر",
+    stInvited: "دعوة مرسلة",
+    stNone: "بلا كلمة سر",
+    lastLogin: (d: string) => `آخر دخول ${d}`,
+    invite: "أرسل رابط كلمة السر",
+    reinvite: "أعد إرسال الرابط",
+    invited: "أُرسل الرابط ✅",
+    inviteFailed: "تعذر إرسال الدعوة",
+    copyLink: "انسخ الرابط",
+    copied: "نُسخ ✅",
     privacyNote:
       "لا تُعرض أسماء المستخدمين كاملة في أي شاشة عامة — العلن يرى الأحرف الأولى فقط (§11.5). هذه الشاشة داخلية ومحمية بالصلاحيات، وكل تغيير صلاحية يُسجَّل باسم من نفّذه.",
   },
@@ -66,10 +95,153 @@ const copy = {
     thSpend: "Spend",
     thSince: "Since",
     noResults: "No results",
+    team: "The console team",
+    teamBody:
+      "Everyone who can sign in to this system, and the state of their account. An invite sends a one-time link they choose their own password from — nobody at Ciao knows anyone's password.",
+    thState: "Account",
+    stActive: "Active",
+    stLocked: "Temporarily locked",
+    stMustChange: "Must change password",
+    stInvited: "Invite sent",
+    stNone: "No password yet",
+    lastLogin: (d: string) => `Last sign-in ${d}`,
+    invite: "Send set-password link",
+    reinvite: "Re-send the link",
+    invited: "Link sent ✅",
+    inviteFailed: "Could not send the invite",
+    copyLink: "Copy link",
+    copied: "Copied ✅",
     privacyNote:
       "Full user names are never shown on a public screen — the public sees initials only (§11.5). This screen is internal and permission-gated, and every role change is recorded against the name of whoever made it.",
   },
 } satisfies Record<Locale, unknown>;
+
+/**
+ * The console team roster: who can open this system, and whether their
+ * credential is healthy. Sits above the full user table because "who can get
+ * in here" is the question this screen exists to answer first — and because an
+ * invite that is quietly never accepted is the sort of loose credential this
+ * panel makes visible.
+ */
+function TeamSection({ isAdmin, note }: { isAdmin: boolean; note: (m: string) => void }) {
+  const locale = useLocale();
+  const c = copy[locale];
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [busy, setBusy] = useState("");
+  const [link, setLink] = useState<{ userId: string; url: string } | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await api<{ items: TeamMember[] }>("/v1/biz/team");
+      setTeam(res.items);
+    } catch {
+      /* the roster is people-gated; finance simply doesn't see it */
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function invite(m: TeamMember) {
+    setBusy(m.id);
+    try {
+      const res = await api<{ ok: boolean; link: string }>(`/v1/biz/team/${m.id}/invite`, {
+        method: "POST",
+        body: JSON.stringify({ send: true }),
+      });
+      // Shown once so an admin on the phone with a colleague can paste it into
+      // WhatsApp themselves if the messaging channel is being slow.
+      setLink({ userId: m.id, url: res.link });
+      note(c.invited);
+      await load();
+    } catch {
+      note(c.inviteFailed);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function stateOf(m: TeamMember): { label: string; tone: "sand" | "amber" | "green" } {
+    if (m.lockedUntil) return { label: c.stLocked, tone: "amber" };
+    if (!m.hasPassword)
+      return m.inviteOutstanding
+        ? { label: c.stInvited, tone: "amber" }
+        : { label: c.stNone, tone: "sand" };
+    if (m.mustChange) return { label: c.stMustChange, tone: "amber" };
+    return { label: c.stActive, tone: "green" };
+  }
+
+  if (team.length === 0) return null;
+
+  return (
+    <div className="card p-4 mb-4">
+      <p className="font-bold text-sea">{c.team}</p>
+      <p className="text-xs text-faint mt-1 mb-3">{c.teamBody}</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-sand/60 text-muted">
+            <tr>
+              <th className="text-start p-2">{c.thUser}</th>
+              <th className="text-start p-2">{c.thRole}</th>
+              <th className="text-start p-2">{c.thState}</th>
+              {isAdmin ? <th className="text-start p-2" /> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {team.map((m) => {
+              const st = stateOf(m);
+              return (
+                <tr key={m.id} className="border-t border-sand">
+                  <td className="p-2">
+                    <div className="font-bold text-sea">{m.displayName ?? "—"}</div>
+                    <div className="text-[11px] text-faint" dir="ltr">{m.phone}</div>
+                  </td>
+                  <td className="p-2">
+                    <Pill tone={m.role === "admin" ? "amber" : "sand"}>
+                      {term(ROLES, locale, m.role)}
+                    </Pill>
+                  </td>
+                  <td className="p-2">
+                    <Pill tone={st.tone}>{st.label}</Pill>
+                    {m.lastLoginAt ? (
+                      <div className="text-[11px] text-faint mt-0.5">
+                        {c.lastLogin(
+                          fmtDate(locale, m.lastLoginAt, { day: "2-digit", month: "2-digit" }),
+                        )}
+                      </div>
+                    ) : null}
+                  </td>
+                  {isAdmin ? (
+                    <td className="p-2">
+                      <button
+                        className="chip !text-[11px]"
+                        disabled={busy === m.id}
+                        onClick={() => invite(m)}
+                      >
+                        {m.hasPassword || m.inviteOutstanding ? c.reinvite : c.invite}
+                      </button>
+                      {link?.userId === m.id ? (
+                        <button
+                          className="chip !text-[11px] ms-1"
+                          onClick={() => {
+                            void navigator.clipboard?.writeText(link.url).then(() => note(c.copied));
+                          }}
+                        >
+                          {c.copyLink}
+                        </button>
+                      ) : null}
+                    </td>
+                  ) : null}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
   const locale = useLocale();
@@ -118,6 +290,8 @@ export function PeopleTab({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div>
+      <TeamSection isAdmin={isAdmin} note={setMsg} />
+
       <div className="flex flex-wrap items-center gap-2 mb-3">
         {["all", ...ROLE_KEYS].map((r) => (
           <button

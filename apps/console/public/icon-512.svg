@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Ciao Business app icon.
+
+    The third member of the family: the same Greeting Bubble geometry as the
+    marketplace and the partner app, on a deep-sea night ground with a sand
+    outline. Three Ciao apps can share one phone's home screen — the operator
+    who runs the company probably has all three — and each must be readable at
+    a glance while still being unmistakably the same company.
+  -->
+  <rect x="32" y="32" width="448" height="416" rx="112" fill="#0C1A24"/>
+  <path d="M120 448 L120 496 L192 448 Z" fill="#0C1A24"/>
+  <rect x="64" y="64" width="384" height="352" rx="88" fill="none" stroke="#F5EFE3" stroke-width="28"/>
+  <circle cx="256" cy="240" r="88" fill="#E8A33D"/>
+</svg>

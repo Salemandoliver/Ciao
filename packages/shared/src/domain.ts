@@ -1,6 +1,12 @@
 /** Shared domain constants & types — design doc §5, §8, §9, §13.2. */
 
-export type UserRole = "guest" | "host" | "agent" | "ops" | "admin";
+/**
+ * `finance` is a console-only role: on the marketplace it ranks alongside
+ * `guest` (see ROLE_RANK in the API guards), because an accountant's power
+ * lives in the business console's capability matrix, never in the consumer
+ * app's role ladder.
+ */
+export type UserRole = "guest" | "host" | "agent" | "finance" | "ops" | "admin";
 
 export type VenueType = "coast" | "hall";
 

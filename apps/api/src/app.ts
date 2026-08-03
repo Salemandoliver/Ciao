@@ -20,6 +20,7 @@ import { businessRoutes } from "./modules/business/routes.js";
 import { accountRoutes } from "./modules/accounts/routes.js";
 import { partnerRoutes } from "./modules/partner/routes.js";
 import { partnerAuthRoutes } from "./modules/partner/auth-routes.js";
+import { bizAuthRoutes } from "./modules/business/auth-routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -126,7 +127,28 @@ export async function buildApp(): Promise<FastifyInstance> {
       .send({ error: { code: def.code, message: locale === "en" ? def.en : def.ar } });
   });
 
-  app.get("/health", async () => ({ ok: true, service: "ciao-api" }));
+  /*
+   * `/health` reports booleans for the settings that fail silently. A CORS
+   * origin that doesn't match, a base URL still pointing at localhost, an OTP
+   * echo left on — none of these produce an error in any log, and each of
+   * them has cost a debugging session. The caller's own Origin is checked
+   * against the allowlist so "is my app allowed to talk to you" is answerable
+   * with one curl from the affected machine.
+   */
+  app.get("/health", async (req) => {
+    const origin = String(req.headers.origin ?? "");
+    return {
+      ok: true,
+      service: "ciao-api",
+      config: {
+        callerOriginAllowed: origin ? config.corsOrigins.includes(origin) : null,
+        webBaseUrlIsLocalhost: config.webBaseUrl.includes("localhost"),
+        partnerBaseUrlIsLocalhost: config.partnerBaseUrl.includes("localhost"),
+        consoleBaseUrlIsLocalhost: config.consoleBaseUrl.includes("localhost"),
+        otpDevEcho: config.otp.devEcho,
+      },
+    };
+  });
 
   await app.register(authRoutes);
   await app.register(listingRoutes);
@@ -143,6 +165,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(accountRoutes);
   await app.register(partnerRoutes);
   await app.register(partnerAuthRoutes);
+  await app.register(bizAuthRoutes);
 
   return app;
 }

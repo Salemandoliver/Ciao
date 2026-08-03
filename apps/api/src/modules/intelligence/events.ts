@@ -68,6 +68,13 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "partner.agenda_sent": "jobCount, channel",
   "partner.team_changed": "action, role",
   "partner.signed_in": "mustChange",
+  /*
+   * The business console's own sign-ins — an internal surface, tracked for
+   * the security trail's sake (dashboards, never profiles: folding an
+   * operator's working hours into userProfiles would put staff surveillance
+   * in the same object as holiday preferences).
+   */
+  "console.signed_in": "role, mustChange",
   // engagement (client + server)
   "rail.selected": "rail",
   "share.clicked": "listingId, channel",

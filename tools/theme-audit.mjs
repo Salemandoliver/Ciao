@@ -11,16 +11,24 @@
 import { chromium } from "playwright";
 import { mintRefreshToken, bootScript } from "./audit-session.mjs";
 import { mintPartnerRefresh, partnerBootScript, partnerPhone } from "./partner-session.mjs";
+import { bizBootScript, bizPhone, mintBizRefresh } from "./biz-session.mjs";
 
 /*
- * The partner control panel is a separate app with a separate sign-in, so the
- * audits need a different session for it. Setting PARTNER_PHONE switches them
- * over — one flag rather than a second copy of each tool.
+ * The partner control panel and the business console are separate apps with
+ * separate sign-ins, so the audits need a different session for each. Setting
+ * PARTNER_PHONE or BIZ_PHONE switches them over — one flag rather than a
+ * second copy of each tool.
  */
 const usePartner = Boolean(partnerPhone);
-const mintSession = () => (usePartner ? mintPartnerRefresh() : mintRefreshToken());
+const useBiz = Boolean(bizPhone);
+const mintSession = () =>
+  useBiz ? mintBizRefresh() : usePartner ? mintPartnerRefresh() : mintRefreshToken();
 const boot = (theme, refresh) =>
-  usePartner ? partnerBootScript(theme, refresh) : bootScript(theme, refresh);
+  useBiz
+    ? bizBootScript(theme, refresh)
+    : usePartner
+      ? partnerBootScript(theme, refresh)
+      : bootScript(theme, refresh);
 
 const BASE = process.env.BASE ?? "http://localhost:3111";
 const PAGES = process.argv.slice(2).length

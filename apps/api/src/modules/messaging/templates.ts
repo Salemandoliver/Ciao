@@ -185,6 +185,21 @@ export const TEMPLATES: Record<string, MessageTemplate> = {
     smsAr: "تشاو: رمز استعادة كلمة السر {{code}}",
     critical: true,
   },
+  /** The business console's set-password link — how a team account starts. */
+  biz_invite: {
+    key: "biz_invite",
+    ar: "أهلًا بك في تشاو بزنس 👋 اضغط الرابط واختر كلمة سرّك — صالح ٧ أيام ولمرة واحدة: {{link}}",
+    en: "Welcome to Ciao Business 👋 Tap the link and choose your password — valid 7 days, one use only: {{link}}",
+    smsAr: "تشاو بزنس: اختر كلمة سرّك {{link}}",
+    critical: true,
+  },
+  biz_password_reset: {
+    key: "biz_password_reset",
+    ar: "رمز استعادة كلمة السر في تشاو بزنس: {{code}} — صالح ٥ دقائق. لا تشاركه مع أحد، حتى لو طلبه أحد باسم تشاو.",
+    en: "Your Ciao Business password-reset code: {{code}} — valid 5 minutes. Never share it, even with someone claiming to be from Ciao.",
+    smsAr: "تشاو بزنس: رمز استعادة كلمة السر {{code}}",
+    critical: true,
+  },
   calendar_attestation: {
     key: "calendar_attestation",
     ar: "تشاو الأسبوعي: هل عندك حجوزات خارج المنصة نحجبها من التقويم؟ رد بالتواريخ أو اضغط: {{link}}",

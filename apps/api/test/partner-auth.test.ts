@@ -466,11 +466,12 @@ describe("ops invites", () => {
       .insert(schema.users)
       .values({ phone: `+2189485${run.slice(-5)}`, role: "admin" })
       .returning();
-    const adminToken = await signAccessToken({
-      sub: admin!.id,
-      role: "admin",
-      phone: admin!.phone,
-    });
+    // Invites are issued from the business console, so the token carries the
+    // `biz` audience — a marketplace admin token would be refused.
+    const adminToken = await signAccessToken(
+      { sub: admin!.id, role: "admin", phone: admin!.phone },
+      "biz",
+    );
 
     const res = await app.inject({
       method: "POST",

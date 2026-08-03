@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * The design system, shared verbatim with the consumer marketplace. Two
+ * products, one brand — see the header of that file for why this is an import
+ * rather than a copy.
+ */
+@import "../../../../packages/shared/styles/tokens.css";
+
+/*
+ * The one thing this app adds: the page never scrolls sideways on a phone.
+ * The console has wide tables and a month grid, and a stray horizontal scroll
+ * on a diary someone is reading one-handed is worse here than on a page of
+ * photographs.
+ */
+html,
+body {
+  overflow-x: hidden;
+}

@@ -21,99 +21,29 @@
  *     Anything else turns the login form into a directory of which Libyan
  *     businesses are on Ciao.
  */
-import {
-  randomBytes,
-  randomUUID,
-  scrypt as scryptCb,
-  timingSafeEqual,
-} from "node:crypto";
-import { promisify } from "node:util";
+import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { normalizePhone } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
 import { CiaoError } from "../../lib/errors.js";
 import { hashToken, signAccessToken } from "../../lib/auth.js";
+import { deviceLabel, hashPassword, verifyPassword } from "../../lib/passwords.js";
 
-const scrypt = promisify(scryptCb) as (
-  password: string | Buffer,
-  salt: string | Buffer,
-  keylen: number,
-  options: { N: number; r: number; p: number; maxmem?: number },
-) => Promise<Buffer>;
-
-/**
- * scrypt parameters.
- *
- * N=16384 costs roughly 100ms and 16MB per hash on the class of machine this
- * runs on — slow enough to make offline grinding expensive, fast enough that a
- * partner on a bad connection is not waiting on us. Stored in the hash string
- * so these can be raised later without invalidating everyone's password.
+/*
+ * The primitives — hashing, verifying, strength rules, device labels — moved
+ * to `lib/passwords.ts` when the business console became the second password
+ * product. Re-exported here so existing imports (and the tests that pin the
+ * behaviour) keep working from the partner module.
  */
-const SCRYPT = { N: 16_384, r: 8, p: 1, keylen: 64 };
+export {
+  deviceLabel,
+  hashPassword,
+  passwordProblem,
+  verifyPassword,
+} from "../../lib/passwords.js";
+
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
-
-export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16);
-  const derived = await scrypt(password, salt, SCRYPT.keylen, SCRYPT);
-  return [
-    "scrypt",
-    SCRYPT.N,
-    SCRYPT.r,
-    SCRYPT.p,
-    salt.toString("base64url"),
-    derived.toString("base64url"),
-  ].join("$");
-}
-
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const parts = stored.split("$");
-  if (parts.length !== 6 || parts[0] !== "scrypt") return false;
-  const [, n, r, p, salt, hash] = parts;
-  const expected = Buffer.from(hash!, "base64url");
-  const derived = await scrypt(password, Buffer.from(salt!, "base64url"), expected.length, {
-    N: Number(n),
-    r: Number(r),
-    p: Number(p),
-  });
-  // Constant-time: a comparison that returns early leaks the hash a byte at a
-  // time to anyone who can measure the response.
-  return derived.length === expected.length && timingSafeEqual(derived, expected);
-}
-
-/**
- * What a password has to be.
- *
- * Deliberately not a complexity ritual. Requiring a capital, a digit and a
- * symbol produces `Password1!` and a sticky note; length is the property that
- * actually costs an attacker anything. Ten characters, and a short list of the
- * passwords people in this market genuinely pick first.
- */
-const COMMON = new Set([
-  "password", "password1", "12345678", "123456789", "1234567890", "qwertyui",
-  "qwerty123", "iloveyou", "libya123", "tripoli1", "ciao1234", "admin123",
-  "11111111", "00000000", "abcd1234", "welcome1",
-]);
-
-export function passwordProblem(password: string, phone?: string): string | null {
-  if (password.length < 10) return "short";
-  if (password.length > 200) return "long";
-  /*
-   * Compare with the decoration stripped. `Password1!` is `password1` wearing
-   * a hat, and it is one of the most-chosen passwords on earth precisely
-   * because complexity rules push people to it — a list that misses it would
-   * catch only the people who were not trying.
-   */
-  const plain = password.toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (COMMON.has(password.toLowerCase()) || COMMON.has(plain)) return "common";
-  // Their own phone number is the first thing an attacker tries, and it is the
-  // one string we know they know.
-  if (phone && password.replace(/\D/g, "").length >= 6) {
-    const digits = phone.replace(/\D/g, "");
-    if (digits && password.replace(/\D/g, "").includes(digits.slice(-8))) return "phone";
-  }
-  return null;
-}
 
 // ---------------------------------------------------------------- credentials
 export async function setPassword(
@@ -192,11 +122,17 @@ export async function login(
      * what the error message says.
      */
     await hashPassword(password).catch(() => undefined);
-    throw new CiaoError("AUTH_OTP_INVALID");
+    throw new CiaoError("AUTH_PASSWORD_INVALID");
   }
 
+  /*
+   * The lockout speaks its own language (CIAO-1006), not the OTP limiter's
+   * "wait a minute" — this is a fifteen-minute lock on a password product,
+   * and a partner told to wait sixty seconds will retry into the lock five
+   * more times and then phone support.
+   */
   if (row.cred.lockedUntil && row.cred.lockedUntil > new Date()) {
-    throw new CiaoError("AUTH_OTP_THROTTLED", {
+    throw new CiaoError("AUTH_LOCKED", {
       lockedUntil: row.cred.lockedUntil.toISOString(),
     });
   }
@@ -215,7 +151,11 @@ export async function login(
         updatedAt: new Date(),
       })
       .where(eq(schema.partnerCredentials.userId, row.user.id));
-    throw new CiaoError("AUTH_OTP_INVALID");
+    /*
+     * Same code and sentence as the unknown-number path above — the two must
+     * stay indistinguishable, and that property has its own test.
+     */
+    throw new CiaoError("AUTH_PASSWORD_INVALID");
   }
 
   await db
@@ -240,38 +180,6 @@ export async function login(
 }
 
 // ---------------------------------------------------------------- sessions
-/**
- * A coarse device name.
- *
- * Enough for a partner to recognise "the phone I lost last week" in their
- * session list, and no more. Storing the full user-agent would put a
- * fingerprint next to a login time for no gain to the person reading it.
- */
-export function deviceLabel(userAgent = ""): string {
-  const ua = userAgent.toLowerCase();
-  const os = ua.includes("android")
-    ? "Android"
-    : /iphone|ipad|ios/.test(ua)
-      ? "iPhone"
-      : ua.includes("windows")
-        ? "Windows"
-        : ua.includes("mac os")
-          ? "Mac"
-          : ua.includes("linux")
-            ? "Linux"
-            : "";
-  const browser = ua.includes("edg/")
-    ? "Edge"
-    : ua.includes("chrome")
-      ? "Chrome"
-      : ua.includes("firefox")
-        ? "Firefox"
-        : ua.includes("safari")
-          ? "Safari"
-          : "";
-  return [browser, os].filter(Boolean).join(" on ") || "جهاز";
-}
-
 export async function issueSession(
   userId: string,
   phone: string,

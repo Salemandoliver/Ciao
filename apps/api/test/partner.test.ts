@@ -806,11 +806,11 @@ describe("the ops view of the partner base", () => {
       .insert(schema.users)
       .values({ phone: `+2189475${run.slice(-5)}`, role: "admin" })
       .returning();
-    const token = await signAccessToken({
-      sub: admin!.id,
-      role: "admin",
-      phone: admin!.phone,
-    });
+    // The console is its own product now: the panel wants a `biz` token.
+    const token = await signAccessToken(
+      { sub: admin!.id, role: "admin", phone: admin!.phone },
+      "biz",
+    );
     const res = await app.inject({
       method: "GET",
       url: "/v1/biz/partner-panel",

@@ -35,6 +35,26 @@ export const ERRORS = {
     ar: "ليست لديك صلاحية لهذا الإجراء.",
     en: "You don't have permission for this action.",
   },
+  /**
+   * Password sign-in failures get their own codes, deliberately apart from the
+   * OTP family. The password products (partner console, business console) have
+   * no verification code, so reusing CIAO-1001 sent someone hunting for a code
+   * that is never sent — and support, whose procedure is "quote me the code",
+   * read out the wrong recovery path. One code and one sentence for both an
+   * unknown number and a wrong password, so the form stays mute about which.
+   */
+  AUTH_PASSWORD_INVALID: {
+    code: "CIAO-1005",
+    httpStatus: 401,
+    ar: "رقم الهاتف أو كلمة السر غير صحيحة.",
+    en: "The phone number or password is incorrect.",
+  },
+  AUTH_LOCKED: {
+    code: "CIAO-1006",
+    httpStatus: 429,
+    ar: "توقّف الحساب مؤقتًا بعد محاولات كثيرة. انتظر ربع ساعة أو استعد كلمة السر.",
+    en: "This account is temporarily locked after too many attempts. Wait fifteen minutes or reset your password.",
+  },
   ACTION_TOKEN_INVALID: {
     code: "CIAO-1010",
     httpStatus: 401,
