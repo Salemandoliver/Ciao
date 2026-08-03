@@ -471,6 +471,46 @@ describe("sessions", () => {
   });
 });
 
+// --------------------------------------------------------------- bootstrap
+describe("the env-gated bootstrap", () => {
+  async function runBootstrap(phone: string, password: string) {
+    const { bootstrapBizCredential } = await import("../src/db/biz-bootstrap.js");
+    process.env.BIZ_BOOTSTRAP_PHONE = phone;
+    process.env.BIZ_BOOTSTRAP_PASSWORD = password;
+    const lines: string[] = [];
+    const log = {
+      info: (_o: object | string, m?: string) => lines.push(m ?? String(_o)),
+      warn: (_o: object | string, m?: string) => lines.push(m ?? String(_o)),
+    };
+    try {
+      await bootstrapBizCredential(log);
+    } finally {
+      delete process.env.BIZ_BOOTSTRAP_PHONE;
+      delete process.env.BIZ_BOOTSTRAP_PASSWORD;
+    }
+    return lines.join("\n");
+  }
+
+  it("creates the first credential (mustChange), refuses non-team users, and never overwrites", async () => {
+    // A guest is refused — the bootstrap grants credentials, never roles.
+    const guest = await makeUser("guest", "73");
+    expect(await runBootstrap(guest.phone, "derna-console-2026")).toContain("not a console role");
+
+    const target = await makeUser("ops", "74");
+    expect(await runBootstrap(target.phone, "derna-console-2026")).toContain("created");
+
+    const res = await app.inject(asNewClient({ phone: target.phone, password: "derna-console-2026" }));
+    expect(res.statusCode).toBe(200);
+    expect(res.json().mustChangePassword).toBe(true);
+
+    // A second run with a different password is inert: the env var must not
+    // be able to reset anyone's password once the credential exists.
+    expect(await runBootstrap(target.phone, "some-other-password-9")).toContain("already exists");
+    const still = await app.inject(asNewClient({ phone: target.phone, password: "derna-console-2026" }));
+    expect(still.statusCode).toBe(200);
+  });
+});
+
 // ------------------------------------------------------------------ roster
 describe("the team roster", () => {
   it("shows credential state to people-capable roles, and is closed to finance", async () => {
