@@ -66,6 +66,14 @@ export const config = {
   whatsapp: {
     token: process.env.WHATSAPP_TOKEN ?? "",
     phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? "",
+    /**
+     * Send Meta-approved template messages (default) rather than free-form
+     * text. Free-form only reaches people who wrote to us within 24 hours,
+     * and everything Ciao initiates — codes, confirmations, invites — arrives
+     * outside that window, so with this off almost nothing would deliver.
+     * The off switch exists for testing inside an open 24h session.
+     */
+    templateSends: process.env.WHATSAPP_TEMPLATE_SENDS !== "false",
   },
   sms: {
     twilioSid: process.env.TWILIO_ACCOUNT_SID ?? "",

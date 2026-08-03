@@ -200,6 +200,19 @@ export const TEMPLATES: Record<string, MessageTemplate> = {
     smsAr: "تشاو بزنس: رمز استعادة كلمة السر {{code}}",
     critical: true,
   },
+  /**
+   * The console's wiring check. Critical on purpose: an operator verifying a
+   * freshly-configured channel at half past midnight needs the message to go
+   * NOW, and a test that silently queues until morning reads as a broken
+   * integration — the exact wrong answer at the moment of configuration.
+   */
+  test_message: {
+    key: "test_message",
+    ar: "رسالة تجريبية من تشاو بزنس — القناة تعمل. الرمز: {{code}}",
+    en: "Test message from Ciao Business — this channel works. Reference: {{code}}",
+    smsAr: "تشاو: رسالة تجريبية {{code}}",
+    critical: true,
+  },
   calendar_attestation: {
     key: "calendar_attestation",
     ar: "تشاو الأسبوعي: هل عندك حجوزات خارج المنصة نحجبها من التقويم؟ رد بالتواريخ أو اضغط: {{link}}",

@@ -21,6 +21,7 @@ import { accountRoutes } from "./modules/accounts/routes.js";
 import { partnerRoutes } from "./modules/partner/routes.js";
 import { partnerAuthRoutes } from "./modules/partner/auth-routes.js";
 import { bizAuthRoutes } from "./modules/business/auth-routes.js";
+import { bizMessagingRoutes } from "./modules/business/messaging-routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -166,6 +167,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(partnerRoutes);
   await app.register(partnerAuthRoutes);
   await app.register(bizAuthRoutes);
+  await app.register(bizMessagingRoutes);
 
   return app;
 }

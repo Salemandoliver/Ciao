@@ -481,6 +481,13 @@ export const messages = pgTable(
     deliveryStatus: varchar("delivery_status", { length: 12 })
       .notNull()
       .default("queued"), // queued|sent|delivered|failed|skipped
+    /**
+     * The provider's own words when a send fails — Meta's template-rejection
+     * JSON, Twilio's error 21408. Without this a failed row says only
+     * "failed", and diagnosing a rejected template means grepping server
+     * logs that have long since rotated. Truncated at write time.
+     */
+    deliveryDetail: text("delivery_detail"),
     ladderStep: integer("ladder_step").notNull().default(0),
     sentAt: ts("sent_at"),
     readAt: ts("read_at"), // in-app inbox

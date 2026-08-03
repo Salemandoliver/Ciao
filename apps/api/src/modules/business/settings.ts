@@ -169,6 +169,22 @@ export const SETTING_DEFAULTS = {
   "ops.acceptingBookings": true,
   /** Banner shown across the public app when set (power cuts, holidays, …). */
   "ops.announcementAr": "",
+
+  /**
+   * Messaging — the operational switches, not the credentials.
+   *
+   * Tokens and provider identity stay in env vars (secrets are not rows an
+   * ops screen can read). What belongs here is what an operator changes at
+   * 11pm with no deploy: shutting off a misbehaving channel, and the quiet
+   * hours. A kill switch removes the rung from the ladder — WhatsApp off
+   * means messages fall through to SMS, both off means the message journals
+   * as skipped rather than pretending to send.
+   */
+  "messaging.whatsappEnabled": true,
+  "messaging.smsEnabled": true,
+  /** Quiet hours in Africa/Tripoli local time (§13.5). Critical messages pass. */
+  "messaging.quietFromHour": 23,
+  "messaging.quietToHour": 8,
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;
@@ -343,6 +359,11 @@ export function validateSetting(key: string, value: unknown): string | null {
       return typeof value === "number" && value >= 4 && value <= 168
         ? null
         : "مهلة حل الشكوى بين 4 و168 ساعة";
+    case "messaging.quietFromHour":
+    case "messaging.quietToHour":
+      return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 23
+        ? null
+        : "ساعة الهدوء يجب أن تكون بين 0 و23";
     case "home.hero": {
       const v = value as { images?: unknown[]; intervalMs?: number };
       if (!Array.isArray(v?.images) || v.images.length === 0)

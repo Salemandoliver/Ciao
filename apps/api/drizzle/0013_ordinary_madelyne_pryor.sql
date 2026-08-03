@@ -1,0 +1,1 @@
+ALTER TABLE "messages" ADD COLUMN "delivery_detail" text;

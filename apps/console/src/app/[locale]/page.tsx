@@ -30,6 +30,7 @@ import { SettingsTab } from "./settings";
 import { AuditTab } from "./audit";
 import { LoyaltyTab } from "./loyalty";
 import { PromosTab } from "./promos";
+import { MessagingTab } from "./messaging";
 import { SecurityTab } from "./security";
 
 const TAB_KEYS = [
@@ -39,6 +40,7 @@ const TAB_KEYS = [
   "people",
   "loyalty",
   "promos",
+  "messaging",
   "settings",
   "audit",
   "security",
@@ -53,6 +55,7 @@ const TAB_EMOJI: Record<TabKey, string> = {
   people: "👥",
   loyalty: "⭐",
   promos: "🎟",
+  messaging: "📨",
   settings: "⚙️",
   audit: "📜",
   security: "🔒",
@@ -71,6 +74,7 @@ const TAB_CAPABILITY: Record<Exclude<TabKey, "security">, BizCapability> = {
   people: "people",
   loyalty: "marketing",
   promos: "marketing",
+  messaging: "settings",
   settings: "settings",
   audit: "audit",
 };
@@ -84,6 +88,7 @@ const copy = {
       people: "المستخدمون",
       loyalty: "النقاط والشركاء",
       promos: "أكواد الخصم",
+      messaging: "الرسائل",
       settings: "الإعدادات",
       audit: "سجل التدقيق",
       security: "الأمان",
@@ -102,6 +107,7 @@ const copy = {
       people: "Users",
       loyalty: "Points & partners",
       promos: "Promo codes",
+      messaging: "Messaging",
       settings: "Settings",
       audit: "Audit log",
       security: "Security",
@@ -207,6 +213,7 @@ function BizConsole() {
             {activeTab === "people" ? <PeopleTab isAdmin={isAdmin} /> : null}
             {activeTab === "loyalty" ? <LoyaltyTab isAdmin={isAdmin} /> : null}
             {activeTab === "promos" ? <PromosTab isAdmin={isAdmin} /> : null}
+            {activeTab === "messaging" ? <MessagingTab isAdmin={isAdmin} /> : null}
             {activeTab === "settings" ? <SettingsTab isAdmin={isAdmin} /> : null}
             {activeTab === "audit" ? <AuditTab /> : null}
             {activeTab === "security" ? <SecurityTab onSignedOut={onSignOut} /> : null}
