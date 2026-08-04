@@ -194,7 +194,7 @@ export function pinLabel(item: PublicListing, locale: Locale): string {
  * map tiles that are the same photograph of the world at noon and at midnight.
  * Following the theme would put pale blue ink on a pale blue road at 1am.
  */
-export const PIN_INK = "#1B4F72";
+export const PIN_INK = "#0d1b2a";
 export const PIN_PAPER = "#ffffff";
 
 export function pinFont(locale: Locale): string {

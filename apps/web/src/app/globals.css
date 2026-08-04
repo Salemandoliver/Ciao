@@ -13,7 +13,7 @@
 .chip-on-photo {
   @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm;
   background: rgb(255 255 255 / 0.9);
-  color: #1b4f72;
+  color: #0d1b2a;
 }
 
 /**
@@ -31,24 +31,22 @@
 .photo-scrim-soft {
   background-image: linear-gradient(
     to top,
-    rgb(27 79 114 / 0.8),
-    rgb(27 79 114 / 0.35),
-    rgb(27 79 114 / 0.15)
+    rgb(13 27 42 / 0.72),
+    rgb(13 27 42 / 0.28),
+    rgb(13 27 42 / 0.05)
   );
 }
-
 .photo-scrim-strong {
   background-image: linear-gradient(
     to top,
-    rgb(27 79 114 / 0.9),
-    rgb(27 79 114 / 0.55),
-    rgb(27 79 114 / 0.25)
+    rgb(13 27 42 / 0.88),
+    rgb(13 27 42 / 0.5),
+    rgb(13 27 42 / 0.18)
   );
 }
-
 /* The placeholder wash behind a card photo while it loads — same logic. */
 .photo-placeholder {
-  background-image: linear-gradient(to bottom, rgb(46 109 153 / 0.3), rgb(27 79 114 / 0.6));
+  background-image: linear-gradient(to bottom, rgb(30 53 80 / 0.35), rgb(13 27 42 / 0.6));
 }
 
 /**
@@ -59,7 +57,7 @@
  */
 .btn-on-photo {
   background: rgb(255 255 255 / 0.9);
-  color: #1b4f72;
+  color: #0d1b2a;
 }
 
 /**
@@ -69,7 +67,7 @@
  * the rotation, in either theme.
  */
 .tab-on-photo {
-  background: rgb(20 60 87 / 0.45);
+  background: rgb(13 27 42 / 0.5);
   color: #fff;
 }
 
@@ -86,15 +84,15 @@
 }
 .hero-pill,
 .hero-pill .text-sea {
-  color: #1b4f72;
+  color: #0d1b2a;
 }
 .dark .hero-pill {
-  background: rgb(12 26 36 / 0.7);
+  background: rgb(8 21 36 / 0.72);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
 }
 .dark .hero-pill,
 .dark .hero-pill .text-sea {
-  color: #e6eef5;
+  color: #f5eedd;
 }
 
 /**

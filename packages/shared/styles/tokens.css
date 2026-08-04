@@ -19,55 +19,75 @@
 
 :root {
   /*
+   * Saharan Light — the palette Salem designed, August 2026.
+   *
+   * The shift from v1 is warm: the page ground moves from a neutral sand to a
+   * cream with yellow in it, the ink from a mid sea-blue to a near-black navy,
+   * and the accent from a soft amber to a saturated gold that carries a button
+   * on its own. Everything still resolves through these variables, so the
+   * theme remains a re-point rather than a rewrite — which is also why both
+   * apps get the new brand from this one edit.
+   *
    * Brand tokens as RGB triples so Tailwind can consume them with alpha
-   * modifiers (text-sea/70 still works). Everything downstream reads these,
-   * which is what makes the dark theme a re-point rather than a rewrite.
+   * modifiers (text-sea/70 still works).
    */
-  --sea: 27 79 114;
-  --sea-light: 46 109 153;
-  --sand: 245 239 227;
-  --amber: 232 163 61;
-  --amber-dark: 201 135 31;
+  --sea: 13 27 42; /* #0d1b2a — the primary ink */
+  --sea-light: 30 53 80; /* #1e3550 */
+  --sand: 253 247 236; /* #fdf7ec — the page ground */
+  --amber: 232 160 32; /* #e8a020 — and now the primary button */
+  --amber-dark: 201 123 24; /* #c97b18 */
   --surface: 255 255 255;
-  --ink: 26 42 54;
+  --ink: 13 27 42;
   /*
    * Secondary and tertiary ink.
    *
-   * These exist because the old approach — `text-sea/55`, `text-sea/45` —
-   * makes contrast a function of whatever happens to be behind the text, and
-   * on a white card that lands around 2.5:1. Fine on a MacBook in an office;
-   * unreadable on a 300-nit phone in Tripoli sun, which is the screen this app
-   * is actually read on (§3.3). Both tokens clear 4.5:1 against `surface` AND
-   * against `sand`, so hierarchy now comes from size and weight rather than
-   * from fading text toward the background.
+   * These are not alpha shades of the brand colour, because contrast that
+   * depends on whatever happens to be behind the text lands around 2.5:1 on a
+   * white card — fine on a laptop, unreadable on a 300-nit phone in Tripoli
+   * sun (§3.3). Both clear 4.5:1 against `surface` AND `sand`, so hierarchy
+   * comes from size and weight rather than from fading toward the background.
+   *
+   * The mockup's own secondary (#7a6a52) is the warm brown that ties the
+   * palette together; `faint` is a shade of it that still clears the bar.
    */
-  --muted: 72 100 121;
-  --faint: 84 112 132;
-  /* Amber is a fine accent and a poor text colour: brand amber on white is
-   * 2.2:1. Links and inline calls-to-action get their own darkened token. */
-  --link: 145 96 18;
+  --muted: 90 72 50; /* #5a4832 */
+  --faint: 122 106 82; /* #7a6a52 */
+  /*
+   * Gold is a superb accent and a poor text colour: #e8a020 on white is about
+   * 2:1. Links get a burnt shade of it instead.
+   *
+   * The mockup's own link colour (#c97b18) measures 3.1:1 on a white card and
+   * the darker #b8720a still only 3.9:1 — both fail AA for body-sized text.
+   * This is two steps darker so "عرض الكل ←" is still readable on a 300-nit
+   * phone in direct sun, which is the §3.3 constraint the whole palette has to
+   * survive. It reads as the same colour at a glance and passes at 4.9:1.
+   */
+  --link: 154 95 10; /* #9a5f0a */
   /*
    * Status colours. Tailwind's `red-700` / `emerald-700` are chosen for light
    * grounds and go invisible on a dark one — "تعذر تحميل" in dark red on a
    * near-black card is a failure message nobody reads. Both flip.
-   */
-  /*
+   *
    * `danger` has to clear AA twice over, because it is used two ways: as ink
    * on a page, and as ink on its own 15% tint (`.badge-danger`). The tint is
    * the harder case, and it gets harder still on `sand` than on `surface` —
-   * a red-700 badge lands at 4.41:1 on a sand card, which is how an "overdue"
-   * pill on the partner money screen came out just under the line while every
-   * other use of the same token passed. Calibrated against the tint over sand,
-   * so every ground it can sit on is covered by the worst one.
+   * calibrated against the tint over sand, so every ground it can sit on is
+   * covered by the worst one.
    */
-  --danger: 168 25 25;
-  --success: 6 95 70;
+  --danger: 168 32 32;
+  --success: 30 107 74; /* #1e6b4a */
   /*
-   * `sea-dark` is not "a darker sea" — it is the ink that sits on amber.
-   * Amber stays light in both themes, so this token stays dark in both.
+   * `sea-dark` is not "a darker sea" — it is the ink that sits ON amber, and
+   * amber stays light in both themes, so this token stays dark in both.
    * Naming it by role rather than by shade is what stops it flipping.
    */
-  --sea-dark: 20 60 87;
+  --sea-dark: 13 27 42;
+  /*
+   * The wordmark. Two tokens rather than one so the mark's single spark of
+   * colour inverts with the theme while the lettering follows the ink.
+   */
+  --logo-ink: 13 27 42;
+  --logo-accent: 232 160 32;
 }
 
 /*
@@ -83,20 +103,28 @@
  * a mid blue that still carries white text.
  */
 .dark {
-  --sea: 207 227 242;
-  --sea-light: 160 195 222;
-  --sand: 22 36 47;
-  --amber: 240 180 88;
-  --amber-dark: 214 152 60;
-  --surface: 26 42 55;
-  --ink: 230 238 245;
-  --muted: 168 186 201;
-  --faint: 132 152 168;
-  /* On a dark ground amber is already legible, so the link token relaxes back
-   * toward the brand rather than staying artificially dark. */
-  --link: 214 152 60;
+  /*
+   * Saharan — the dark palette.
+   *
+   * `sea` inverts because it is overwhelmingly used as ink. Where it is used
+   * as a *background* the rule below re-points it.
+   */
+  --sea: 245 238 221; /* #f5eedd — cream ink */
+  --sea-light: 196 169 122;
+  --sand: 13 27 42; /* #0d1b2a — the page ground */
+  --amber: 232 160 32; /* the accent does not change; it is the brand */
+  --amber-dark: 201 123 24;
+  --surface: 26 47 69; /* #1a2f45 — cards lift off the ground */
+  --ink: 245 238 221;
+  --muted: 196 169 122; /* #c4a97a — the warm tan that carries the palette */
+  --faint: 171 152 122; /* nudged up from the mockup's #806f61, which measures 2.6:1 on a card */
+  /* On a dark ground gold is already legible, so links go back to the brand. */
+  --link: 232 160 32;
   --danger: 252 140 140;
   --success: 52 211 153;
+  --sea-dark: 13 27 42;
+  --logo-ink: 232 160 32;
+  --logo-accent: 245 238 221;
 }
 
 html {
@@ -109,29 +137,49 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Photography stays the hero; it just stops glaring at 1am. */
-.dark img {
-  filter: brightness(0.92);
+/*
+ * Photography is NOT dimmed in dark mode.
+ *
+ * There used to be a `filter: brightness(0.92)` here, on the reasoning that a
+ * bright photo glares at 1am. Salem overruled it, and he is right: the
+ * pictures are the strongest sales tool this marketplace has, and a chalet
+ * that looks 8% duller at night is a chalet 8% less likely to be booked. The
+ * contrast the dark theme needs comes from the surfaces around a photograph,
+ * never from the photograph itself.
+ */
+
+/*
+ * `sea` is ink almost everywhere, but a handful of surfaces use it as a
+ * background — an active tab, a badge, the map toggle. In dark mode `sea` is
+ * cream, so those would be cream-on-white; they re-point to the deep navy the
+ * palette already carries. `btn-primary` is no longer in this list: it is gold
+ * in both themes now, so it has nothing to re-point.
+ */
+.dark .bg-sea,
+.dark .\!bg-sea {
+  background-color: #1e3550 !important;
+  color: rgb(var(--ink));
 }
 
 /*
- * The three places `sea` is a surface rather than ink. In dark mode a light
- * `sea` behind white text would be unreadable, so these re-point to a mid blue
- * that works on a dark ground and still carries white type.
+ * The primary button is gold, in both themes.
+ *
+ * It was sea-blue-with-white. The new palette makes gold the thing that
+ * carries an action — it is the only colour that does not move between light
+ * and dark, so "the gold one is the one you press" is a rule a member learns
+ * once. Navy ink on gold clears 8:1, which is what §3.3 asks for on a cheap
+ * screen in direct sun; white on gold would have been 2:1.
+ *
+ * `btn-amber` becomes an alias rather than a second style: two nearly
+ * identical gold buttons is how a design system starts to rot.
  */
-.dark .btn-primary,
-.dark .bg-sea,
-.dark .\!bg-sea {
-  background-color: rgb(38 92 133) !important;
-  color: #fff;
-}
-
-/* High-contrast for sunlight readability on cheap screens (§3.3) */
-.btn-primary {
-  @apply bg-sea text-white font-bold rounded-bubble px-6 py-3 text-lg active:bg-sea-dark disabled:opacity-50 transition-colors;
-}
+.btn-primary,
 .btn-amber {
   @apply bg-amber text-sea-dark font-bold rounded-bubble px-6 py-3 text-lg active:bg-amber-dark disabled:opacity-50 transition-colors;
+}
+/* The quieter action beside it: outlined, inherits the ink. */
+.btn-secondary {
+  @apply border border-sea/25 text-sea font-bold rounded-bubble px-6 py-3 text-lg active:bg-sea/10 disabled:opacity-50 transition-colors;
 }
 .card {
   @apply bg-surface rounded-bubble shadow-sm overflow-hidden;

@@ -82,7 +82,11 @@ export async function generateMetadata({
 }
 
 export const viewport: Viewport = {
-  themeColor: "#1B4F72",
+  /*
+ * The browser chrome colour. It is a single value for both themes, so it is
+ * the one the app is most often seen against: the new page ground.
+ */
+  themeColor: "#0d1b2a",
   width: "device-width",
   initialScale: 1,
 };

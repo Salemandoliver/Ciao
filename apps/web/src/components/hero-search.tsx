@@ -140,7 +140,7 @@ export function HeroSearch({
               type === t
                 ? compact
                   ? "bg-surface text-sea shadow"
-                  : "bg-white text-[#1b4f72] shadow"
+                  : "bg-white text-[#0d1b2a] shadow"
                 : compact
                   ? "bg-sand text-muted"
                   : "tab-on-photo"
