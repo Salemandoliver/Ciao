@@ -24,6 +24,7 @@ import { bizCapabilitiesFor, type BizCapability } from "@ciao/shared";
 import { ensureSession, sessionRole, signOut } from "@/lib/api";
 import { OverviewTab } from "./overview";
 import { CatalogueTab } from "./catalogue";
+import { LeadsTab } from "./leads";
 import { FinanceTab } from "./finance";
 import { PeopleTab } from "./people";
 import { SettingsTab } from "./settings";
@@ -36,6 +37,7 @@ import { SecurityTab } from "./security";
 const TAB_KEYS = [
   "overview",
   "catalogue",
+  "leads",
   "finance",
   "people",
   "loyalty",
@@ -51,6 +53,7 @@ type TabKey = (typeof TAB_KEYS)[number];
 const TAB_EMOJI: Record<TabKey, string> = {
   overview: "📊",
   catalogue: "🏝",
+  leads: "📇",
   finance: "💰",
   people: "👥",
   loyalty: "⭐",
@@ -70,6 +73,9 @@ const TAB_EMOJI: Record<TabKey, string> = {
 const TAB_CAPABILITY: Record<Exclude<TabKey, "security">, BizCapability> = {
   overview: "overview",
   catalogue: "catalogue",
+  // A lead is supply before it is anything else, and it carries a phone
+  // number — so it sits with the catalogue and stays out of finance's reach.
+  leads: "catalogue",
   finance: "finance",
   people: "people",
   loyalty: "marketing",
@@ -84,6 +90,7 @@ const copy = {
     tabs: {
       overview: "نظرة عامة",
       catalogue: "الأنشطة",
+      leads: "طلبات الأماكن",
       finance: "المالية",
       people: "المستخدمون",
       loyalty: "النقاط والشركاء",
@@ -103,6 +110,7 @@ const copy = {
     tabs: {
       overview: "Overview",
       catalogue: "Businesses",
+      leads: "Place requests",
       finance: "Finance",
       people: "Users",
       loyalty: "Points & partners",
@@ -209,6 +217,7 @@ function BizConsole() {
           <div className="mt-3">
             {activeTab === "overview" ? <OverviewTab /> : null}
             {activeTab === "catalogue" ? <CatalogueTab /> : null}
+            {activeTab === "leads" ? <LeadsTab /> : null}
             {activeTab === "finance" ? <FinanceTab /> : null}
             {activeTab === "people" ? <PeopleTab isAdmin={isAdmin} /> : null}
             {activeTab === "loyalty" ? <LoyaltyTab isAdmin={isAdmin} /> : null}

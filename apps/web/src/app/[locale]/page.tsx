@@ -5,6 +5,7 @@ import { HeroSearch } from "@/components/hero-search";
 import { HeroRotator, type HeroImage } from "@/components/hero-rotator";
 import { Greeting } from "@/components/greeting";
 import { RecsStrip } from "@/components/recs";
+import { PartnerInvite } from "@/components/partner-invite";
 import { ServiceTiles } from "@/components/service-tiles";
 import { LanguageToggle } from "@/components/language-toggle";
 import { API_URL } from "@/lib/api";
@@ -61,6 +62,11 @@ const copy = {
     coast: "شاليهات واستراحات",
     halls: "قاعات الأفراح",
     seeAll: "عرض الكل ←",
+    promiseOver: "لكل مناسبة، مكانها",
+    promiseHead: "المكان الجميل يخلّي الذكرى",
+    promiseHeadAccent: "أجمل",
+    promiseBody:
+      "من أول جلسة عائلية إلى ليلة العمر، نقرّبك من أماكن يحبها أهل ليبيا ويثقون فيها.",
     footerAbout: "من نحن وكيف نعتمد الأماكن",
     footerRewards: "نقاط المكافآت",
     footerPlace: "تشاو — ciao.ly · طرابلس، ليبيا",
@@ -93,6 +99,11 @@ const copy = {
     coast: "Chalets & estirahas",
     halls: "Wedding halls",
     seeAll: "See all →",
+    promiseOver: "Every occasion has its place",
+    promiseHead: "The right place makes the memory",
+    promiseHeadAccent: "better",
+    promiseBody:
+      "From a first family afternoon to the night of a lifetime, we put you within reach of the places Libyans love and trust.",
     footerAbout: "Who we are and how we verify places",
     footerRewards: "Reward points",
     footerPlace: "Ciao — ciao.ly · Tripoli, Libya",
@@ -190,12 +201,39 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         ))}
       </section>
 
+      {/*
+        The promise, stated once.
+        It sits after the trust strip because the trust strip is the argument
+        and this is the conclusion — and before the inventory, because a reason
+        to care has to arrive before the thing to care about.
+      */}
+      <section className="mt-10 sm:flex sm:items-center sm:gap-8">
+        <div className="sm:flex-1">
+          <p className="text-link font-bold text-sm">{c.promiseOver}</p>
+          <h2 className="font-bold text-2xl sm:text-3xl leading-snug mt-1 text-sea">
+            {c.promiseHead} <span className="text-amber-dark">{c.promiseHeadAccent}</span>
+          </h2>
+        </div>
+        {/* A rule on the leading edge in both directions — `border-s`, never
+            `border-l`, or it lands on the wrong side of the English page. */}
+        <p className="text-muted text-sm mt-3 sm:mt-0 sm:max-w-xs sm:border-s sm:border-sea/15 sm:ps-6">
+          {c.promiseBody}
+        </p>
+      </section>
+
       <RecsStrip />
 
       <Section title={c.coast} href="/search?type=coast" items={coast} seeAll={c.seeAll} />
       <Section title={c.halls} href="/search?type=hall" items={halls} seeAll={c.seeAll} />
 
       <ServiceTiles />
+
+      {/*
+        The invitation to bring supply, placed last on purpose: an owner is
+        most likely to recognise that her own place belongs here directly
+        after scrolling past everyone else's.
+      */}
+      <PartnerInvite surface="home" />
 
       <footer className="mt-12 text-center text-sm text-faint space-y-1">
         <p>

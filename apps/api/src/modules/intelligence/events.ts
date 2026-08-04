@@ -68,6 +68,24 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "partner.agenda_sent": "jobCount, channel",
   "partner.team_changed": "action, role",
   "partner.signed_in": "mustChange",
+
+  /*
+   * Supply acquisition, from the marketplace side.
+   *
+   * These measure the invitation, not the person who answered it. `surface`
+   * tells us which block earns its place on the page; `locale` tells us
+   * whether the diaspora is the audience for it. The name and the number the
+   * lead typed exist only in `partner_leads`, under RBAC — putting either in a
+   * prop would put them in the events table, which is pruned on a schedule and
+   * read by every dashboard query (guardrail 2).
+   *
+   * `lead.opened` fires when the form is opened rather than when it is sent,
+   * because the gap between the two is the only measure of whether asking for
+   * a phone number at that moment is too much to ask.
+   */
+  "lead.opened": "surface",
+  "lead.submitted": "surface, locale",
+  "lead.status_changed": "status",
   /*
    * The business console's own sign-ins — an internal surface, tracked for
    * the security trail's sake (dashboards, never profiles: folding an

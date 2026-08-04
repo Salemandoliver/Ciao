@@ -1547,3 +1547,58 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_actor_idx").on(t.actorId, t.createdAt)],
 );
+
+/**
+ * Someone with a place who put their hand up.
+ *
+ * Supply is acquired by field agents visiting venues (§14.2), and that stays
+ * true — this table is not a self-serve listing route and must never become
+ * one. What it is: the end of the «اعرض مكانك» invitation on the marketplace,
+ * so a hall owner who sees the app in a family WhatsApp group at eleven at
+ * night can leave a name and a number instead of losing the impulse. Everything
+ * after that is a phone call from ops.
+ *
+ * Three deliberate shapes.
+ *
+ * **The phone is verified before the row exists.** A lead table anyone can
+ * write to is a spam queue that ops learns to ignore, and an ops team that
+ * ignores its lead queue is worse than no queue. The submit route consumes a
+ * one-time code, so every row here is a number that someone could receive an
+ * SMS on — which is also the number an agent will ring.
+ *
+ * **`phone` is unique.** Not to deduplicate for tidiness, but because the same
+ * owner tapping the button twice must not produce two agent visits. A second
+ * submission touches `lastSeenAt` and is answered as success; the caller is
+ * never told whether the number was already known, since that would turn this
+ * into an oracle for who has registered.
+ *
+ * **No venue detail is collected.** Not the venue name, not the city, not
+ * photographs. Everything an agent needs comes from the visit, and asking for
+ * it here would trade a 15-second form — the only kind that gets finished on a
+ * phone at eleven at night — for a form that gets abandoned. `note` exists for
+ * what ops learns on the call, not for what the owner types.
+ */
+export const partnerLeads = pgTable(
+  "partner_leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 80 }).notNull(),
+    phone: varchar("phone", { length: 20 }).notNull(),
+    /** Which invitation they came through, so we can tell which one works. */
+    surface: varchar("surface", { length: 24 }).notNull().default("home"), // home|about|listing
+    locale: varchar("locale", { length: 2 }).notNull().default("ar"), // ar|en
+    status: varchar("status", { length: 12 }).notNull().default("new"), // new|contacted|visiting|onboarded|declined
+    /** Ops' own notes from the call. Never anything the lead typed. */
+    note: text("note"),
+    /** Set when someone in the console takes the lead, so two agents don't both ring. */
+    claimedById: uuid("claimed_by_id").references(() => users.id),
+    claimedAt: ts("claimed_at"),
+    /** Bumped when a known number submits again — interest worth knowing about. */
+    lastSeenAt: ts("last_seen_at"),
+    createdAt: now(),
+  },
+  (t) => [
+    uniqueIndex("partner_leads_phone_uq").on(t.phone),
+    index("partner_leads_status_idx").on(t.status, t.createdAt),
+  ],
+);
