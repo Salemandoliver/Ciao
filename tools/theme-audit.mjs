@@ -33,7 +33,10 @@ const boot = (theme, refresh) =>
 const BASE = process.env.BASE ?? "http://localhost:3111";
 const PAGES = process.argv.slice(2).length
   ? process.argv.slice(2)
-  : ["/", "/search?type=coast", "/about", "/rewards", "/account", "/biz"];
+  // `/biz` used to be here. The business console is its own app now, audited
+  // by pointing BASE at :3113 with BIZ_PHONE set, not by a path on the
+  // marketplace — leaving it in this list only produced a 404 every run.
+  : ["/", "/search?type=coast", "/about", "/rewards", "/account"];
 
 function srgb(c) {
   const v = c / 255;

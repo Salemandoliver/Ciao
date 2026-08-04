@@ -22,6 +22,27 @@ for (const theme of ["light", "dark"]) {
       await page.waitForTimeout(2000);
     }
     await page.waitForTimeout(1200);
+    /*
+     * Scroll the whole page before shooting it.
+     *
+     * `fullPage: true` renders the full height but does NOT trigger lazy
+     * loading for what was never in the viewport, and the card carousel
+     * deliberately withholds `src` until a card is approached. Without this
+     * pass the bottom two-thirds of a long page photographs as empty frames —
+     * which reads exactly like broken images, and buried a real regression
+     * once behind a shrug about the tool.
+     */
+    await page.evaluate(async () => {
+      const step = window.innerHeight;
+      for (let y = 0; y < document.body.scrollHeight; y += step) {
+        window.scrollTo(0, y);
+        await new Promise((r) => setTimeout(r, 220));
+      }
+      window.scrollTo(0, 0);
+      await new Promise((r) => setTimeout(r, 400));
+    });
+    // Give the images the scroll just requested a chance to decode.
+    await page.waitForTimeout(1500);
     const name = path.replace(/[^a-z]/gi, "_") || "home";
     await page.screenshot({ path: `/tmp/shots/${theme}${name}.png`, fullPage: true });
   }
