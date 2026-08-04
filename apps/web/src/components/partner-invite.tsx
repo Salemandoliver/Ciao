@@ -1,7 +1,14 @@
 "use client";
 /**
- * «خلّ مكانك جزءاً من حكاياتهم» — the invitation to list a place, and the
- * fifteen-second form behind it.
+ * «خلّ مكانك جزءاً من حكاياتهم» — the invitation to join, and the fifteen-second
+ * form behind it.
+ *
+ * It invites **both sides of supply**: places (chalets, estirahas, halls) and
+ * services (the photographers, caterers and make-up artists of the `service`
+ * vertical). Founder direction, 4 August. That is why «مكان أو خدمة» runs
+ * through the whole flow rather than sitting only in the overline — a make-up
+ * artist who reads a button saying "list your place" concludes the invitation
+ * is not for her, and one inclusive line above it does not undo that.
  *
  * Supply is still acquired by agents in the field (§14.2). This is not a
  * self-serve listing route and must not grow into one: what it captures is a
@@ -31,11 +38,11 @@ import type { Locale } from "@/lib/i18n";
 
 const copy = {
   ar: {
-    over: "عندك مكان يستاهل الناس تعرفه؟",
+    over: "عندك مكان أو خدمة يستاهل الناس تعرفه؟",
     head: "خلّ مكانك جزءاً من حكاياتهم",
-    cta: "اعرض مكانك",
-    title: "اعرض مكانك على تشاو",
-    lede: "اترك اسمك ورقمك، ويتواصل معك فريق تشاو لترتيب زيارة وتصوير المكان. ما فيش رسوم على التسجيل.",
+    cta: "اعرض مكانك أو خدمتك",
+    title: "اعرض مكانك أو خدمتك على تشاو",
+    lede: "اترك اسمك ورقمك، ويتواصل معك فريق تشاو لترتيب زيارة وتصوير شغلك. ما فيش رسوم على التسجيل.",
     name: "الاسم",
     namePlaceholder: "مثلًا محمد الفيتوري",
     phone: "رقم الهاتف",
@@ -54,11 +61,11 @@ const copy = {
     why: "نطلب الرقم مرتين عشان نتأكد إنه يوصلك — الزيارة تترتب بمكالمة.",
   },
   en: {
-    over: "Got a place people should know about?",
+    over: "Got a place or a service people should know about?",
     head: "Make your place part of their stories",
-    cta: "List your place",
-    title: "List your place on Ciao",
-    lede: "Leave your name and number and the Ciao team will call to arrange a visit and photograph the place. Listing costs nothing.",
+    cta: "List your place or service",
+    title: "List your place or service on Ciao",
+    lede: "Leave your name and number and the Ciao team will call to arrange a visit and photograph your work. Listing costs nothing.",
     name: "Name",
     namePlaceholder: "e.g. Mohammed Elfituri",
     phone: "Phone number",

@@ -192,7 +192,7 @@ const copy = {
     ctaHostBody: "نزورك، نصوّر مكانك مجانًا، ونجيب لك ضيوفًا دفعوا عربونًا — لا مكالمات بلا نتيجة.",
     ctaHostLink: "سجّل مكانك ←",
 
-    footerPlace: "تشاو — ciao.ly · طرابلس، ليبيا",
+    footerPlace: "تشاو — ciao.ly · صُنع بحب في ليبيا",
     footerPrices: "الأسعار كلها بالدينار الليبي. العربون فقط أونلاين والباقي عند الوصول.",
   },
   en: {
@@ -337,7 +337,7 @@ const copy = {
       "We come to you, photograph your place free of charge, and bring you guests who have already paid a deposit — no calls that go nowhere.",
     ctaHostLink: "List your place →",
 
-    footerPlace: "Ciao — ciao.ly · Tripoli, Libya",
+    footerPlace: "Ciao — ciao.ly · Made with Love in Libya",
     footerPrices:
       "All prices are in Libyan dinars. Only the deposit is paid online; the rest is paid on arrival.",
   },

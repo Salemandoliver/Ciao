@@ -1549,14 +1549,20 @@ export const auditLog = pgTable(
 );
 
 /**
- * Someone with a place who put their hand up.
+ * Someone with a place or a service who put their hand up.
  *
- * Supply is acquired by field agents visiting venues (§14.2), and that stays
+ * Supply is acquired by field agents visiting in person (§14.2), and that stays
  * true — this table is not a self-serve listing route and must never become
- * one. What it is: the end of the «اعرض مكانك» invitation on the marketplace,
- * so a hall owner who sees the app in a family WhatsApp group at eleven at
- * night can leave a name and a number instead of losing the impulse. Everything
- * after that is a phone call from ops.
+ * one. What it is: the end of the «اعرض مكانك أو خدمتك» invitation on the
+ * marketplace, so a hall owner or a make-up artist who sees the app in a family
+ * WhatsApp group at eleven at night can leave a name and a number instead of
+ * losing the impulse. Everything after that is a phone call from ops.
+ *
+ * Both verticals on purpose (founder direction, 4 August). Note the row does
+ * not record *which* — ops finds out in the first thirty seconds of the call,
+ * and a third field on the form buys a worse completion rate than it is worth.
+ * If the queue ever grows past the point where that is true, add a `kind`
+ * column rather than a free-text box.
  *
  * Three deliberate shapes.
  *

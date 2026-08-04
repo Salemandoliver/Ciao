@@ -69,7 +69,7 @@ const copy = {
       "من أول جلسة عائلية إلى ليلة العمر، نقرّبك من أماكن يحبها أهل ليبيا ويثقون فيها.",
     footerAbout: "من نحن وكيف نعتمد الأماكن",
     footerRewards: "نقاط المكافآت",
-    footerPlace: "تشاو — ciao.ly · طرابلس، ليبيا",
+    footerPlace: "تشاو — ciao.ly · صُنع بحب في ليبيا",
     footerPrices: "الأسعار كلها بالدينار الليبي. العربون فقط أونلاين والباقي عند الوصول.",
   },
   en: {
@@ -106,7 +106,7 @@ const copy = {
       "From a first family afternoon to the night of a lifetime, we put you within reach of the places Libyans love and trust.",
     footerAbout: "Who we are and how we verify places",
     footerRewards: "Reward points",
-    footerPlace: "Ciao — ciao.ly · Tripoli, Libya",
+    footerPlace: "Ciao — ciao.ly · Made with Love in Libya",
     footerPrices:
       "All prices are in Libyan dinars. Only the deposit is paid online; the rest is paid on arrival.",
   },
