@@ -530,18 +530,23 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
           <span className="inline-block mt-3 text-link font-bold text-sm">{c.ctaGuestLink}</span>
         </Link>
         {/*
-          Information for businesses, not a door into their console. The
-          partner control panel is a separate product on its own domain with
-          its own sign-in, and the marketplace deliberately does not link into
-          it — a guest browsing chalets has no business one tap away from
-          somebody's diary. Businesses are onboarded by a field visit and
-          receive the address with their sign-in link.
+          A route into `/hosts`, which is a marketing page — not a door into
+          anyone's console. The partner control panel is a separate product on
+          its own domain with its own sign-in, and the marketplace still
+          deliberately does not link into it: a guest browsing chalets has no
+          business one tap away from somebody's diary. Businesses are onboarded
+          by a field visit and receive that address with their sign-in link.
+
+          This card used to be a span styled to look like a link, because there
+          was nowhere for it to go. A label reading «سجّل مكانك ←» that does not
+          respond to a tap is worse than no label — it reads as a site that is
+          broken rather than one that is deliberate.
         */}
-        <div id="hosts" className="card p-5">
+        <Link href="/hosts" id="hosts" className="card p-5 block hover:shadow-md transition">
           <h3 className="font-bold text-sea">{c.ctaHostTitle}</h3>
           <p className="text-sm text-muted mt-1">{c.ctaHostBody}</p>
           <span className="inline-block mt-3 text-link font-bold text-sm">{c.ctaHostLink}</span>
-        </div>
+        </Link>
       </section>
 
       <footer className="mt-12 text-center text-sm text-faint space-y-1">

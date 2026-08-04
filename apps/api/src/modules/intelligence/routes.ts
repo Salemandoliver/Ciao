@@ -322,8 +322,55 @@ export async function intelligenceRoutes(app: FastifyInstance) {
       .orderBy(desc(sql`count(*)`))
       .limit(1);
 
+    /*
+     * Supply funnel — the only funnel on the guest app that does not end in a
+     * booking.
+     *
+     * Reported per placement rather than as one total, because the decision it
+     * informs is "which band earns its space", and a single number cannot
+     * answer that. `contacts` is the row that matters: impressions and taps are
+     * activity, a WhatsApp message opened is a Libyan venue owner deciding to
+     * talk to us.
+     *
+     * No k-anonymity filter here and none needed — `surface` is a placement
+     * name we chose, not a dimension that can narrow to a person, and the
+     * events carry nothing about who saw them.
+     */
+    const supplyRows = await db
+      .select({
+        name: schema.events.name,
+        surface: sql<string | null>`${schema.events.props}->>'surface'`,
+        count: sql<string>`count(*)`,
+        people: sql<string>`count(distinct coalesce(${schema.events.userId}::text, ${schema.events.anonId}))`,
+      })
+      .from(schema.events)
+      .where(sql`${schema.events.ts} > ${since} and ${schema.events.name} like 'supply.%'`)
+      .groupBy(schema.events.name, sql`2`);
+
+    const supplyBySurface = new Map<string, { shown: number; clicked: number }>();
+    let supplyPageViews = 0;
+    let supplyContacts = 0;
+    for (const r of supplyRows) {
+      if (r.name === "supply.page_viewed") supplyPageViews += Number(r.people);
+      else if (r.name === "supply.contact_started") supplyContacts += Number(r.count);
+      else {
+        const key = r.surface ?? "unknown";
+        const row = supplyBySurface.get(key) ?? { shown: 0, clicked: 0 };
+        if (r.name === "supply.cta_shown") row.shown += Number(r.people);
+        if (r.name === "supply.cta_clicked") row.clicked += Number(r.count);
+        supplyBySurface.set(key, row);
+      }
+    }
+
     return reply.send({
       windowDays: q.days,
+      supply: {
+        surfaces: [...supplyBySurface.entries()]
+          .map(([surface, v]) => ({ surface, ...v }))
+          .sort((a, b) => b.shown - a.shown),
+        pageViews: supplyPageViews,
+        contacts: supplyContacts,
+      },
       funnel: {
         searches: step("search.performed"),
         listingViews: step("listing.viewed"),

@@ -75,6 +75,24 @@ export const EVENT_TAXONOMY: Record<string, string> = {
    * in the same object as holiday preferences).
    */
   "console.signed_in": "role, mustChange",
+  /*
+   * Supply acquisition — the marketplace asking guests' side of the site to
+   * produce hosts.
+   *
+   * Worth measuring separately from everything above because it is the only
+   * funnel on the consumer app that does not end in a booking, and the one
+   * whose failure is invisible: a supply band nobody taps costs nothing, shows
+   * no error, and quietly explains why the coast has forty chalets instead of
+   * four hundred. `surface` says which placement earned the tap, so the band
+   * and the page can be compared rather than argued about.
+   *
+   * No props identify anyone — a prospective host has not told us who they
+   * are yet, and that is exactly the point of the funnel.
+   */
+  "supply.cta_shown": "surface",
+  "supply.cta_clicked": "surface",
+  "supply.page_viewed": "ref",
+  "supply.contact_started": "channel",
   // engagement (client + server)
   "rail.selected": "rail",
   "share.clicked": "listingId, channel",

@@ -164,6 +164,21 @@ export const SETTING_DEFAULTS = {
   "partner.payoutChangeHoldHours": 24,
   /** Send the evening agenda message to partners who have it switched on. */
   "partner.agendaEnabled": true,
+  /**
+   * The number a prospective host reaches us on.
+   *
+   * In the control plane rather than the code because it is the one thing on
+   * the site that will change without a deploy — a founder's handset today, a
+   * support line when there is a support team, a different number for a
+   * campaign. E.164, no plus sign, the way wa.me wants it.
+   *
+   * Empty is a valid value and the supply page handles it: rather than render
+   * a WhatsApp button that opens a broken chat, it falls back to explaining
+   * how onboarding works and drops the call to action entirely. A dead contact
+   * link is worse than no contact link — the first tells a host we do not
+   * answer.
+   */
+  "contact.hostsWhatsapp": "218911111111",
   /** Operational posture. */
   "ops.demoMode": true,
   "ops.acceptingBookings": true,
@@ -331,6 +346,7 @@ export async function publicSettings() {
       expiryMonths: all["loyalty.expiryMonths"],
       partnersEnabled: all["loyalty.partnersEnabled"],
     },
+    contact: { hostsWhatsapp: all["contact.hostsWhatsapp"] },
     announcementAr: all["ops.announcementAr"],
     acceptingBookings: all["ops.acceptingBookings"],
     demoMode: all["ops.demoMode"],

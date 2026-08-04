@@ -6,6 +6,8 @@ import { HeroRotator, type HeroImage } from "@/components/hero-rotator";
 import { Greeting } from "@/components/greeting";
 import { RecsStrip } from "@/components/recs";
 import { ServiceTiles } from "@/components/service-tiles";
+import { BrandStatement } from "@/components/brand";
+import { SupplyBand } from "@/components/supply-band";
 import { LanguageToggle } from "@/components/language-toggle";
 import { API_URL } from "@/lib/api";
 import { asLocale, type Locale } from "@/lib/i18n";
@@ -42,9 +44,24 @@ const copy = {
     about: "من نحن",
     hosts: "للمضيفين",
     account: "حسابي",
+    heroEyebrow: "الحجز صار أقرب مما تتخيل",
     heroLead: "قول",
     heroBrand: "تشاو",
     heroTail: "للحجز بالمكالمات",
+    /*
+     * The emotional register. Everything else on this page argues that Ciao
+     * works; this argues that it matters. Both are needed and neither
+     * substitutes for the other — a marketplace that only ever talks about
+     * deposits and verification reads like a utility company.
+     */
+    statementEyebrow: "لكل مناسبة، مكانها",
+    statementHead: "المكان الجميل يخلّي الذكرى",
+    statementAccent: "أجمل",
+    statementBody:
+      "من أول جلسة عائلية إلى ليلة العمر، نقرّبك من أماكن يحبها أهل ليبيا ويثقون فيها.",
+    supplyEyebrow: "عندك مكان يستاهل الناس تعرفه؟",
+    supplyHead: "خلّ مكانك جزءًا من حكاياتهم",
+    supplyCta: "اعرض مكانك",
     heroBody:
       "الشاليهات والاستراحات وقاعات الأفراح — موثّقة ميدانيًا، صورناها بأنفسنا، والمولّد مجرَّب. احجز بعربون بسيط والباقي نقدًا عند الوصول.",
     trust: [
@@ -71,9 +88,24 @@ const copy = {
     about: "About",
     hosts: "For hosts",
     account: "Account",
+    heroEyebrow: "Booking just got closer than you think",
     heroLead: "Say",
     heroBrand: "ciao",
     heroTail: "to booking by phone call",
+    /*
+     * Written, not translated. «المكان الجميل يخلّي الذكرى أجمل» is literally
+     * "a beautiful place makes the memory more beautiful", which in English
+     * lands as a greetings card. The claim underneath it — that the venue is
+     * part of what people remember — is the part worth keeping.
+     */
+    statementEyebrow: "Every occasion has its place",
+    statementHead: "The right place is half the",
+    statementAccent: "memory",
+    statementBody:
+      "From a first family afternoon to the night of a lifetime, we bring you closer to the places Libyans love and trust.",
+    supplyEyebrow: "Got a place people should know about?",
+    supplyHead: "Make it part of their story",
+    supplyCta: "List your place",
     heroBody:
       "Beach chalets, estirahas and wedding halls — visited and verified in person, photographed by us, generator tested. Book with a small deposit and pay the rest in cash on arrival.",
     trust: [
@@ -146,7 +178,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/wishlist" aria-label={c.wishlist}>🤍</Link>
           <Link href="/about">{c.about}</Link>
-          <Link href="/about#hosts">{c.hosts}</Link>
+          <Link href="/hosts">{c.hosts}</Link>
           <Link href="/account">{c.account}</Link>
           <LanguageToggle />
         </nav>
@@ -168,6 +200,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           aria-hidden
         />
         <div className="relative p-6 sm:p-10 pb-4 sm:pb-6" data-on-photo>
+          {/* Amber on a photograph, so it carries the fixed colour the rest of
+              the photo chrome uses rather than the themed `link` token. */}
+          <p className="flex items-center gap-3 text-sm font-extrabold text-[#F0B458] drop-shadow mb-2">
+            <span>{c.heroEyebrow}</span>
+            <span className="hidden sm:block h-px w-16 bg-current opacity-60" aria-hidden />
+          </p>
           <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight drop-shadow">
             {c.heroLead} <span className="text-amber">{c.heroBrand}</span> {c.heroTail}
           </h1>
@@ -190,12 +228,34 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         ))}
       </section>
 
+      {/* The claim that this is about occasions rather than inventory. It sits
+          after the trust strip on purpose: earn the right to be sentimental by
+          first saying something checkable. */}
+      <BrandStatement
+        eyebrow={c.statementEyebrow}
+        headline={c.statementHead}
+        accent={c.statementAccent}
+        body={c.statementBody}
+      />
+
       <RecsStrip />
 
       <Section title={c.coast} href="/search?type=coast" items={coast} seeAll={c.seeAll} />
       <Section title={c.halls} href="/search?type=hall" items={halls} seeAll={c.seeAll} />
 
       <ServiceTiles />
+
+      {/* Addressed to a different reader than everything above it, which is why
+          it changes ground rather than merely changing words. Below the
+          listings because a guest came here to find a chalet, and a host who
+          owns one will scroll past their competitors to reach it. */}
+      <SupplyBand
+        surface="home"
+        eyebrow={c.supplyEyebrow}
+        headline={c.supplyHead}
+        cta={c.supplyCta}
+        href="/hosts"
+      />
 
       <footer className="mt-12 text-center text-sm text-faint space-y-1">
         <p>

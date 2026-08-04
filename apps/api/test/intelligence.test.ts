@@ -104,6 +104,10 @@ describe("personalized scoring", () => {
 });
 
 describe("pipeline: ingest → fold → recs → insights", () => {
+  /* Minted by the insights test below and reused by the supply-funnel test —
+     each OTP request counts against a rate limit that is a real control. */
+  let opsToken = "";
+
   it("client batch ingestion accepts known events, drops unknown", async () => {
     const res = await app.inject({
       method: "POST",
@@ -185,6 +189,7 @@ describe("pipeline: ingest → fold → recs → insights", () => {
       payload: { phone: "0947000001", code: (reqRes2.json() as { devCode: string }).devCode },
     });
     token = (ver2.json() as { accessToken: string }).accessToken;
+    opsToken = token;
 
     const res = await app.inject({
       method: "GET",
@@ -201,6 +206,53 @@ describe("pipeline: ingest → fold → recs → insights", () => {
     expect(body.funnel.searches.count).toBeGreaterThan(0);
     expect(Array.isArray(body.weekly)).toBe(true);
     expect(Array.isArray(body.seasonality.byMonth)).toBe(true);
+  });
+
+  it("reports the supply funnel per placement, so bands can be compared", async () => {
+    /*
+     * The supply band is the only call to action on the guest app whose
+     * failure is silent: nobody taps it, nothing errors, and a year later the
+     * coast has forty chalets instead of four hundred. Splitting by `surface`
+     * is what turns "hosts don't sign up" into a decision about a placement.
+     */
+    const ingest = await app.inject({
+      method: "POST",
+      url: "/v1/events",
+      payload: {
+        anonId: `supply-anon-${Date.now()}`,
+        sessionId: "s-supply",
+        events: [
+          { name: "supply.cta_shown", props: { surface: "home" } },
+          { name: "supply.cta_clicked", props: { surface: "home" } },
+          { name: "supply.cta_shown", props: { surface: "about" } },
+          { name: "supply.page_viewed", props: { ref: "direct" } },
+          { name: "supply.contact_started", props: { channel: "whatsapp" } },
+        ],
+      },
+    });
+    expect((ingest.json() as { accepted: number }).accepted).toBe(5);
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/v1/ops/insights?days=90",
+      headers: { authorization: `Bearer ${opsToken}` },
+    });
+    const body = res.json() as {
+      supply: {
+        surfaces: { surface: string; shown: number; clicked: number }[];
+        pageViews: number;
+        contacts: number;
+      };
+    };
+    const home = body.supply.surfaces.find((s) => s.surface === "home");
+    const about = body.supply.surfaces.find((s) => s.surface === "about");
+    expect(home?.shown).toBeGreaterThanOrEqual(1);
+    expect(home?.clicked).toBeGreaterThanOrEqual(1);
+    // The placement that was only seen must not inherit the other's taps —
+    // that conflation is exactly what a single total would produce.
+    expect(about?.clicked ?? 0).toBe(0);
+    expect(body.supply.contacts).toBeGreaterThanOrEqual(1);
+    expect(body.supply.pageViews).toBeGreaterThanOrEqual(1);
   });
 
   it("recs endpoint returns transparent reasons", async () => {

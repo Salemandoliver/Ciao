@@ -13,6 +13,11 @@ import type { Locale } from "@/lib/i18n";
 interface Insights {
   windowDays: number;
   funnel: Record<string, { count: number; users: number }>;
+  supply: {
+    surfaces: { surface: string; shown: number; clicked: number }[];
+    pageViews: number;
+    contacts: number;
+  };
   weekly: { week: string; bookings: number; gmv: number; deposits: number }[];
   seasonality: {
     byMonth: { month: string; count: number }[];
@@ -37,6 +42,17 @@ interface Insights {
 
 const copy = {
   ar: {
+    supplyTitle: "استقطاب الأماكن",
+    supplyHint:
+      "المسار الوحيد في تطبيق الضيوف اللي ما ينتهيش بحجز. الظهور والنقر نشاط؛ الرسالة على واتساب هي صاحب مكان قرّر يكلّمنا.",
+    supplyShown: "ظهر لـ",
+    supplyClicked: "نقرات",
+    supplyRate: "نسبة النقر",
+    supplyPage: "زوّار صفحة المضيفين",
+    supplyContacts: "بدأوا محادثة",
+    supplyNone: "ما في بيانات بعد.",
+    surfaceHome: "الرئيسية",
+    surfaceAbout: "من نحن",
     months: ["", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
     dow: ["", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"],
     filters: {
@@ -84,6 +100,17 @@ const copy = {
     repeatNote: (repeaters: string, total: string) => `${repeaters} من ${total} ضيف حجزوا أكثر من مرة`,
   },
   en: {
+    supplyTitle: "Supply acquisition",
+    supplyHint:
+      "The only funnel on the guest app that does not end in a booking. Impressions and taps are activity; a WhatsApp message opened is a venue owner deciding to talk to us.",
+    supplyShown: "Seen by",
+    supplyClicked: "Taps",
+    supplyRate: "Tap rate",
+    supplyPage: "Hosts page visitors",
+    supplyContacts: "Started a conversation",
+    supplyNone: "No data yet.",
+    surfaceHome: "Home",
+    surfaceAbout: "About",
     months: ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
     dow: ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
     filters: {
@@ -207,6 +234,50 @@ export function InsightsPanels() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/*
+        Supply acquisition.
+        
+        Placed above the booking funnel because it is upstream of it: every
+        number below this is capped by how much inventory exists, and a coast
+        with forty chalets rather than four hundred is the constraint nobody
+        sees in a conversion chart. Per placement, because "which band earns
+        its space" is the decision, and one total cannot answer it.
+      */}
+      <div>
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="font-bold text-sea">{c.supplyTitle}</h3>
+          <div className="flex gap-2 text-xs">
+            <span className="text-muted">
+              {c.supplyPage}: <b className="text-sea" dir="ltr">{fmtNum(locale, data.supply?.pageViews ?? 0)}</b>
+            </span>
+            <span className="text-muted">
+              {c.supplyContacts}: <b className="text-link" dir="ltr">{fmtNum(locale, data.supply?.contacts ?? 0)}</b>
+            </span>
+          </div>
+        </div>
+        <p className="text-[11px] text-faint mt-0.5 leading-snug">{c.supplyHint}</p>
+        {(data.supply?.surfaces ?? []).length === 0 ? (
+          <p className="text-sm text-faint mt-2">{c.supplyNone}</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+            {data.supply.surfaces.map((s) => (
+              <div key={s.surface} className="card p-3 flex items-center justify-between gap-3">
+                <span className="font-bold text-sea text-sm">
+                  {s.surface === "home" ? c.surfaceHome : s.surface === "about" ? c.surfaceAbout : s.surface}
+                </span>
+                <span className="text-xs text-muted flex items-center gap-3">
+                  <span>{c.supplyShown} <b className="text-sea" dir="ltr">{fmtNum(locale, s.shown)}</b></span>
+                  <span>{c.supplyClicked} <b className="text-sea" dir="ltr">{fmtNum(locale, s.clicked)}</b></span>
+                  <span className="text-link font-bold" dir="ltr">
+                    {s.shown > 0 ? pct(s.clicked, s.shown) : "—"}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Funnel — stat tiles with stage conversion */}
