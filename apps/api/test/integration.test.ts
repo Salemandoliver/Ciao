@@ -180,10 +180,29 @@ afterAll(async () => {
 
 describe("public discovery", () => {
   it("search returns the live listing with approximate location only", async () => {
-    const res = await app.inject({ method: "GET", url: "/v1/listings?city=tripoli" });
-    expect(res.statusCode).toBe(200);
-    const { items } = res.json() as { items: { slug: string; approxLocation: unknown }[] };
-    const mine = items.find((i) => i.slug === listingSlug);
+    /*
+     * Page through rather than trusting the first screen.
+     *
+     * This assertion used to read page one only, and passed for months — until
+     * the shared dev database crossed sixty Tripoli listings and the fixture
+     * stopped landing in the default twenty. It then failed as a function of
+     * how many times the suite had been run, which is the worst kind of red:
+     * nothing is wrong with the product, and the reflex it teaches is to
+     * re-run and shrug.
+     */
+    let mine: { slug: string; approxLocation: unknown } | undefined;
+    let status = 0;
+    for (let offset = 0; offset < 500 && !mine; offset += 50) {
+      const res = await app.inject({
+        method: "GET",
+        url: `/v1/listings?city=tripoli&limit=50&offset=${offset}`,
+      });
+      status = res.statusCode;
+      const { items } = res.json() as { items: { slug: string; approxLocation: unknown }[] };
+      if (items.length === 0) break;
+      mine = items.find((i) => i.slug === listingSlug);
+    }
+    expect(status).toBe(200);
     expect(mine).toBeTruthy();
     expect(JSON.stringify(mine)).not.toContain("عنوان سري");
   });
