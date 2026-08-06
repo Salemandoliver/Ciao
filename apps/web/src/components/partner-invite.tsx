@@ -103,7 +103,17 @@ export function PartnerInvite({ surface = "home" }: { surface?: LeadSurface }) {
         headline on a navy panel and made it disappear entirely. Fixed cream,
         the same value the wordmark uses on dark ground.
       */}
-      <section className="card p-6 sm:p-8 mt-6 bg-sea text-center sm:text-start">
+      {/*
+        Anchored so other pages can point here. The About page used to carry
+        its own "list your place" card whose call to action was a `<span>` —
+        it looked like a link and did nothing, which is worse than not offering
+        it at all. There is now one place where a prospective partner puts
+        their hand up, and everything else links to it.
+      */}
+      <section
+        id="list-your-place"
+        className="card p-6 sm:p-8 mt-6 bg-sea text-center sm:text-start scroll-mt-4"
+      >
         <div className="sm:flex sm:items-center sm:justify-between sm:gap-6">
           <div>
             <p className="text-amber font-bold text-sm">{c.over}</p>

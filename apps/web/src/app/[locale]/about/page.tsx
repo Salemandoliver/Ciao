@@ -61,7 +61,6 @@ const copy = {
       "تشاو منصّة حجز ليبية: نزور كل مكان بأنفسنا، نصوّره، ونعتمده قبل النشر. العربون يحمي الطرفين، وسجل الشكاوى معلن للجميع.",
 
     navBrowse: "تصفّح",
-    navHosts: "للمضيفين",
     navSignIn: "دخول",
 
     eyebrow: "من نحن",
@@ -201,7 +200,6 @@ const copy = {
       "Ciao is a Libyan booking platform: we visit every place ourselves, photograph it, and approve it before it goes live. The deposit protects both sides, and the complaint record is public.",
 
     navBrowse: "Browse",
-    navHosts: "For hosts",
     navSignIn: "Sign in",
 
     eyebrow: "About us",
@@ -413,7 +411,9 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
         </Link>
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/search?type=coast">{c.navBrowse}</Link>
-          <a href="#hosts">{c.navHosts}</a>
+          {/* "للمضيفين" removed here for the same reason as the home page:
+              partners have their own product, and the one place to put your
+              hand up is the panel on the home page. */}
           <Link href="/login">{c.navSignIn}</Link>
           <LanguageToggle />
         </nav>
@@ -537,11 +537,17 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
           somebody's diary. Businesses are onboarded by a field visit and
           receive the address with their sign-in link.
         */}
-        <div id="hosts" className="card p-5">
+        {/*
+          This used to end in a `<span>` styled like a link, so the one thing
+          the card asks you to do did nothing at all. There is now a form to
+          send people to, on the home page, and it is the only one — a second
+          "register your place" flow is how two half-worked lead lists happen.
+        */}
+        <Link id="hosts" href="/#list-your-place" className="card p-5 block hover:shadow-md">
           <h3 className="font-bold text-sea">{c.ctaHostTitle}</h3>
           <p className="text-sm text-muted mt-1">{c.ctaHostBody}</p>
           <span className="inline-block mt-3 text-link font-bold text-sm">{c.ctaHostLink}</span>
-        </div>
+        </Link>
       </section>
 
       <footer className="mt-12 text-center text-sm text-faint space-y-1">

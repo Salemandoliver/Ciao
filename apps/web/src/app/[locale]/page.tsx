@@ -41,7 +41,6 @@ const copy = {
   ar: {
     wishlist: "المفضلة",
     about: "من نحن",
-    hosts: "للمضيفين",
     account: "حسابي",
     heroLead: "قول",
     heroBrand: "تشاو",
@@ -75,7 +74,6 @@ const copy = {
   en: {
     wishlist: "Saved",
     about: "About",
-    hosts: "For hosts",
     account: "Account",
     heroLead: "Say",
     heroBrand: "ciao",
@@ -157,7 +155,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/wishlist" aria-label={c.wishlist}>🤍</Link>
           <Link href="/about">{c.about}</Link>
-          <Link href="/about#hosts">{c.hosts}</Link>
+          {/*
+            "للمضيفين" used to sit here, pointing at a section of the About
+            page. Partners have their own product on their own origin now, and
+            the panel further down this page is where a prospective one puts
+            their hand up — so the nav item was sending people to read about
+            hosting on a page that then had to send them somewhere else again.
+          */}
           <Link href="/account">{c.account}</Link>
           <LanguageToggle />
         </nav>
