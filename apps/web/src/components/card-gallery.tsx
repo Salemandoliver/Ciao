@@ -28,6 +28,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { trackClient } from "@/lib/tracker";
 import { useLocale, useRouter } from "@/lib/locale";
 import type { Locale } from "@/lib/i18n";
+import { thumb } from "@/lib/types";
 
 const copy = {
   ar: {
@@ -46,6 +47,12 @@ const copy = {
 
 export interface GalleryPhoto {
   url: string;
+  /**
+   * A narrower encoding of the same photograph. Cards are never drawn wider
+   * than a phone screen, so this is the one that should travel; the wide file
+   * belongs on the listing page, where the photograph is the point.
+   */
+  thumbUrl?: string;
 }
 
 export function CardGallery({
@@ -191,7 +198,7 @@ export function CardGallery({
         {photos.map((p, i) => (
           <img
             key={p.url}
-            src={i === 0 || activated ? p.url : undefined}
+            src={i === 0 || activated ? thumb(p) : undefined}
             alt={i === 0 ? alt : `${alt} — ${c.photoOf(i + 1, count)}`}
             loading={i === 0 ? "lazy" : "eager"}
             decoding="async"

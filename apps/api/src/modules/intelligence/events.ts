@@ -120,6 +120,13 @@ export const EVENT_TAXONOMY: Record<string, string> = {
    * in the same object as holiday preferences).
    */
   "console.signed_in": "role, mustChange",
+  /*
+   * Catalogue work, counted so supply operations can be measured the way the
+   * booking funnel is: how long a venue sits without photographs is the single
+   * best predictor of whether it ever earns anything.
+   */
+  "media.uploaded": "listingId, width, bytes",
+  "partner.invited": "partnerId, hadPassword",
   // engagement (client + server)
   "rail.selected": "rail",
   "share.clicked": "listingId, channel",

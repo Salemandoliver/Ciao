@@ -5,6 +5,7 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { Stars, VerifiedBadge } from "@/components/listing-card";
 import { API_URL, fmtLyd } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
+import { thumb } from "@/lib/types";
 import { BookingWidget } from "./booking-widget";
 import { Nearby } from "./nearby";
 import { TrackEvent } from "@/components/track";
@@ -532,7 +533,7 @@ export default async function ListingPage({
                       <div className="relative aspect-[4/3] photo-placeholder">
                         {cover ? (
                           <img
-                            src={cover.url}
+                            src={thumb(cover)}
                             alt={simTitle.text}
                             loading="lazy"
                             className="absolute inset-0 h-full w-full object-cover"

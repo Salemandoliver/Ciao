@@ -25,6 +25,7 @@ import { fmtLyd, api, ApiError } from "@/lib/api";
 import { trackClient } from "@/lib/tracker";
 import { BOARD, UNIT_KINDS_LABEL, term } from "@/lib/vocab";
 import type { Locale } from "@/lib/i18n";
+import { thumb } from "@/lib/types";
 
 interface Unit {
   id: string;
@@ -38,7 +39,7 @@ interface Unit {
   bathrooms?: number | null;
   boardBasis?: string | null;
   minNights?: number | null;
-  media?: { url: string }[];
+  media?: { url: string; thumbUrl?: string }[];
   fromNightly: number;
   soldOut: boolean;
 }
@@ -133,7 +134,7 @@ export function UnitList({
               {u.media?.[0]?.url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={u.media[0].url}
+                  src={thumb(u.media[0])}
                   alt={title}
                   className="w-24 h-24 rounded-xl object-cover shrink-0"
                 />

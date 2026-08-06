@@ -10,6 +10,7 @@ import { localWishlistIds, onWishlistChange } from "@/lib/wishlist";
 import { listingTitle, textProps } from "@/lib/content";
 import { placeLabel } from "@/lib/vocab";
 import type { Locale } from "@/lib/i18n";
+import { thumb } from "@/lib/types";
 
 interface Saved {
   id: string;
@@ -108,7 +109,7 @@ export default function WishlistPage() {
                   <div className="relative aspect-[4/3] bg-sea/10">
                     {cover ? (
                       <img
-                        src={cover.url}
+                        src={thumb(cover)}
                         alt={title.text}
                         loading="lazy"
                         className="absolute inset-0 h-full w-full object-cover"

@@ -25,6 +25,7 @@ import { and, count, desc, eq, gte, inArray, isNotNull, isNull, sql } from "driz
 import { normalizePhone } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
 import { normaliseNeighbours } from "../listings/neighbours.js";
+import { mediaBase } from "../media/storage.js";
 import { CiaoError } from "../../lib/errors.js";
 import { bizGuard } from "./guards.js";
 import type { BizCapability } from "@ciao/shared";
@@ -75,6 +76,18 @@ const COMMITTED_SQL = `array[${COMMITTED_STATES.map((s) => `'${s}'`).join(",")}]
 
 const MEDIA_ITEM = z.object({
   url: z.string().min(1).max(500),
+  /**
+   * A smaller encoding of the same photograph, for anywhere it is drawn at
+   * thumbnail size.
+   *
+   * Sending a 1600px image to fill a 96px box is the most common way a
+   * marketplace wastes a guest's data, and on the connections this product is
+   * built for that is not a rounding error — a search page of twelve cards is
+   * the difference between 200KB and 2.4MB. Optional because every photograph
+   * added before uploads existed has only the one size, and a missing thumb
+   * simply falls back to the full image.
+   */
+  thumbUrl: z.string().min(1).max(500).optional(),
   kind: z.enum(["photo", "video"]).default("photo"),
   alt: z.string().max(200).optional(),
   watermark: z.boolean().optional(),
@@ -596,14 +609,31 @@ export async function businessRoutes(app: FastifyInstance) {
       .orderBy(desc(schema.verifications.createdAt))
       .limit(5);
 
+    const { hasPassword } = await import("../partner/auth.js");
+
     return reply.send({
       listing: row.listing,
       venue: row.venue,
       host: host
-        ? { id: host.id, phone: host.phone, name: host.displayName, role: host.role }
+        ? {
+            id: host.id,
+            phone: host.phone,
+            name: host.displayName,
+            role: host.role,
+            /*
+             * Whether this host can actually sign in to the partner control
+             * panel. Seeding and onboarding both create the account without a
+             * credential — deliberately, since nobody at Ciao should ever
+             * choose a partner's password — so an account existing and an
+             * account being usable are different facts, and the console has to
+             * show which one it is looking at before it offers to fix it.
+             */
+            hasPassword: await hasPassword(host.id),
+          }
         : null,
       bookings,
       verifications,
+      mediaBase: mediaBase(),
     });
   });
 
@@ -715,7 +745,7 @@ export async function businessRoutes(app: FastifyInstance) {
       .where(eq(schema.listings.id, id))
       .limit(1);
     if (!listing) throw new CiaoError("BOOKING_NOT_FOUND");
-    return reply.send({ slug: listing.slug, media: listing.media });
+    return reply.send({ slug: listing.slug, media: listing.media, base: mediaBase() });
   });
 
   app.put("/v1/biz/listings/:id/media", async (req, reply) => {
@@ -751,7 +781,7 @@ export async function businessRoutes(app: FastifyInstance) {
   /**
    * The image library: every media path already known to the platform, so an
    * operator adding a photo picks from what exists instead of typing a URL
-   * from memory. (Direct upload lands with the CDN — launch gate 4.)
+   * from memory.
    */
   app.get("/v1/biz/media/library", async (req, reply) => {
     await opsGuard(req, "catalogue");
@@ -766,6 +796,7 @@ export async function businessRoutes(app: FastifyInstance) {
         urls: (r.media as { url: string }[]).map((m) => m.url),
       })),
       hero: hero.map((h) => h.src),
+      base: mediaBase(),
     });
   });
 

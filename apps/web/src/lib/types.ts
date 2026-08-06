@@ -76,7 +76,7 @@ export interface PublicListing {
   bedrooms?: number | null;
   familyOnly: boolean;
   cancellationTier: "flexible" | "moderate" | "strict";
-  media: { url: string; kind: string; order: number }[];
+  media: { url: string; thumbUrl?: string; kind: string; order: number }[];
   bookingTypes: string[];
   hostReliability?: number | null;
   rating?: number;
@@ -92,7 +92,7 @@ export interface PublicListing {
     titleEn?: string;
     area?: string;
     baseNightly: number;
-    media: { url: string; kind: string; order?: number }[];
+    media: { url: string; thumbUrl?: string; kind: string; order?: number }[];
     verified?: boolean;
     serviceCategory?: string | null;
   }[];
@@ -150,7 +150,7 @@ export interface BookingDetail {
   balanceOnArrival: number;
   cancellationTier: string;
   confirmationDeadline?: string;
-  listing?: { slug: string; titleAr: string; titleEn?: string; media: { url: string }[] };
+  listing?: { slug: string; titleAr: string; titleEn?: string; media: { url: string; thumbUrl?: string }[] };
   venue?: {
     nameAr: string;
     city: string;
@@ -171,4 +171,22 @@ export interface BookingDetail {
     hostPhone?: string;
   };
   timeline: { seq: number; to: string; actor: string; at: string }[];
+}
+
+/**
+ * The right encoding of a photograph for the size it is about to be drawn at.
+ *
+ * Uploaded photographs are stored twice — a wide one for the gallery and a
+ * narrow one for everything else. Search results, cards, wishlists and the
+ * unit picker all draw images a few hundred pixels across, and handing them
+ * the 1600px file wastes roughly ninety percent of the bytes on pixels the
+ * screen cannot show. On a Libyan mobile connection a twelve-card search page
+ * is the difference between 200KB and 2.4MB, which is the difference between a
+ * product that feels fast and one people stop opening.
+ *
+ * Photographs added before uploads existed have only the one size, so the
+ * fallback is not an edge case — it is most of the catalogue today.
+ */
+export function thumb(m: { url: string; thumbUrl?: string } | undefined): string {
+  return m?.thumbUrl ?? m?.url ?? "";
 }

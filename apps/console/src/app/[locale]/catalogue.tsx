@@ -28,6 +28,7 @@ import {
 } from "@/lib/vocab";
 import { Money, Pill, Section } from "./lib";
 import { MediaManager } from "./media";
+import { BusinessDetail } from "./business-detail";
 
 export interface BizListing {
   listingId: string;
@@ -125,6 +126,7 @@ const copy = {
     colValue: "القيمة",
     colReviews: "التقييمات",
     noHost: " · بلا مضيف",
+    openDetail: "افتح تفاصيل المكان",
     notVerified: "غير موثّق",
     disputes: (n: number) => ` · ${n} شكوى`,
     noResults: "لا نتائج",
@@ -214,6 +216,7 @@ const copy = {
     colValue: "Value",
     colReviews: "Reviews",
     noHost: " · no host",
+    openDetail: "Open the full record",
     notVerified: "Not verified",
     disputes: (n: number) => ` · ${n} disputes`,
     noResults: "No results",
@@ -269,6 +272,7 @@ export function CatalogueTab() {
   const [mediaFor, setMediaFor] = useState<BizListing | null>(null);
   const [englishFor, setEnglishFor] = useState<BizListing | null>(null);
   const [locationFor, setLocationFor] = useState<BizListing | null>(null);
+  const [detailFor, setDetailFor] = useState<BizListing | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -605,21 +609,38 @@ export function CatalogueTab() {
             {items.map((l) => (
               <tr key={l.listingId} className="border-t border-sand align-top">
                 <td className="p-2">
-                  {/* The listing title is Arabic content even on the English
-                      console — tag it so it renders and is read correctly. */}
-                  <div className="font-bold text-sea" lang="ar" dir="rtl">
-                    {l.titleAr}
-                  </div>
-                  {l.titleEn ? (
-                    <div className="text-[11px] text-muted" lang="en" dir="ltr">
-                      {l.titleEn}
+                  {/*
+                    The name opens the record. A table of two hundred rows with
+                    four buttons and no way through to the thing itself is a
+                    report, not a tool — and an operator on the phone to a
+                    resort needs the rate card, the office hours and the owner's
+                    sign-in state, none of which fit in a row.
+                  */}
+                  <button
+                    className="text-start w-full group"
+                    onClick={() => setDetailFor(l)}
+                    title={c.openDetail}
+                  >
+                    {/* The listing title is Arabic content even on the English
+                        console — tag it so it renders and is read correctly. */}
+                    <div
+                      className="font-bold text-sea group-hover:underline"
+                      lang="ar"
+                      dir="rtl"
+                    >
+                      {l.titleAr}
                     </div>
-                  ) : null}
-                  <div className="text-[11px] text-faint">
-                    {l.venueNameAr} ·{" "}
-                    {l.area ? term(AREAS, locale, l.area) : term(CITIES, locale, l.city)}
-                    {l.host ? ` · ${l.host.name ?? l.host.phone}` : c.noHost}
-                  </div>
+                    {l.titleEn ? (
+                      <div className="text-[11px] text-muted" lang="en" dir="ltr">
+                        {l.titleEn}
+                      </div>
+                    ) : null}
+                    <div className="text-[11px] text-faint">
+                      {l.venueNameAr} ·{" "}
+                      {l.area ? term(AREAS, locale, l.area) : term(CITIES, locale, l.city)}
+                      {l.host ? ` · ${l.host.name ?? l.host.phone}` : c.noHost}
+                    </div>
+                  </button>
                 </td>
                 <td className="p-2">{term(VERTICALS, locale, l.vertical)}</td>
                 <td className="p-2">
@@ -692,6 +713,10 @@ export function CatalogueTab() {
           </tbody>
         </table>
       </div>
+
+      {detailFor ? (
+        <BusinessDetail listingId={detailFor.listingId} onClose={() => setDetailFor(null)} />
+      ) : null}
 
       {mediaFor ? (
         <MediaManager
