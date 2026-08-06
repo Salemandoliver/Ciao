@@ -129,6 +129,46 @@ export async function encodeImage(
   }
 }
 
+/**
+ * Encode one file at an arbitrary set of widths, decoding it only once.
+ *
+ * The hero rotator needs 800 and 1600 rather than the catalogue's 640 and
+ * 1600, because it is a full-bleed photograph rather than a card — and it
+ * ships both to the browser in a `srcSet`, so a phone picks the small one and
+ * a laptop picks the large one without us guessing.
+ */
+export async function encodeWidths(
+  file: File,
+  widths: number[],
+): Promise<EncodedImage[]> {
+  const src = await loadBitmap(file);
+  try {
+    const out: EncodedImage[] = [];
+    for (const w of widths) out.push(await encodeAt(src, w));
+    return out;
+  } finally {
+    if (!(src instanceof HTMLImageElement)) src.close();
+  }
+}
+
+/**
+ * A stable identifier for "these encodings are the same photograph".
+ *
+ * The hero stores one path per image and the app appends `-800.webp` and
+ * `-1600.webp` itself, so the two encodings must share a key prefix. Content
+ * hashes cannot supply it — the 800px and 1600px files have different bytes
+ * and therefore different hashes — so the prefix is derived once from the
+ * original file and sent with both uploads.
+ */
+export async function fileFingerprint(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 32);
+}
+
 /** Base64 without the `data:` prefix, which is what the upload endpoint wants. */
 export async function toBase64(blob: Blob): Promise<string> {
   const buf = new Uint8Array(await blob.arrayBuffer());

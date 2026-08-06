@@ -25,10 +25,17 @@ import { buildApp } from "../src/app.js";
 import { db, pool, schema } from "../src/db/client.js";
 import { signAccessToken } from "../src/lib/auth.js";
 import { config } from "../src/config.js";
-import { configured, listingKey, mediaBase, missingConfig } from "../src/modules/media/storage.js";
+import {
+  configured,
+  heroKey,
+  listingKey,
+  mediaBase,
+  missingConfig,
+} from "../src/modules/media/storage.js";
 
 let app: FastifyInstance;
 let opsToken: string;
+let adminToken: string;
 let guestToken: string;
 let listingId: string;
 
@@ -45,7 +52,7 @@ const WEBP = Buffer.concat([
   Buffer.alloc(16),
 ]);
 
-async function tokenFor(phone: string, role: "ops" | "guest") {
+async function tokenFor(phone: string, role: "ops" | "admin" | "guest") {
   const e164 = phone;
   let [user] = await db.select().from(schema.users).where(eq(schema.users.phone, e164)).limit(1);
   if (!user) [user] = await db.insert(schema.users).values({ phone: e164, role }).returning();
@@ -71,6 +78,7 @@ function upload(token: string, body: Record<string, unknown>) {
 beforeAll(async () => {
   app = await buildApp();
   opsToken = await tokenFor(phoneFor("41"), "ops");
+  adminToken = await tokenFor(phoneFor("43"), "admin");
   guestToken = await tokenFor(phoneFor("42"), "guest");
   const [listing] = await db.select({ id: schema.listings.id }).from(schema.listings).limit(1);
   listingId = listing!.id;
@@ -205,6 +213,73 @@ describe("media upload guards", () => {
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().error.detail).toBe("media_storage_unconfigured");
+  });
+});
+
+describe("hero images", () => {
+  it("keys both encodings of one photograph under a shared prefix", () => {
+    // The whole point: the hero setting stores one path and the apps append
+    // the suffix, so 800 and 1600 must differ only in the width.
+    const group = "a1b2c3d4e5f60718";
+    expect(heroKey(group, 800, "webp")).toBe("hero/a1b2c3d4e5f60718-800.webp");
+    expect(heroKey(group, 1600, "webp")).toBe("hero/a1b2c3d4e5f60718-1600.webp");
+  });
+
+  it("treats the caller's group as hostile", () => {
+    // The group is the one part of a key the client supplies, so it is reduced
+    // to hex: no separators, no traversal, no extension of their choosing.
+    // Only the hex characters survive — here the "e" of "evil" and nothing
+    // else, which is inert rather than clever.
+    expect(heroKey("../../evil.html", 800, "webp")).toBe("hero/e-800.webp");
+    expect(heroKey("x/../y", 1600, "webp")).toBe("hero/image-1600.webp");
+    expect(heroKey("", 800, "webp")).toBe("hero/image-800.webp");
+    expect(heroKey("A".repeat(200), 1600, "webp")).toBe("hero/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1600.webp");
+  });
+
+  it("refuses a hero upload with no group", async () => {
+    const res = await upload(adminToken, {
+      kind: "hero",
+      contentType: "image/webp",
+      width: 800,
+      data: WEBP.toString("base64"),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.detail).toBe("group_required");
+  });
+
+  it("refuses a hero upload from an operator without govern", async () => {
+    // Catalogue work is not the same authority as changing what the whole
+    // country sees first, and the ops role holds the former only.
+    const res = await upload(opsToken, {
+      kind: "hero",
+      group: "a1b2c3d4e5f60718",
+      contentType: "image/webp",
+      width: 800,
+      data: WEBP.toString("base64"),
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("lets an admin through to the storage gate", async () => {
+    const res = await upload(adminToken, {
+      kind: "hero",
+      group: "a1b2c3d4e5f60718",
+      contentType: "image/webp",
+      width: 800,
+      data: WEBP.toString("base64"),
+    });
+    // Past every request check; falls at storage, which is unconfigured here.
+    expect(res.json().error.detail).toBe("media_storage_unconfigured");
+  });
+
+  it("still requires a listing for a listing upload", async () => {
+    const res = await upload(opsToken, {
+      contentType: "image/webp",
+      width: 1600,
+      data: WEBP.toString("base64"),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.detail).toBe("listing_required");
   });
 });
 

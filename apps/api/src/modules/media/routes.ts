@@ -47,6 +47,7 @@ import { track } from "../intelligence/events.js";
 import {
   StorageError,
   configured,
+  heroKey,
   listingKey,
   mediaBase,
   missingConfig,
@@ -81,7 +82,15 @@ const FORMATS: Record<string, { ext: string; sniff: (b: Uint8Array) => boolean }
 };
 
 const UploadBody = z.object({
-  listingId: z.string().uuid(),
+  /**
+   * `listing` files hang off a listing and are keyed by their own content.
+   * `hero` files are the home page rotation, are not attached to any listing,
+   * and are keyed by a caller-supplied group so that the two encodings of one
+   * photograph share a prefix — see `heroKey`.
+   */
+  kind: z.enum(["listing", "hero"]).default("listing"),
+  listingId: z.string().uuid().optional(),
+  group: z.string().max(64).optional(),
   contentType: z.string().max(40),
   width: z.number().int().min(64).max(6000),
   /** Base64, without a data: prefix — the console strips it. */
@@ -156,17 +165,37 @@ export async function mediaRoutes(app: FastifyInstance) {
       // The declared type is a hint; the bytes are the fact.
       if (!format.sniff(bytes)) throw new CiaoError("VALIDATION", "image_type_mismatch");
 
-      const [listing] = await db
-        .select({ slug: schema.listings.slug })
-        .from(schema.listings)
-        .where(eq(schema.listings.id, body.listingId))
-        .limit(1);
-      if (!listing) throw new CiaoError("VALIDATION", "listing_not_found");
+      /*
+       * A hero image belongs to the home page rather than to any listing, and
+       * changing what the whole country sees first is a `govern` decision, not
+       * a catalogue one — the same capability that already gates writing the
+       * hero setting itself. Uploading the file and choosing the rotation are
+       * two halves of one act, and it would be incoherent for an operator to
+       * be able to do the first but not the second.
+       */
+      if (body.kind === "hero") await bizGuard(req, "govern");
+
+      let slug = "";
+      if (body.kind === "listing") {
+        if (!body.listingId) throw new CiaoError("VALIDATION", "listing_required");
+        const [listing] = await db
+          .select({ slug: schema.listings.slug })
+          .from(schema.listings)
+          .where(eq(schema.listings.id, body.listingId))
+          .limit(1);
+        if (!listing) throw new CiaoError("VALIDATION", "listing_not_found");
+        slug = listing.slug;
+      } else if (!body.group) {
+        throw new CiaoError("VALIDATION", "group_required");
+      }
 
       if (!configured()) throw new CiaoError("VALIDATION", "media_storage_unconfigured");
 
       const hash = createHash("sha256").update(bytes).digest("hex");
-      const key = listingKey(listing.slug, hash, body.width, format.ext);
+      const key =
+        body.kind === "hero"
+          ? heroKey(body.group!, body.width, format.ext)
+          : listingKey(slug, hash, body.width, format.ext);
 
       let url: string;
       try {
@@ -183,18 +212,36 @@ export async function mediaRoutes(app: FastifyInstance) {
 
       await db.insert(schema.auditLog).values({
         actorId: claims.sub,
-        action: "media.uploaded",
-        targetType: "listing",
-        targetId: body.listingId,
+        action: body.kind === "hero" ? "media.hero.uploaded" : "media.uploaded",
+        targetType: body.kind === "hero" ? "setting" : "listing",
+        targetId: body.kind === "hero" ? "home.hero" : body.listingId!,
         detail: { key, bytes: bytes.byteLength, width: body.width },
       });
       track(
         "media.uploaded",
-        { listingId: body.listingId, width: body.width, bytes: bytes.byteLength },
+        {
+          listingId: body.listingId ?? null,
+          width: body.width,
+          bytes: bytes.byteLength,
+        },
         { userId: claims.sub, source: "api" },
       );
 
-      return reply.send({ url, key, bytes: bytes.byteLength, width: body.width });
+      /*
+       * `base` is the URL with the width and extension stripped back off, so
+       * the hero setting can store the one path it wants and let the apps
+       * append `-800.webp` and `-1600.webp` as they already do. Only sent for
+       * heroes; nothing else uses the convention.
+       */
+      return reply.send({
+        url,
+        key,
+        bytes: bytes.byteLength,
+        width: body.width,
+        ...(body.kind === "hero"
+          ? { base: url.replace(new RegExp(`-${body.width}\\.${format.ext}$`), "") }
+          : {}),
+      });
     },
   );
 }

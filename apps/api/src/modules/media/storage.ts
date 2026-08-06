@@ -178,3 +178,25 @@ export function listingKey(
   const safeSlug = slug.replace(/[^a-z0-9-]/gi, "").slice(0, 60) || "listing";
   return `listings/${safeSlug}/${hash.slice(0, 16)}-${width}.${ext}`;
 }
+
+/**
+ * The object key for a home-page hero photograph.
+ *
+ * Unlike a listing photograph, the two encodings of a hero image *must* share
+ * a prefix: the hero setting stores one path per image and both the
+ * marketplace and the console append `-800.webp` and `-1600.webp` themselves,
+ * which is what lets a phone download the small file and a laptop the large
+ * one from a single stored value. Content hashes cannot supply that prefix,
+ * because the two encodings have different bytes and therefore different
+ * hashes.
+ *
+ * So the prefix comes from the client, and is therefore treated as hostile:
+ * the caller's `group` is reduced to lowercase hexadecimal and truncated, so
+ * whatever arrives, the key it produces contains no separators, no traversal
+ * and no extension of the caller's choosing. The width and extension are
+ * still decided here, from bytes the server has sniffed.
+ */
+export function heroKey(group: string, width: number, ext: string): string {
+  const safe = group.toLowerCase().replace(/[^a-f0-9]/g, "").slice(0, 32);
+  return `hero/${safe || "image"}-${width}.${ext}`;
+}
