@@ -65,6 +65,15 @@ export const SETTING_DEFAULTS = {
   /** Commercial terms (§9.1). Basis points, so 1000 = 10%. */
   "fees.coastCommissionBps": FEES.coastCommissionBps,
   "fees.coastDepositBps": FEES.coastDepositBps,
+  /**
+   * A ceiling on the deposit, in dirhams — 0 disables it.
+   *
+   * The flat percentage was sized against a 1,375 د.ل chalet weekend. Real
+   * resort supply asks 14,400 د.ل for three nights, where 20% is 2,880 د.ل on
+   * Sadad in one push from a first-time guest. Operator-owned because it is a
+   * conversion decision, not an engineering one.
+   */
+  "fees.coastDepositCapDirhams": FEES.coastDepositCapDirhams,
   "fees.hallCommissionBps": FEES.hallCommissionBps,
   "fees.hallCommissionCapDirhams": FEES.hallCommissionCapDirhams,
   "fees.hallDateLockBps": FEES.hallDateLockBps,
@@ -298,6 +307,7 @@ export async function effectiveFees() {
     ...FEES,
     coastCommissionBps: Number(all["fees.coastCommissionBps"]),
     coastDepositBps: Number(all["fees.coastDepositBps"]),
+    coastDepositCapDirhams: Number(all["fees.coastDepositCapDirhams"]),
     hallCommissionBps: Number(all["fees.hallCommissionBps"]),
     hallCommissionCapDirhams: Number(all["fees.hallCommissionCapDirhams"]),
     hallDateLockBps: Number(all["fees.hallDateLockBps"]),
@@ -351,6 +361,15 @@ export function validateSetting(key: string, value: unknown): string | null {
       return typeof value === "number" && value >= 500 && value <= 5000
         ? null
         : "العربون يجب أن يكون بين 5% و50%";
+    case "fees.coastDepositCapDirhams":
+      /*
+       * Zero is meaningful — it turns the ceiling off. Above zero the floor is
+       * 200 د.ل, below which the deposit stops bonding the guest against a
+       * no-show, which is the thing we sold the host.
+       */
+      return typeof value === "number" && (value === 0 || value >= 200_000)
+        ? null
+        : "سقف العربون يجب أن يكون صفرًا (بدون سقف) أو 200 د.ل فأكثر";
     case "trust.minReviewsForGuestRating":
       return typeof value === "number" && value >= 1 && value <= 20
         ? null

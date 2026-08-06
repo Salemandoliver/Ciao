@@ -86,6 +86,33 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "lead.opened": "surface",
   "lead.submitted": "surface, locale",
   "lead.status_changed": "status",
+
+  /*
+   * Supply as it actually is, learned from a real resort's rate card.
+   *
+   * `venue.viewed` is the storefront a partner pins to their Facebook page,
+   * and `src` is the whole reason it exists: until now nobody in this market
+   * could answer "what is my Facebook page worth", because the answer arrived
+   * as phone calls. It carries the shape of the arrival — which channel, how
+   * many units, whether an offer was live — and never who arrived.
+   *
+   * `party` counts are bands, not a family register. "Two adults and three
+   * children under ten" is how a price is computed and is exactly what a
+   * receptionist writes down; it is not "has three daughters" (guardrail 3).
+   */
+  "venue.viewed": "venueId, vertical, city, src, units, soldOutUnits, hasOffer",
+  "venue.unit_switched": "venueId, fromKind, toKind",
+  "quote.party_set": "listingId, adults, children, childrenFree, childrenReduced, overCapacity",
+  "quote.board_seen": "listingId, board",
+  "listing.sold_out_seen": "listingId, leadDays",
+  "waitlist.joined": "listingId, leadDays, guests",
+  "waitlist.status_changed": "status",
+  "requirements.acknowledged": "listingId, keys",
+  "requirements.abandoned": "listingId, keys",
+  "partner.offer_created": "valueBps, hours, vertical",
+  "partner.offer_stopped": "timesUsed",
+  "partner.storefront_copied": "channel",
+  "offer.redeemed": "fundedBy, valueBps, vertical, src",
   /*
    * The business console's own sign-ins — an internal surface, tracked for
    * the security trail's sake (dashboards, never profiles: folding an

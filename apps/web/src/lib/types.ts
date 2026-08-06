@@ -21,6 +21,25 @@ export interface NeighbourRecord {
 
 export interface PublicListing {
   id: string;
+  /** How many guests the nightly rate covers — not the capacity. */
+  includedGuests?: number | null;
+  extraGuestFee?: number | null;
+  extraBedPrice?: number | null;
+  minNights?: number | null;
+  boardBasis?: string | null;
+  childPolicy?: { freeUnder: number; reducedUnder: number; reducedBps: number } | null;
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
+  unitKind?: string | null;
+  bathrooms?: number | null;
+  /** Conditions of entry the guest must satisfy at the gate. */
+  requirements?: { key: string; mustAcknowledge?: boolean; detailAr?: string; detailEn?: string }[];
+  houseRulesEn?: string | null;
+  venueId?: string;
+  venueSlug?: string | null;
+  venueNameAr?: string;
+  venueNameEn?: string | null;
+  officeHours?: { from: string; to: string } | null;
   slug: string;
   titleAr: string;
   titleEn?: string;
@@ -98,10 +117,25 @@ export interface HallPackage {
 }
 
 export interface Quote {
-  nights: { date: string; price: number }[];
+  nights: { date: string; price: number; room?: number; guests?: number; beds?: number; offerAr?: string; offerEn?: string }[];
   total: number;
+  roomTotal?: number;
+  guestTotal?: number;
+  bedTotal?: number;
   deposit: number;
+  /** True when the operator's ceiling trimmed the percentage deposit. */
+  depositCapped?: boolean;
   balanceOnArrival: number;
+  requiredMinNights?: number;
+  party?: {
+    adults: number;
+    childrenFree: number;
+    childrenReduced: number;
+    childrenFull: number;
+    chargedGuests: number;
+    includedGuests: number;
+  };
+  board?: string;
 }
 
 export interface BookingDetail {

@@ -33,6 +33,7 @@ import { CalendarTab } from "./calendar";
 import { JobsTab } from "./jobs";
 import { QuotesTab } from "./quotes";
 import { ClientsTab } from "./clients";
+import { FacebookTab } from "./facebook";
 import { MoneyTab } from "./money";
 import { InsightsTab } from "./insights";
 import { TeamTab } from "./team";
@@ -45,6 +46,7 @@ const TAB_KEYS = [
   "jobs",
   "quotes",
   "clients",
+  "facebook",
   "money",
   "insights",
   "team",
@@ -59,6 +61,7 @@ const TAB_EMOJI: Record<TabKey, string> = {
   jobs: "📋",
   quotes: "🧾",
   clients: "👤",
+  facebook: "📣",
   money: "💰",
   insights: "📈",
   team: "👥",
@@ -73,6 +76,15 @@ const TAB_CAPABILITY: Record<TabKey, "diary" | "clients" | "money" | "settings" 
   jobs: "diary",
   quotes: "diary",
   clients: "clients",
+  /*
+   * The Facebook kit is `diary`, not `money`. The person who posts to the page
+   * at a Libyan resort is very often the receptionist rather than the owner,
+   * and the link is public the moment it is pinned — gating it behind the money
+   * screens would stop the right person doing the one thing we most want done.
+   * Deciding what a discount costs is a different question, and the offer form
+   * inside the tab asks for `money` on its own.
+   */
+  facebook: "diary",
   money: "money",
   insights: "money",
   team: "admin",
@@ -96,6 +108,7 @@ const copy = {
       jobs: "الحجوزات",
       quotes: "العروض",
       clients: "الزبائن",
+      facebook: "فيسبوك",
       money: "الفلوس",
       insights: "الأرقام",
       team: "الفريق",
@@ -121,6 +134,7 @@ const copy = {
       jobs: "Bookings",
       quotes: "Quotes",
       clients: "Clients",
+      facebook: "Facebook",
       money: "Money",
       insights: "Numbers",
       team: "Team",
@@ -304,6 +318,7 @@ function PartnerConsole() {
             {activeTab === "jobs" ? <JobsTab me={me} /> : null}
             {activeTab === "quotes" ? <QuotesTab me={me} /> : null}
             {activeTab === "clients" ? <ClientsTab me={me} /> : null}
+            {activeTab === "facebook" ? <FacebookTab me={me} /> : null}
             {activeTab === "money" ? <MoneyTab me={me} /> : null}
             {activeTab === "insights" ? <InsightsTab me={me} onReload={load} /> : null}
             {activeTab === "team" ? <TeamTab me={me} /> : null}

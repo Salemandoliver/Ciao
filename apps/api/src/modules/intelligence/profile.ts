@@ -15,7 +15,7 @@
 import { and, asc, eq, gt, isNotNull, sql } from "drizzle-orm";
 import { db, schema } from "../../db/client.js";
 
-export const FOLD_VERSION = 2;
+export const FOLD_VERSION = 3;
 
 export interface Traits {
   v: number;
@@ -52,11 +52,40 @@ export interface Traits {
     occasionMonths: number[];
     plannedEventKind: string | null;
   };
+  /**
+   * What the party actually looked like at checkout, and what it fed on.
+   *
+   * `observedParty` is a *behavioural* counterpart to `declared.party`: the
+   * declared one is what a member typed into a preferences screen, this one is
+   * what they filled into a booking, and the second is a far better predictor
+   * than the first because nobody lies to a price. It is two running counts,
+   * exactly the granularity a receptionist writes on a card — not a family
+   * register (guardrail 3): "usually travels with two adults and two children
+   * under ten" is behaviour, and a recommendation can honestly say so.
+   *
+   * `boardAffinity` matters because it is the strongest unstated preference in
+   * this market. A family that has twice booked full board is not shopping on
+   * nightly rate at all; showing them a cheaper room-only chalet reads as us
+   * not having understood the question.
+   */
+  observedParty: { adultsSum: number; childrenSum: number; count: number };
+  boardAffinity: Record<string, number>;
+  /**
+   * Where they keep arriving from. This is first-party — our own link, our own
+   * `src` — never anything bought or scraped (guardrail 1). It exists so a
+   * partner can be told what their Facebook page earns them, and so a member
+   * who only ever arrives through a venue's post is not pestered with search
+   * emails they have never used.
+   */
+  sourceCounts: Record<string, number>;
 }
 
 export function emptyTraits(): Traits {
   return {
     v: FOLD_VERSION,
+    observedParty: { adultsSum: 0, childrenSum: 0, count: 0 },
+    boardAffinity: {},
+    sourceCounts: {},
     areaAffinity: {},
     cityAffinity: {},
     priceSum: 0,
@@ -91,6 +120,17 @@ const WEIGHTS: Record<string, number> = {
   "booking.requested": 5,
   "booking.confirmed": 10,
   "booking.completed": 12,
+  /*
+   * A venue storefront view is worth more than a search and less than a quote.
+   *
+   * Somebody who tapped a venue's own Facebook link and read its page has
+   * shown more intent than a browser scrolling results, and less than one who
+   * asked what specific dates would cost. Weighting it at 2 also stops a viral
+   * post from swamping every other signal in a member's profile — one evening
+   * of traffic should not redefine what we think somebody likes.
+   */
+  "venue.viewed": 2,
+  "waitlist.joined": 6, // wanted it, could not have it: unmet intent is strong
 };
 
 type EventRow = typeof schema.events.$inferSelect;
@@ -110,7 +150,64 @@ export function foldEvent(t: Traits, e: EventRow): Traits {
     if (vertical) t.vertical[vertical] += w;
   }
 
+  /*
+   * Where they arrived from, folded for every event that carries it.
+   *
+   * Out here rather than in a case arm because `src` rides on the storefront
+   * view, the booking and anything we add later — and a member who only ever
+   * reaches us through one venue's Facebook page is telling us something about
+   * how to reach them that no single event type owns.
+   */
+  if (typeof p.src === "string" && p.src) {
+    t.sourceCounts[p.src] = (t.sourceCounts[p.src] ?? 0) + 1;
+  }
+
   switch (e.name) {
+    /*
+     * The party as it was actually filled in at checkout.
+     *
+     * Two running counts and nothing else: enough to say "usually two adults
+     * and two young children" and therefore enough to stop offering a family
+     * of six a unit that sleeps four. Deliberately not enough to describe
+     * anybody's household (guardrail 3).
+     */
+    case "quote.party_set": {
+      const adults = num("adults");
+      const children = num("children");
+      if (Number.isFinite(adults) && adults > 0) {
+        t.observedParty.adultsSum += adults;
+        t.observedParty.childrenSum += Number.isFinite(children) ? children : 0;
+        t.observedParty.count++;
+        // The group-size signal already exists and drives capacity fit; keep
+        // feeding it so one definition of "how many people" survives.
+        t.groupSizeSum += adults + (Number.isFinite(children) ? children : 0);
+        t.groupSizeCount++;
+      }
+      break;
+    }
+    /*
+     * Board basis — the strongest unstated preference in resort supply. A
+     * family that keeps choosing full board is not comparing nightly rates at
+     * all, and ranking them a cheaper room-only chalet reads as us having
+     * misunderstood the question.
+     */
+    case "quote.board_seen": {
+      const board = typeof p.board === "string" ? p.board : null;
+      if (board && board !== "room_only") {
+        t.boardAffinity[board] = (t.boardAffinity[board] ?? 0) + 1;
+      }
+      break;
+    }
+    case "waitlist.joined": {
+      // Unmet demand is intent that produced no booking, so nothing else in
+      // the fold would ever see it. Lead time still teaches us seasonality.
+      const lead = num("leadDays");
+      if (Number.isFinite(lead) && lead >= 0) {
+        t.leadDays.push(lead);
+        if (t.leadDays.length > 10) t.leadDays.shift();
+      }
+      break;
+    }
     case "search.performed": {
       const filters = Array.isArray(p.filters) ? (p.filters as string[]) : [];
       if (filters.includes("minPrivacy")) t.privacyAffinity++;
@@ -316,6 +413,24 @@ export function scoreListing(
      * Note what child bands are NOT used for here. They size and screen the
      * property; they never rank *at* a child.
      */
+    /*
+     * Board fit — the preference nobody states and everybody has.
+     *
+     * A family that has twice chosen full board is not shopping on nightly
+     * rate: they are buying a week where nobody cooks. Ranking them a cheaper
+     * room-only chalet is not a bargain, it is us having misread the question.
+     * Two observations minimum, per the ranker's own rule that one is
+     * curiosity and not a preference.
+     */
+    const boardObservations = Object.values(traits.boardAffinity).reduce((a, b) => a + b, 0);
+    if (boardObservations >= 2 && listing.boardBasis && listing.boardBasis !== "room_only") {
+      const s2 = Math.min(10, (traits.boardAffinity[listing.boardBasis] ?? 0) * 4);
+      if (s2 > 0) {
+        score += s2;
+        because.push([s2, "إقامة كاملة — زي اللي تختاره عادة"]);
+      }
+    }
+
     const declaredHeads = traits.declared.party
       ? traits.declared.party.adults + traits.declared.party.children
       : null;

@@ -23,6 +23,8 @@ import { getProvider, railIsHealthy } from "../payments/registry.js";
 import { notify } from "../messaging/service.js";
 import type { PaymentRail } from "@ciao/shared";
 import { track } from "../intelligence/events.js";
+import { loadPricingConfig } from "../listings/pricing-config.js";
+import { confirmationDeadline, parseOfficeHours } from "./office-hours.js";
 
 // ------------------------------------------------------------------ request
 export interface CreateStayRequestInput {
@@ -31,6 +33,14 @@ export interface CreateStayRequestInput {
   checkIn: string; // YYYY-MM-DD
   checkOut: string;
   guestCount?: number;
+  /** Who is coming. Ages, because the ages decide the price. */
+  adults?: number;
+  childAges?: number[];
+  extraBeds?: number;
+  /** Requirement keys the guest ticked before paying. */
+  acceptedRequirements?: string[];
+  /** Where they came from: fb | wa | ig | qr | direct. */
+  source?: string;
   rail: PaymentRail;
   sadad?: { mobile: string; birthYear: string };
   concierge?: boolean;
@@ -63,18 +73,60 @@ export async function createStayRequest(input: CreateStayRequestInput) {
   // Commercial terms come from the control plane, so a rate change in the
   // business console applies to the next booking — not the next deploy.
   const fees = await effectiveFees();
+
+  /*
+   * The party, defaulted from `guestCount` for callers that predate it.
+   *
+   * Concierge bookings taken over the phone still arrive with a head count and
+   * no ages, and refusing those would break the one booking path that works
+   * today. A head count with no ages prices as adults, which is the
+   * conservative reading and the one the operator on the phone can correct.
+   */
+  const party =
+    input.adults != null
+      ? {
+          adults: input.adults,
+          childAges: input.childAges ?? [],
+          extraBeds: input.extraBeds ?? 0,
+        }
+      : input.guestCount
+        ? { adults: input.guestCount, childAges: [], extraBeds: input.extraBeds ?? 0 }
+        : undefined;
+
+  const heads = party ? party.adults + (party.childAges?.length ?? 0) : (input.guestCount ?? 0);
+  /*
+   * Capacity, enforced. It never was: `maxGuests` was a search filter and a
+   * line on the listing page, and `createStayRequest` never compared anything
+   * to it. A nine-person booking of a six-person villa is a family turned away
+   * at the gate — the failure this whole release is about.
+   */
+  if (listing.maxGuests && heads > listing.maxGuests)
+    throw new CiaoError("VALIDATION", "over_capacity");
+
   const quote = quoteStay(
-    {
-      baseNightly: listing.baseNightly,
-      weekendMultiplierBps: listing.weekendMultiplierBps,
-      thursdayMultiplierBps: listing.thursdayMultiplierBps,
-      seasonMultiplierBps: listing.seasonMultiplierBps,
-    },
+    await loadPricingConfig(listing, input.checkIn, input.checkOut),
     new Date(`${input.checkIn}T00:00:00Z`),
     new Date(`${input.checkOut}T00:00:00Z`),
-    { foundingHost: venue.foundingHost, fees },
+    { party, foundingHost: venue.foundingHost, fees },
   );
   if (quote.nights.length === 0) throw new CiaoError("VALIDATION", "empty stay");
+  if (quote.nights.length < quote.requiredMinNights)
+    throw new CiaoError("VALIDATION", `min_nights_${quote.requiredMinNights}`);
+
+  /*
+   * Conditions of entry, checked before money moves.
+   *
+   * `mustAcknowledge` requirements are the ones where not knowing costs the
+   * guest a wasted journey — proof of family status at a Sabratha gate is the
+   * case that prompted this. The server checks rather than trusting the form,
+   * because the form is the thing an off-platform integration will skip.
+   */
+  const required = (listing.requirements as { key: string; mustAcknowledge?: boolean }[] | null) ?? [];
+  const mustTick = required.filter((r) => r.mustAcknowledge).map((r) => r.key);
+  const ticked = new Set(input.acceptedRequirements ?? []);
+  const missing = mustTick.filter((k) => !ticked.has(k));
+  if (missing.length > 0 && !input.concierge)
+    throw new CiaoError("VALIDATION", `requirements_not_accepted:${missing.join(",")}`);
 
   /**
    * Promo codes come out of our commission, never the host's share. The
@@ -95,6 +147,7 @@ export async function createStayRequest(input: CreateStayRequestInput) {
         vertical: venue.type,
         city: venue.city,
         listingId: listing.id,
+        venueId: venue.id,
       });
       discount = appliedPromo.discount;
     } catch (e) {
@@ -103,9 +156,30 @@ export async function createStayRequest(input: CreateStayRequestInput) {
       throw e instanceof CiaoError ? e : new CiaoError("VALIDATION", "promo_invalid");
     }
   }
+  /*
+   * How a discount lands depends on who is funding it.
+   *
+   * A Ciao-funded code is a cut of our own commission, so the host's money is
+   * untouched: the guest pays less, we earn less, the host is paid what they
+   * were promised, because a marketing decision of ours is not their problem.
+   *
+   * A partner-funded flash offer is the venue's own price coming down. The
+   * total falls, and our commission is recomputed as its normal percentage of
+   * the *new* total rather than being reduced by the whole discount — which
+   * would have handed the partner a discount funded by us on top of their own.
+   */
+  const partnerFunded = appliedPromo?.fundedBy === "partner";
   const payableTotal = quote.total - discount;
-  const payableDeposit = Math.max(0, quote.deposit - discount);
-  const payableCommission = Math.max(0, quote.commission - discount);
+  const payableCommission = partnerFunded
+    ? Math.round(
+        (payableTotal *
+          (venue.foundingHost ? fees.coastFoundingHostBps : fees.coastCommissionBps)) /
+          10000,
+      )
+    : Math.max(0, quote.commission - discount);
+  const payableDeposit = partnerFunded
+    ? Math.min(payableTotal, Math.max(quote.deposit - discount, payableCommission))
+    : Math.max(0, quote.deposit - discount);
 
   const days = calendar.datesBetween(input.checkIn, input.checkOut);
   const code = bookingCode();
@@ -126,7 +200,13 @@ export async function createStayRequest(input: CreateStayRequestInput) {
         checkIn: input.checkIn,
         checkOut: input.checkOut,
         session: "night",
-        guestCount: input.guestCount,
+        guestCount: heads || input.guestCount,
+        adults: party?.adults ?? null,
+        childAges: party?.childAges ?? [],
+        extraBeds: party?.extraBeds ?? 0,
+        requirementsAccepted: mustTick.filter((k) => ticked.has(k)),
+        requirementsAcceptedAt: mustTick.length > 0 ? new Date() : null,
+        source: input.source ?? null,
         totalAmount: payableTotal,
         depositAmount: payableDeposit,
         balanceOnArrival: quote.balanceOnArrival,
@@ -276,12 +356,32 @@ export async function onDepositCaptured(intentId: string): Promise<void> {
     .limit(1);
   if (!booking) return;
 
-  const windowMinutes = isSameDay(booking.checkIn)
+  const sameDay = isSameDay(booking.checkIn);
+  const windowMinutes = sameDay
     ? CONFIRMATION_WINDOW_MINUTES.same_day
     : booking.type === "event_date"
       ? CONFIRMATION_WINDOW_MINUTES.wedding_date
       : CONFIRMATION_WINDOW_MINUTES.standard;
-  const deadline = new Date(Date.now() + windowMinutes * 60 * 1000);
+
+  /*
+   * The countdown only runs while somebody could answer it.
+   *
+   * A resort desk that works 11:00–17:00 used to get the same flat two hours
+   * as a chalet owner with a phone in his pocket, so an eight-o'clock booking
+   * auto-declined at ten, refunded the guest, told them the venue had ignored
+   * them, and docked the venue's reliability for being closed. Three parties
+   * lost and the platform generated the failure itself. Venues with no hours
+   * set — every venue that existed before this — behave exactly as before.
+   */
+  const [deadlineVenue] = await db
+    .select({ officeHours: schema.venues.officeHours })
+    .from(schema.venues)
+    .where(eq(schema.venues.id, booking.venueId!))
+    .limit(1);
+  const hours = parseOfficeHours(deadlineVenue?.officeHours);
+  const deadline = sameDay
+    ? new Date(Date.now() + windowMinutes * 60 * 1000)
+    : confirmationDeadline(hours, windowMinutes);
 
   const { applied } = await transition({
     bookingId: booking.id,

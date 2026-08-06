@@ -27,6 +27,7 @@ export interface PromoContext {
   vertical?: string;
   city?: string;
   listingId?: string;
+  venueId?: string;
 }
 
 export interface PromoResult {
@@ -37,6 +38,8 @@ export interface PromoResult {
   cappedByCommission: boolean;
   descriptionAr: string | null;
   kind: string;
+  /** Whose margin pays: `ciao` from our commission, `partner` from their price. */
+  fundedBy: "ciao" | "partner";
 }
 
 /** Human reasons, in Arabic — these are shown at checkout, not logged. */
@@ -96,6 +99,15 @@ export async function evaluatePromo(code: string, ctx: PromoContext): Promise<Pr
   if (promo.city && ctx.city && promo.city !== ctx.city) throw new CiaoError("VALIDATION", "city");
   if (promo.listingId && ctx.listingId && promo.listingId !== ctx.listingId)
     throw new CiaoError("VALIDATION", "listing");
+  /*
+   * A venue-scoped code covers every unit at that property.
+   *
+   * A resort announcing a code on its Facebook page means it for the resort —
+   * the chalets and the villas and the duplex — not for whichever unit
+   * happened to be on screen when the form was filled in.
+   */
+  if (promo.venueId && ctx.venueId && promo.venueId !== ctx.venueId)
+    throw new CiaoError("VALIDATION", "venue");
 
   // Headline value…
   let discount =
@@ -107,8 +119,24 @@ export async function evaluatePromo(code: string, ctx: PromoContext): Promise<Pr
   if (promo.maxDiscount != null) discount = Math.min(discount, promo.maxDiscount);
   discount = Math.min(discount, ctx.total);
 
-  // …then the rule that matters: never deeper than what we earn.
-  const cappedByCommission = promo.kind !== "points" && discount > ctx.commission;
+  /*
+   * …then the rule that matters, which depends on whose money this is.
+   *
+   * A Ciao-funded code comes out of our commission and is capped there: we
+   * will spend our own margin to win a booking, but we will not pay a host out
+   * of pocket because somebody typed a generous percentage into a form at
+   * midnight. That was the original and only rule.
+   *
+   * A partner-funded flash offer is the opposite case and must NOT be capped
+   * at our commission — it is the venue's own price coming down, announced on
+   * their own Facebook page, and clamping a 20% offer to our 10% would quietly
+   * halve a discount the partner has already promised in public. It reduces
+   * the total instead, which means our commission (a percentage of the total)
+   * falls proportionally with it. Neither side subsidises the other.
+   */
+  const partnerFunded = promo.fundedBy === "partner";
+  const cappedByCommission =
+    !partnerFunded && promo.kind !== "points" && discount > ctx.commission;
   if (cappedByCommission) discount = ctx.commission;
 
   if (promo.kind !== "points" && discount <= 0) throw new CiaoError("VALIDATION", "no_benefit");
@@ -120,6 +148,7 @@ export async function evaluatePromo(code: string, ctx: PromoContext): Promise<Pr
     cappedByCommission,
     descriptionAr: promo.descriptionAr,
     kind: promo.kind,
+    fundedBy: promo.fundedBy as "ciao" | "partner",
   };
 }
 

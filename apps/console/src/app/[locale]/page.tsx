@@ -25,6 +25,7 @@ import { ensureSession, sessionRole, signOut } from "@/lib/api";
 import { OverviewTab } from "./overview";
 import { CatalogueTab } from "./catalogue";
 import { LeadsTab } from "./leads";
+import { WaitlistTab } from "./waitlist";
 import { FinanceTab } from "./finance";
 import { PeopleTab } from "./people";
 import { SettingsTab } from "./settings";
@@ -38,6 +39,7 @@ const TAB_KEYS = [
   "overview",
   "catalogue",
   "leads",
+  "waitlist",
   "finance",
   "people",
   "loyalty",
@@ -54,6 +56,7 @@ const TAB_EMOJI: Record<TabKey, string> = {
   overview: "📊",
   catalogue: "🏝",
   leads: "📇",
+  waitlist: "⏳",
   finance: "💰",
   people: "👥",
   loyalty: "⭐",
@@ -76,6 +79,9 @@ const TAB_CAPABILITY: Record<Exclude<TabKey, "security">, BizCapability> = {
   // A lead is supply before it is anything else, and it carries a phone
   // number — so it sits with the catalogue and stays out of finance's reach.
   leads: "catalogue",
+  // Unmet demand is a supply fact — which venue to sign next, which owner to
+  // ring about opening dates — and it carries phone numbers too. Same door.
+  waitlist: "catalogue",
   finance: "finance",
   people: "people",
   loyalty: "marketing",
@@ -91,6 +97,7 @@ const copy = {
       overview: "نظرة عامة",
       catalogue: "الأنشطة",
       leads: "طلبات الأماكن",
+      waitlist: "قائمة الانتظار",
       finance: "المالية",
       people: "المستخدمون",
       loyalty: "النقاط والشركاء",
@@ -111,6 +118,7 @@ const copy = {
       overview: "Overview",
       catalogue: "Businesses",
       leads: "Place requests",
+      waitlist: "Waitlist",
       finance: "Finance",
       people: "Users",
       loyalty: "Points & partners",
@@ -218,6 +226,7 @@ function BizConsole() {
             {activeTab === "overview" ? <OverviewTab /> : null}
             {activeTab === "catalogue" ? <CatalogueTab /> : null}
             {activeTab === "leads" ? <LeadsTab /> : null}
+            {activeTab === "waitlist" ? <WaitlistTab /> : null}
             {activeTab === "finance" ? <FinanceTab /> : null}
             {activeTab === "people" ? <PeopleTab isAdmin={isAdmin} /> : null}
             {activeTab === "loyalty" ? <LoyaltyTab isAdmin={isAdmin} /> : null}

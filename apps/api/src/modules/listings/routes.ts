@@ -3,6 +3,7 @@ import { z } from "zod";
 import { and, eq, gte, sql, desc } from "drizzle-orm";
 import { db, schema } from "../../db/client.js";
 import { CiaoError } from "../../lib/errors.js";
+import { loadPricingConfig } from "./pricing-config.js";
 import * as calendar from "../calendar/service.js";
 import { quoteStay } from "@ciao/shared";
 import { effectiveFees } from "../business/settings.js";
@@ -313,8 +314,29 @@ export async function listingRoutes(app: FastifyInstance) {
       .object({
         checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        /*
+         * The party, optional and defaulting to nothing.
+         *
+         * A quote with no party quotes the room, which is what every caller
+         * written before August 2026 expects and what a search card wants to
+         * show. Supply adults and child ages and it quotes the actual family.
+         */
+        adults: z.coerce.number().int().min(1).max(40).optional(),
+        /** Comma-separated ages, e.g. "3,8,8" — a URL, not a JSON body. */
+        childAges: z.string().max(120).optional(),
+        extraBeds: z.coerce.number().int().min(0).max(10).optional(),
       })
       .parse(req.query);
+    const party = q.adults
+      ? {
+          adults: q.adults,
+          childAges: (q.childAges ?? "")
+            .split(",")
+            .map((a) => Number(a.trim()))
+            .filter((a) => Number.isFinite(a) && a >= 0 && a < 25),
+          extraBeds: q.extraBeds ?? 0,
+        }
+      : undefined;
     const [listing] = await db
       .select()
       .from(schema.listings)
@@ -327,15 +349,10 @@ export async function listingRoutes(app: FastifyInstance) {
       .where(eq(schema.venues.id, listing.venueId))
       .limit(1);
     const quote = quoteStay(
-      {
-        baseNightly: listing.baseNightly,
-        weekendMultiplierBps: listing.weekendMultiplierBps,
-        thursdayMultiplierBps: listing.thursdayMultiplierBps,
-        seasonMultiplierBps: listing.seasonMultiplierBps,
-      },
+      await loadPricingConfig(listing, q.checkIn, q.checkOut),
       new Date(`${q.checkIn}T00:00:00Z`),
       new Date(`${q.checkOut}T00:00:00Z`),
-      { foundingHost: venue?.foundingHost, fees: await effectiveFees() },
+      { party, foundingHost: venue?.foundingHost, fees: await effectiveFees() },
     );
     // Intelligence: quote views are the strongest pre-money intent signal.
     let quoteUserId: string | undefined;
@@ -433,13 +450,44 @@ function publicListing(
     baseNightly: listing.baseNightly,
     dayUsePrice: listing.dayUsePrice,
     maxGuests: listing.maxGuests,
+    /*
+     * `includedGuests` next to `maxGuests` on purpose. A card that says
+     * "6 ضيوف" beside "3,600 د.ل" while the rate covers two is not a rounding
+     * error, it is the marketplace lying about a price.
+     */
+    includedGuests: listing.includedGuests,
+    extraGuestFee: listing.extraGuestFee,
+    extraBedPrice: listing.extraBedPrice,
+    minNights: listing.minNights,
+    boardBasis: listing.boardBasis,
+    childPolicy:
+      listing.childFreeUnder != null &&
+      listing.childReducedUnder != null &&
+      listing.childReducedBps != null
+        ? {
+            freeUnder: listing.childFreeUnder,
+            reducedUnder: listing.childReducedUnder,
+            reducedBps: listing.childReducedBps,
+          }
+        : null,
+    checkInTime: listing.checkInTime,
+    checkOutTime: listing.checkOutTime,
+    unitKind: listing.unitKind,
     bedrooms: listing.bedrooms,
+    bathrooms: listing.bathrooms,
+    requirements: listing.requirements,
     familyOnly: listing.familyOnly,
     cancellationTier: listing.cancellationTier,
     media: listing.media,
     bookingTypes: listing.bookingTypes,
     serviceCategory: listing.serviceCategory,
     houseRulesAr: listing.houseRulesAr,
+    houseRulesEn: listing.houseRulesEn,
+    venueId: venue.id,
+    venueSlug: venue.slug,
+    venueNameAr: venue.nameAr,
+    venueNameEn: venue.nameEn,
+    officeHours: venue.officeHours,
     hostReliability: reliability,
     rating: ciaoRating(listing, venue, reliability),
     ratingSource: "ciao" as "ciao" | "guests",

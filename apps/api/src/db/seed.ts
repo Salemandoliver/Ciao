@@ -587,6 +587,252 @@ async function syncDemoTrust() {
  *
  * Idempotent: keyed on the job title per partner, so re-seeding is safe.
  */
+/**
+ * Lancaster Al Salam, Talil / Sabratha — the first venue seeded from a real
+ * published price list rather than from our own assumptions.
+ *
+ * Every number here is copied from the summer-2026 rate card the resort sent
+ * over Facebook Messenger on 4 August 2026. It is seeded, and kept seeded,
+ * because it is the only fixture in the project that can fail honestly: if a
+ * future change to the pricing engine stops reproducing this table, the change
+ * is wrong, and no synthetic chalet would have told us.
+ *
+ * It exercises, in one property, nearly everything this release added: a venue
+ * with three differently-priced units, a rate that covers two guests of six, a
+ * flat weekend supplement no basis-point value can express, full board,
+ * children's bands, a dated special offer, an eleven-to-five reservations desk,
+ * a sold-out unit, fifteen facilities, a west-coast city that did not exist in
+ * our vocabulary, and proof of family status as a condition of entry.
+ */
+async function syncLancaster() {
+  const [host] = await db
+    .insert(schema.users)
+    .values({
+      phone: "+218912931616",
+      role: "host",
+      displayName: "منتجع لانكستر السلام",
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  const hostId =
+    host?.id ??
+    (
+      await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.phone, "+218912931616"))
+        .limit(1)
+    )[0]?.id;
+
+  /** The fifteen facilities, exactly as they list them. */
+  const amenities = [
+    { key: "beach", present: true },
+    { key: "pool", present: true, detail: "مسبح للكبار" },
+    { key: "kids_pool", present: true },
+    { key: "wifi", present: true },
+    { key: "parking", present: true, detail: "مواقف خاصة" },
+    { key: "security_24h", present: true },
+    { key: "restaurant", present: true },
+    { key: "cafe", present: true, detail: "داخلية وخارجية" },
+    { key: "room_service", present: true },
+    { key: "laundry", present: true },
+    { key: "nursery", present: true },
+    { key: "barber", present: true },
+    { key: "meeting_room", present: true },
+    { key: "mini_market", present: true },
+    { key: "generator", present: true },
+  ];
+
+  const [venue] = await db
+    .insert(schema.venues)
+    .values({
+      type: "coast",
+      nameAr: "منتجع لانكستر السلام",
+      nameEn: "Lancaster Al Salam Resort",
+      slug: "lancaster-al-salam",
+      city: "sabratha",
+      area: "talil",
+      hostId,
+      locationDisclosure: "staged",
+      approxLat: "32.7930",
+      approxLng: "12.4870",
+      amenities,
+      /*
+       * 11:00–17:00 daily. The line in their price list that quietly broke our
+       * confirmation countdown: a booking at seven in the evening used to
+       * auto-decline at nine and dock their reliability for being shut.
+       */
+      officeHours: { from: "11:00", to: "17:00" },
+      verificationGrade: "utility_bill_attestation",
+      verifiedAt: new Date(),
+      foundingHost: true,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  const venueId =
+    venue?.id ??
+    (
+      await db
+        .select({ id: schema.venues.id })
+        .from(schema.venues)
+        .where(eq(schema.venues.slug, "lancaster-al-salam"))
+        .limit(1)
+    )[0]?.id;
+  if (!venueId) return;
+
+  /** Proof of family status is a condition of entry, not a preference. */
+  const requirements = [
+    {
+      key: "family_proof",
+      mustAcknowledge: true,
+      detailAr: "يشترط إحضار إثبات الوضع العائلي عند الوصول",
+      detailEn: "Proof of family status is required on arrival",
+    },
+  ];
+
+  const childBands = { childFreeUnder: 6, childReducedUnder: 11, childReducedBps: 5000 };
+
+  const units: (typeof schema.listings.$inferInsert)[] = [
+    {
+      venueId,
+      slug: "lancaster-villa-sea-view",
+      status: "live",
+      titleAr: "فيلا بمسبح خاص وإطلالة على البحر — لانكستر السلام",
+      titleEn: "Villa with private pool and sea view — Lancaster Al Salam",
+      descriptionAr:
+        "٣ غرف نوم، ٣ حمامات، صالون فاخر، مطبخ متكامل، مسبح خاص، جلسات خارجية ومساحات خضراء، بإطلالة مباشرة على البحر. الإقامة كاملة تشمل الإفطار والغداء والعشاء بوفيه مفتوح.",
+      unitKind: "villa",
+      baseNightly: 3_600_000,
+      // Their weekend is +600 flat, which as a ratio is 7/6 — not
+      // representable in basis points at any rounding. This is why the column
+      // exists.
+      weekendSupplement: 600_000,
+      includedGuests: 2,
+      extraGuestFee: 300_000,
+      extraBedPrice: 150_000,
+      boardBasis: "full_board",
+      maxGuests: 6,
+      bedrooms: 3,
+      bathrooms: 3,
+      checkInTime: "15:00",
+      checkOutTime: "12:00",
+      cancellationTier: "moderate",
+      familyOnly: true,
+      requirements,
+      ...childBands,
+    },
+    {
+      venueId,
+      slug: "lancaster-chalet",
+      status: "live",
+      titleAr: "شاليه عائلي — لانكستر السلام",
+      titleEn: "Family chalet — Lancaster Al Salam",
+      descriptionAr:
+        "شاليه عائلي داخل المنتجع، إقامة كاملة تشمل ثلاث وجبات بوفيه مفتوح، مع كل مرافق المنتجع: الشاطئ، المسابح، المطعم والكافيه.",
+      unitKind: "chalet",
+      baseNightly: 1_800_000,
+      weekendSupplement: 400_000,
+      includedGuests: 2,
+      extraGuestFee: 300_000,
+      extraBedPrice: 150_000,
+      boardBasis: "full_board",
+      maxGuests: 4,
+      bedrooms: 2,
+      bathrooms: 1,
+      checkInTime: "15:00",
+      checkOutTime: "12:00",
+      cancellationTier: "moderate",
+      familyOnly: true,
+      requirements,
+      ...childBands,
+    },
+    {
+      venueId,
+      slug: "lancaster-vvip-duplex",
+      status: "live",
+      titleAr: "فيلا VVIP دوبلكس — لانكستر السلام",
+      titleEn: "VVIP Duplex villa — Lancaster Al Salam",
+      descriptionAr:
+        "دوبلكس فاخر يتسع حتى ٩ أشخاص، بإقامة كاملة وكل مرافق المنتجع. للاستفسار عن التوفر تواصل مع فريق تشاو.",
+      unitKind: "villa",
+      baseNightly: 6_000_000,
+      weekendSupplement: 900_000,
+      includedGuests: 2,
+      extraGuestFee: 300_000,
+      extraBedPrice: 150_000,
+      boardBasis: "full_board",
+      maxGuests: 9,
+      bedrooms: 4,
+      bathrooms: 4,
+      minNights: 2,
+      checkInTime: "15:00",
+      checkOutTime: "12:00",
+      cancellationTier: "strict",
+      familyOnly: true,
+      requirements,
+      ...childBands,
+    },
+  ];
+
+  for (const u of units) {
+    await db.insert(schema.listings).values(u).onConflictDoNothing();
+  }
+
+  /* Their published special offer, 10–20 August. */
+  const [villa] = await db
+    .select({ id: schema.listings.id })
+    .from(schema.listings)
+    .where(eq(schema.listings.slug, "lancaster-villa-sea-view"))
+    .limit(1);
+  if (villa) {
+    const existing = await db
+      .select({ id: schema.listingRates.id })
+      .from(schema.listingRates)
+      .where(eq(schema.listingRates.listingId, villa.id))
+      .limit(1);
+    if (existing.length === 0) {
+      await db.insert(schema.listingRates).values({
+        listingId: villa.id,
+        startDate: "2026-08-10",
+        endDate: "2026-08-20",
+        nightly: 3_200_000,
+        minNights: 2,
+        labelAr: "عرض خاص",
+        labelEn: "Special offer",
+      });
+    }
+  }
+
+  /*
+   * The duplex is sold out, and stays on the page saying so — which is exactly
+   * what the resort itself does, because a property whose best unit has gone
+   * is a property worth booking today.
+   */
+  const [duplex] = await db
+    .select({ id: schema.listings.id })
+    .from(schema.listings)
+    .where(eq(schema.listings.slug, "lancaster-vvip-duplex"))
+    .limit(1);
+  if (duplex) {
+    const days: (typeof schema.calendarDays.$inferInsert)[] = [];
+    const start = new Date();
+    for (let i = 0; i < 45; i++) {
+      const d = new Date(start.getTime() + i * 86_400_000);
+      days.push({
+        listingId: duplex.id,
+        day: d.toISOString().slice(0, 10),
+        session: "night",
+        state: "blocked",
+      });
+    }
+    await db.insert(schema.calendarDays).values(days).onConflictDoNothing();
+  }
+
+  console.log("Lancaster Al Salam synced — 3 units, real rate card, Sabratha.");
+}
+
 async function syncPartnerDemo() {
   const today = new Date();
   const day = (offset: number) =>
@@ -893,6 +1139,10 @@ async function main() {
     await syncMedia();
     await syncDemoTrust();
     await syncPartnerDemo();
+    // Lancaster is idempotent create-if-missing, so it must run on the
+    // already-seeded path too — otherwise it only ever appears in a database
+    // built from scratch, which is nobody's.
+    await syncLancaster();
     await pool.end();
     return;
   }
@@ -1144,6 +1394,7 @@ async function main() {
   await syncMedia();
   await syncDemoTrust();
   await syncPartnerDemo();
+  await syncLancaster();
   console.log("Seeded 3 coast venues + 1 wedding hall with packages. تشاو!");
   await pool.end();
 }

@@ -106,6 +106,34 @@ export const venues = pgTable(
     type: varchar("type", { length: 8 }).notNull(), // coast|hall
     nameAr: text("name_ar").notNull(),
     nameEn: text("name_en"),
+    /**
+     * The venue's own address on the marketplace: `ciao.ly/v/<slug>`.
+     *
+     * This is the single most important thing this project can hand a Libyan
+     * venue, and it took watching how they actually sell to see it. Every one
+     * of them runs on a Facebook page and a WhatsApp number: the price list is
+     * a photo in a post, availability is a reply, and a booking is a phone
+     * call between eleven and five. They already have the audience — Lancaster
+     * has 44,000 followers — and what they lack is somewhere to send it.
+     *
+     * A permanent link they can pin to their page turns that audience into
+     * traffic they own, and every visit through it carries a `src` we can
+     * attribute, so a partner can finally see what their Facebook page is
+     * actually worth.
+     */
+    slug: varchar("slug", { length: 80 }),
+    /**
+     * When the reservations desk is actually staffed.
+     *
+     * `{ from: "11:00", to: "17:00", days: [0,1,2,3,4,5,6] }`, Africa/Tripoli,
+     * ISO-ish day numbers where 0 is Sunday. Lancaster's office runs 11:00 to
+     * 17:00 daily, and our confirmation countdown was a flat two hours from
+     * the moment the deposit cleared — so a request at 19:00 auto-declined at
+     * 21:00, refunded the guest, told them the venue had not answered, and
+     * docked the venue's reliability for being shut. Null means always open,
+     * which is the right default for a chalet owner with a phone in his pocket.
+     */
+    officeHours: jsonb("office_hours"),
     city: varchar("city", { length: 40 }).notNull(), // tripoli|misrata|benghazi...
     area: varchar("area", { length: 60 }), // janzour, tajoura, airport_road...
     hostId: uuid("host_id").references(() => users.id),
@@ -176,7 +204,10 @@ export const venues = pgTable(
     createdAt: now(),
     updatedAt: ts("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("venues_city_type_idx").on(t.city, t.type)],
+  (t) => [
+    index("venues_city_type_idx").on(t.city, t.type),
+    uniqueIndex("venues_slug_uq").on(t.slug),
+  ],
 );
 
 export const listings = pgTable(
@@ -197,15 +228,73 @@ export const listings = pgTable(
     baseNightly: money("base_nightly").notNull().default(0),
     weekendMultiplierBps: integer("weekend_multiplier_bps").notNull().default(12500),
     thursdayMultiplierBps: integer("thursday_multiplier_bps").notNull().default(11500),
+    /**
+     * Flat band supplements in dirhams, used instead of the multipliers when
+     * set — because that is the shape Libyan price lists are written in.
+     *
+     * Lancaster's weekend is +600 د.ل flat. As a ratio that is exactly 7/6,
+     * i.e. 11666.67 basis points, which no integer bps value can express: 11667
+     * quotes 4,200.12 and 11666 quotes 4,199.76. Both make our page disagree
+     * with their poster, and agreeing with the poster is the product.
+     */
+    weekendSupplement: money("weekend_supplement"),
+    thursdaySupplement: money("thursday_supplement"),
     seasonMultiplierBps: integer("season_multiplier_bps").notNull().default(10000),
     dayUsePrice: money("day_use_price"),
+    /**
+     * Charged per guest beyond `includedGuests`, per night.
+     *
+     * This column existed from the first schema and was read by absolutely
+     * nothing until August 2026 — `quoteStay` was never even passed a guest
+     * count. It became real the day a resort's actual rate card arrived and
+     * turned out to be `base + 300 × (guests − 2)`.
+     */
     extraGuestFee: money("extra_guest_fee"),
+    /**
+     * How many guests the nightly rate already covers — NOT the capacity.
+     *
+     * Lancaster's villa sleeps six and its published rate covers two. Null
+     * means "everyone", which is what every listing created before this column
+     * meant, so old data keeps quoting exactly what it quoted yesterday.
+     */
+    includedGuests: integer("included_guests"),
+    /** Per extra bed, per night. Lancaster: 150 د.ل. */
+    extraBedPrice: money("extra_bed_price"),
+    minNights: integer("min_nights"),
+    /**
+     * What the rate feeds you. Descriptive, but it is the single most
+     * price-determining attribute in resort supply: a 3,600 villa including
+     * nine meals a day and a 600 chalet with no food are not the same product,
+     * and shown side by side as two numbers they look like a scandal.
+     */
+    boardBasis: varchar("board_basis", { length: 12 }).notNull().default("room_only"), // room_only|breakfast|half_board|full_board
+    /** Children's bands, stored so they cannot leave an age uncovered. */
+    childFreeUnder: integer("child_free_under"),
+    childReducedUnder: integer("child_reduced_under"),
+    childReducedBps: integer("child_reduced_bps"),
+    /** "يخضع تسجيل الدخول والخروج لسياسة المنتجع" is not a time. These are. */
+    checkInTime: varchar("check_in_time", { length: 5 }), // "15:00"
+    checkOutTime: varchar("check_out_time", { length: 5 }), // "12:00"
+    /** What kind of unit this is inside its venue. UnitKind in @ciao/shared. */
+    unitKind: varchar("unit_kind", { length: 12 }),
     maxGuests: integer("max_guests"),
     bedrooms: integer("bedrooms"),
+    bathrooms: integer("bathrooms"),
     cancellationTier: varchar("cancellation_tier", { length: 10 })
       .notNull()
       .default("moderate"), // flexible|moderate|strict
     houseRulesAr: text("house_rules_ar"),
+    houseRulesEn: text("house_rules_en"),
+    /**
+     * Conditions of entry, structured — `Requirement[]` from @ciao/shared.
+     *
+     * Free-text house rules are where "bring proof of family status" goes to
+     * be unread. These are shown on the listing, blocked behind an
+     * acknowledgement at checkout, stamped on the booking and reprinted on the
+     * voucher, because the moment they matter is at a barrier in Sabratha with
+     * one bar of signal.
+     */
+    requirements: jsonb("requirements").notNull().default(sql`'[]'::jsonb`),
     media: jsonb("media").notNull().default(sql`'[]'::jsonb`), // [{url, kind, order, watermark}]
     familyOnly: boolean("family_only").notNull().default(false),
     createdAt: now(),
@@ -274,6 +363,38 @@ export const bookings = pgTable(
     session: varchar("session", { length: 16 }).notNull().default("night"),
     packageId: uuid("package_id").references(() => packages.id),
     guestCount: integer("guest_count"),
+    /**
+     * Who is actually coming, because the ages decide the price.
+     *
+     * `guestCount` was a single nullable integer that the public checkout never
+     * even sent — it posted dates and a payment rail and nothing else. Under
+     * five free and six-to-ten half price is the standard Libyan family rate,
+     * so a party of two adults and three young children priced as five adults
+     * is a quote that is wrong in the direction that loses the booking, to the
+     * exact demographic this marketplace exists to serve.
+     */
+    adults: integer("adults"),
+    /** One age per child, in years at check-in. */
+    childAges: jsonb("child_ages").notNull().default(sql`'[]'::jsonb`),
+    extraBeds: integer("extra_beds").notNull().default(0),
+    /**
+     * The conditions the guest ticked before paying, snapshotted.
+     *
+     * A snapshot rather than a join: the host can edit their requirements
+     * tomorrow, and what matters in a dispute is what this guest was shown and
+     * agreed to today. `[{ key, atIso }]`.
+     */
+    requirementsAcceptedAt: ts("requirements_accepted_at"),
+    requirementsAccepted: jsonb("requirements_accepted").notNull().default(sql`'[]'::jsonb`),
+    /**
+     * Where the booking came from — `fb`, `wa`, `ig`, `qr`, `direct`.
+     *
+     * Every venue in this market already has an audience on Facebook; what
+     * they lack is a way to know what it is worth. This column is the answer
+     * to "how many bookings did my page actually bring me", which is the
+     * single most persuasive number we can put in front of a partner.
+     */
+    source: varchar("source", { length: 12 }),
     // money snapshot (dirhams) — frozen at request time; booked dates are price-locked (§9.6)
     totalAmount: money("total_amount").notNull().default(0),
     depositAmount: money("deposit_amount").notNull().default(0),
@@ -961,10 +1082,40 @@ export const promoCodes = pgTable(
     perUserLimit: integer("per_user_limit").notNull().default(1),
     timesUsed: integer("times_used").notNull().default(0),
     active: boolean("active").notNull().default(true),
+    /**
+     * Scope to a whole property rather than one unit.
+     *
+     * A resort announcing a code on Facebook means it for the resort — every
+     * chalet, every villa — not for whichever unit happened to be selected
+     * when the form was filled in.
+     */
+    venueId: uuid("venue_id").references(() => venues.id),
+    /**
+     * Whose margin pays for this.
+     *
+     * `ciao` is the original rule: the discount comes out of our commission
+     * and is capped there, because we will spend our own margin to win a
+     * booking but will not pay a host out of pocket for a number somebody
+     * typed at midnight.
+     *
+     * `partner` is the flash offer a venue announces on its own Facebook page.
+     * That one is *their* price coming down, so it reduces the booking total —
+     * which means our commission, being a percentage of the total, comes down
+     * proportionally with it. Neither side subsidises the other, and the
+     * partner can be told exactly that in one sentence: a ten per cent offer
+     * costs you ten per cent of your revenue and costs us ten per cent of ours.
+     */
+    fundedBy: varchar("funded_by", { length: 8 }).notNull().default("ciao"), // ciao|partner
+    /** The partner who created it, when `fundedBy` is `partner`. */
+    createdByPartnerId: uuid("created_by_partner_id").references(() => users.id),
     createdById: uuid("created_by_id").references(() => users.id),
     createdAt: now(),
   },
-  (t) => [uniqueIndex("promo_code_uq").on(t.code), index("promo_active_idx").on(t.active)],
+  (t) => [
+    uniqueIndex("promo_code_uq").on(t.code),
+    index("promo_active_idx").on(t.active),
+    index("promo_venue_idx").on(t.venueId, t.active),
+  ],
 );
 
 export const promoRedemptions = pgTable(
@@ -1606,5 +1757,76 @@ export const partnerLeads = pgTable(
   (t) => [
     uniqueIndex("partner_leads_phone_uq").on(t.phone),
     index("partner_leads_status_idx").on(t.status, t.createdAt),
+  ],
+);
+
+/**
+ * A price for a stretch of dates — the "عرض خاص من ١٠/٨ إلى ٢٠/٨" case.
+ *
+ * The old model had exactly one lever for this: `seasonMultiplierBps`, a
+ * static scalar on the listing with no dates attached to it. Turning "the
+ * summer rate" on therefore repriced every future quote at once, including the
+ * ones already being looked at, and turning it off in September silently
+ * repriced next July. `calendarDays.priceOverride` existed as a column and was
+ * the only occurrence of that identifier in the entire codebase — never
+ * written, never read.
+ *
+ * A window is the shape the market actually uses: a start, an end, a price,
+ * and a name you can put in a Facebook post. Bands still apply on top unless
+ * `flat` is set, because a promotional fortnight still has expensive weekends.
+ */
+export const listingRates = pgTable(
+  "listing_rates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listingId: uuid("listing_id").notNull().references(() => listings.id),
+    /** Inclusive, YYYY-MM-DD. Dates not timestamps: a rate is a calendar fact. */
+    startDate: date("start_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }).notNull(),
+    nightly: money("nightly").notNull(),
+    /** When true, weekend and Thursday bands do not apply inside the window. */
+    flat: boolean("flat").notNull().default(false),
+    minNights: integer("min_nights"),
+    labelAr: text("label_ar"),
+    labelEn: text("label_en"),
+    createdById: uuid("created_by_id").references(() => users.id),
+    createdAt: now(),
+  },
+  (t) => [index("listing_rates_listing_idx").on(t.listingId, t.startDate)],
+);
+
+/**
+ * "Tell me when it frees up."
+ *
+ * The VVIP duplex on Lancaster's list is marked *Sold out* and they publish it
+ * anyway, because scarcity sells the rest of the sheet. Ciao had two states —
+ * invisible, or visible and bookable — so a fully-booked unit simply vanished
+ * from a dated search, throwing away both the social proof and the single
+ * clearest demand signal a marketplace can collect: someone who wanted a
+ * specific place on a specific date and could not have it.
+ *
+ * A row here is that signal, made actionable. It is also the only honest
+ * answer to a family whose dates are taken: not a shrug, a promise to call.
+ */
+export const waitlist = pgTable(
+  "waitlist",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listingId: uuid("listing_id").notNull().references(() => listings.id),
+    userId: uuid("user_id").references(() => users.id),
+    /** For a guest who has not signed in; verified the same way a lead is. */
+    phone: varchar("phone", { length: 20 }).notNull(),
+    checkIn: date("check_in", { mode: "string" }),
+    checkOut: date("check_out", { mode: "string" }),
+    guests: integer("guests"),
+    /** notified when the dates opened; cancelled when the guest booked elsewhere. */
+    status: varchar("status", { length: 12 }).notNull().default("waiting"), // waiting|notified|converted|cancelled
+    notifiedAt: ts("notified_at"),
+    createdAt: now(),
+  },
+  (t) => [
+    index("waitlist_listing_idx").on(t.listingId, t.status),
+    // One live request per person per unit; asking twice is not two signals.
+    uniqueIndex("waitlist_person_uq").on(t.listingId, t.phone, t.checkIn),
   ],
 );
