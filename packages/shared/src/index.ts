@@ -5,3 +5,4 @@ export * from "./pricing";
 export * from "./phone";
 export * from "./partner";
 export * from "./biz";
+export * from "./hero";

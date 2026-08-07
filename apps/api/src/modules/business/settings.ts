@@ -13,14 +13,10 @@
  * flexibility.
  */
 import { eq, inArray } from "drizzle-orm";
-import { FEES } from "@ciao/shared";
+import { FEES, type HeroImage } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
 
-export interface HeroImage {
-  /** Base path without the width suffix, e.g. "/hero-marina" → -800/-1600.webp */
-  src: string;
-  alt: string;
-}
+export type { HeroImage };
 
 /**
  * The full settings surface. Adding a setting = adding a key here with its
@@ -388,6 +384,23 @@ export function validateSetting(key: string, value: unknown): string | null {
       if (!Array.isArray(v?.images) || v.images.length === 0)
         return "يجب أن تبقى صورة واحدة على الأقل في الواجهة";
       if (v.images.length > 8) return "الحد الأقصى 8 صور في الواجهة";
+      /*
+       * `variants` is what stops an uploaded hero from claiming widths its
+       * files do not have — the failure that rendered two uploads blank on the
+       * home page while reporting nothing anywhere. Validated rather than
+       * trusted, because the console writes it and the console is a client.
+       */
+      for (const img of v.images as { src?: unknown; variants?: unknown }[]) {
+        if (typeof img?.src !== "string" || !img.src) return "كل صورة تحتاج مسارًا";
+        if (img.variants === undefined) continue;
+        if (!Array.isArray(img.variants) || img.variants.length === 0)
+          return "قائمة النسخ غير صالحة";
+        for (const variant of img.variants as { url?: unknown; width?: unknown }[]) {
+          if (typeof variant?.url !== "string" || !variant.url) return "قائمة النسخ غير صالحة";
+          if (typeof variant?.width !== "number" || !(variant.width > 0))
+            return "قائمة النسخ غير صالحة";
+        }
+      }
       return null;
     }
     case "loyalty.pointToDirham":

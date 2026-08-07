@@ -144,7 +144,22 @@ export async function encodeWidths(
   const src = await loadBitmap(file);
   try {
     const out: EncodedImage[] = [];
-    for (const w of widths) out.push(await encodeAt(src, w));
+    const seen = new Set<number>();
+    for (const w of widths) {
+      const enc = await encodeAt(src, w);
+      /*
+       * Two requested widths can collapse into one encoding, because we never
+       * enlarge: a 760px screenshot asked for 1600 and for 800 comes back at
+       * 760 both times. Uploading it twice writes the same object twice and
+       * then records two "different" variants that are the same file — which
+       * is how the hero ended up with a path claiming widths that did not
+       * exist. One encoding per actual width, and the caller records what it
+       * got rather than what it asked for.
+       */
+      if (seen.has(enc.width)) continue;
+      seen.add(enc.width);
+      out.push(enc);
+    }
     return out;
   } finally {
     if (!(src instanceof HTMLImageElement)) src.close();

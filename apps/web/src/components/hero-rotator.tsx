@@ -19,11 +19,9 @@
  * console can add or remove hero photos without a deploy.
  */
 import { useEffect, useRef, useState } from "react";
+import { heroSources, type HeroImage } from "@ciao/shared";
 
-export interface HeroImage {
-  src: string;
-  alt: string;
-}
+export type { HeroImage };
 
 export function HeroRotator({
   images,
@@ -34,8 +32,20 @@ export function HeroRotator({
 }) {
   const [active, setActive] = useState(0);
   const [ready, setReady] = useState<Set<number>>(() => new Set([0]));
+  /**
+   * Frames whose image will never appear.
+   *
+   * A missing photograph used to be counted as *ready* — the error handler and
+   * the load handler were the same line — so the rotator would fade to it and
+   * hold a blank panel for six seconds. That is how one bad entry in the
+   * settings blanked the top of the home page while every other frame was
+   * fine, and it reported nothing, because a 404 on an `<img>` is silent.
+   */
+  const [failed, setFailed] = useState<Set<number>>(() => new Set());
   const readyRef = useRef(ready);
   readyRef.current = ready;
+  const failedRef = useRef(failed);
+  failedRef.current = failed;
   const imgs = useRef<(HTMLImageElement | null)[]>([]);
 
   /**
@@ -52,7 +62,26 @@ export function HeroRotator({
       });
       return next.size === prev.size ? prev : next;
     });
+    // Same sweep for the failures: an image that finished before hydration
+    // with no intrinsic width did not load, and never will.
+    setFailed((prev) => {
+      const next = new Set(prev);
+      imgs.current.forEach((el, i) => {
+        if (el?.complete && el.naturalWidth === 0) next.add(i);
+      });
+      return next.size === prev.size ? prev : next;
+    });
   }, [images.length]);
+
+  /**
+   * If the very first frame is the broken one, move off it immediately rather
+   * than waiting a full interval — it is the frame every visitor sees.
+   */
+  useEffect(() => {
+    if (!failed.has(active)) return;
+    const next = images.findIndex((_, i) => !failed.has(i));
+    if (next >= 0 && next !== active) setActive(next);
+  }, [failed, active, images]);
 
   useEffect(() => {
     if (images.length < 2) return;
@@ -64,7 +93,7 @@ export function HeroRotator({
         // fading in over a good one looks like a bug, not a slideshow.
         for (let step = 1; step <= images.length; step++) {
           const next = (cur + step) % images.length;
-          if (readyRef.current.has(next)) return next;
+          if (readyRef.current.has(next) && !failedRef.current.has(next)) return next;
         }
         return cur;
       });
@@ -74,6 +103,8 @@ export function HeroRotator({
 
   const markReady = (i: number) =>
     setReady((prev) => (prev.has(i) ? prev : new Set(prev).add(i)));
+  const markFailed = (i: number) =>
+    setFailed((prev) => (prev.has(i) ? prev : new Set(prev).add(i)));
 
   return (
     <div className="absolute inset-0" aria-hidden={false}>
@@ -83,15 +114,23 @@ export function HeroRotator({
           ref={(el) => {
             imgs.current[i] = el;
           }}
-          src={`${img.src}-800.webp`}
-          srcSet={`${img.src}-800.webp 800w, ${img.src}-1600.webp 1600w`}
+          /*
+            The widths come from the image, not from the filename. A build
+            asset ships at 800 and 1600; an upload carries the encodings that
+            actually exist, which for a source narrower than 800px is one file
+            at its own size. Inferring the suffix is what made two uploaded
+            heroes render blank — both requests 404'd, and a 404 on an <img>
+            says nothing to anyone.
+          */
+          src={heroSources(img).src}
+          srcSet={heroSources(img).srcSet}
           sizes="(max-width: 640px) 100vw, 1024px"
           alt={i === active ? img.alt : ""}
           loading={i === 0 ? "eager" : "lazy"}
           fetchPriority={i === 0 ? "high" : "low"}
           decoding="async"
           onLoad={() => markReady(i)}
-          onError={() => markReady(i)}
+          onError={() => markFailed(i)}
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ease-in-out ${
             i === active ? "opacity-100" : "opacity-0"
           }`}
