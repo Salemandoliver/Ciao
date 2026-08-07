@@ -36,6 +36,18 @@ export const THUMB_WIDTH = 640;
  */
 const QUALITY = 0.82;
 
+/**
+ * Hero quality, which is deliberately higher.
+ *
+ * 0.82 is right for a card 300 pixels wide, where nobody is looking closely
+ * and there are twelve of them on a search page. A hero is one image, drawn
+ * the full width of the screen, and it is the first thing anyone sees of
+ * Ciao — the place where softness reads as "this company is not serious"
+ * rather than as a saved kilobyte. 0.92 costs roughly 40% more bytes on one
+ * image per page load, which is the cheapest quality this product can buy.
+ */
+const HERO_QUALITY = 0.92;
+
 export interface EncodedImage {
   blob: Blob;
   width: number;
@@ -83,6 +95,7 @@ function dimensions(src: ImageBitmap | HTMLImageElement): { w: number; h: number
 async function encodeAt(
   src: ImageBitmap | HTMLImageElement,
   targetWidth: number,
+  quality: number = QUALITY,
 ): Promise<EncodedImage> {
   const { w, h } = dimensions(src);
   if (!w || !h) throw new Error("decode_failed");
@@ -101,7 +114,7 @@ async function encodeAt(
   ctx.drawImage(src, 0, 0, width, height);
 
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/webp", QUALITY),
+    canvas.toBlob(resolve, "image/webp", quality),
   );
   // Every browser this console supports encodes WebP. If one does not, JPEG is
   // a larger but correct answer, and the API accepts both.
@@ -109,7 +122,7 @@ async function encodeAt(
     return { blob, width, contentType: "image/webp" };
 
   const jpeg = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/jpeg", QUALITY),
+    canvas.toBlob(resolve, "image/jpeg", quality),
   );
   if (!jpeg) throw new Error("encode_failed");
   return { blob: jpeg, width, contentType: "image/jpeg" };
@@ -140,13 +153,14 @@ export async function encodeImage(
 export async function encodeWidths(
   file: File,
   widths: number[],
+  quality: number = HERO_QUALITY,
 ): Promise<EncodedImage[]> {
   const src = await loadBitmap(file);
   try {
     const out: EncodedImage[] = [];
     const seen = new Set<number>();
     for (const w of widths) {
-      const enc = await encodeAt(src, w);
+      const enc = await encodeAt(src, w, quality);
       /*
        * Two requested widths can collapse into one encoding, because we never
        * enlarge: a 760px screenshot asked for 1600 and for 800 comes back at

@@ -253,10 +253,10 @@ export default async function VenuePageRoute({
           <div className="relative h-56 sm:h-72">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={hero} alt={name} className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 photo-scrim-soft" />
+            <div className="absolute inset-0 photo-scrim-bottom" />
             <div className="absolute bottom-0 inset-x-0 p-4">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">{name}</h1>
-              <p className="text-white/90 text-sm mt-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white type-on-photo">{name}</h1>
+              <p className="text-white text-sm mt-1 type-on-photo">
                 {term(CITIES, locale, venue.city)}
                 {venue.area ? ` · ${term(AREAS, locale, venue.area)}` : ""}
               </p>

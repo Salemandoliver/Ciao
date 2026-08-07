@@ -176,17 +176,18 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* Hero — the «قول تشاو» device (§3.2) over the Tripoli sunset */}
       <section className="card relative overflow-hidden text-white">
         <HeroRotator images={hero.images} intervalMs={hero.intervalMs} />
-        {/* Sea-blue gradient keeps text sunlight-readable (§3.3). Kept as
-            light as legibility allows so the photography stays the hero. */}
-        <div
-          className="absolute inset-0 photo-scrim-soft"
-          aria-hidden
-        />
+        {/*
+          Weighted at the top, where the headline is — it used to be weighted
+          at the bottom, where nothing but the self-contrasting search pill
+          sits, so the darkest part of the scrim was dulling the photograph for
+          no one. Legibility now comes mostly from `.type-on-photo`.
+        */}
+        <div className="absolute inset-0 photo-scrim-top" aria-hidden />
         <div className="relative p-6 sm:p-10 pb-4 sm:pb-6" data-on-photo>
-          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight drop-shadow">
-            {c.heroLead} <span className="text-amber">{c.heroBrand}</span> {c.heroTail}
+          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
+            {c.heroLead} <span className="brand-on-photo">{c.heroBrand}</span> {c.heroTail}
           </h1>
-          <p className="mt-3 text-white/95 text-lg max-w-xl drop-shadow">{c.heroBody}</p>
+          <p className="mt-3 text-white text-lg max-w-xl type-on-photo">{c.heroBody}</p>
         </div>
         {/* On the photo: contrast here comes from `.hero-pill` / `.tab-on-photo`,
             which are deliberately fixed rather than themed. */}

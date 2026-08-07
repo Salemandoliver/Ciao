@@ -422,14 +422,14 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
       {/* ── Opening: the problem, stated plainly ───────────────────────── */}
       <section className="card relative overflow-hidden text-white">
         <HeroRotator images={hero} intervalMs={7000} />
-        <div className="absolute inset-0 photo-scrim-strong" aria-hidden />
+        <div className="absolute inset-0 photo-scrim-top-strong" aria-hidden />
         <div className="relative p-6 sm:p-10" data-on-photo>
-          <p className="text-amber font-bold text-sm mb-2">{c.eyebrow}</p>
-          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight drop-shadow">
+          <p className="brand-on-photo font-bold text-sm mb-2 type-on-photo">{c.eyebrow}</p>
+          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
             {c.heroTitle}
           </h1>
-          <p className="mt-4 text-white/95 leading-relaxed max-w-2xl drop-shadow">{c.heroBody1}</p>
-          <p className="mt-3 text-white/95 leading-relaxed max-w-2xl drop-shadow">{c.heroBody2}</p>
+          <p className="mt-4 text-white leading-relaxed max-w-2xl type-on-photo">{c.heroBody1}</p>
+          <p className="mt-3 text-white leading-relaxed max-w-2xl type-on-photo">{c.heroBody2}</p>
         </div>
       </section>
 
