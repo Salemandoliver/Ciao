@@ -93,6 +93,40 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "supply.cta_clicked": "surface",
   "supply.page_viewed": "ref",
   "supply.contact_started": "channel",
+  /*
+   * The catalogue — what partners actually build once they have the tools.
+   *
+   * These answer a question we cannot otherwise ask without reading somebody's
+   * price list: is the console being *used* as a business system, or is it a
+   * diary with an unused settings tab? A partner who has published three
+   * services, two add-ons and a seasonal rule has adopted the product. One
+   * with none has not, whatever their login count says.
+   *
+   * Shapes only — a unit, a kind, a boolean. Never a price, never a name.
+   * What a partner charges is their business, and an events table is the
+   * wrong place for a competitor's price list to accumulate.
+   */
+  "partner.service_created": "unit, hasPrice, published",
+  "partner.addon_created": "priceModel, required",
+  "partner.price_rule_created": "kind",
+  "partner.promotion_created": "kind, hasCode, automatic",
+  "partner.promotion_redeemed": "kind, automatic",
+  "partner.intake_created": "fieldType, required",
+  "partner.expense_logged": "category, recurring",
+  "partner.catalogue_priced": "unit, addonCount, hasPromo, ruleCount",
+  /*
+   * Plus, bought outright.
+   *
+   * `term` is the field that matters: the annual product exists because there
+   * is no direct debit in Libya, and whether partners actually take a year in
+   * one payment is a market fact we are guessing at until this table says
+   * otherwise.
+   */
+  "partner.plus_checkout_started": "term, priceDirhams",
+  "partner.plus_purchased": "term, priceDirhams, rail",
+  "partner.plus_renewal_notice": "daysLeft",
+  "partner.plus_teaser_shown": "panel",
+  "partner.plus_teaser_clicked": "panel",
   // engagement (client + server)
   "rail.selected": "rail",
   "share.clicked": "listingId, channel",

@@ -178,6 +178,34 @@ export const TEMPLATES: Record<string, MessageTemplate> = {
     smsAr: "تشاو للشركاء: اختر كلمة سرّك {{link}}",
     critical: true,
   },
+  /*
+   * Ciao Plus, bought for a year.
+   *
+   * The activation message names the date the year ends rather than saying
+   * "you're subscribed". A partner who has just handed over ten months' fee in
+   * one payment wants the receipt fact, not the marketing one — and having it
+   * in WhatsApp means they can find it in December without opening the app.
+   */
+  partner_plus_activated: {
+    key: "partner_plus_activated",
+    ar: "تم تفعيل تشاو بلس ✅ اشتراكك سارٍ حتى {{until}}. أرقام السوق مفتوحة لك من الحين.",
+    en: "Ciao Plus is active ✅ Your subscription runs until {{until}}. The market numbers are open to you now.",
+    smsAr: "تشاو بلس مفعّل حتى {{until}}",
+    critical: false,
+  },
+  /*
+   * The renewal nudge. Deliberately not dunning: it states a date and stops.
+   * Three of these go out over a month and no more, because a partner who has
+   * decided not to renew and is messaged anyway learns to mute us — and they
+   * still have a diary here we want them opening every morning.
+   */
+  partner_plus_renewal: {
+    key: "partner_plus_renewal",
+    ar: "تشاو بلس: باقي {{days}} يوم على انتهاء اشتراكك ({{until}}). تقدر تجدّده من التطبيق — أرقامك تبقى مجانية دائمًا في كل الأحوال.",
+    en: "Ciao Plus: {{days}} days left on your subscription ({{until}}). You can renew in the app — your own numbers stay free either way.",
+    smsAr: "تشاو بلس ينتهي {{until}}",
+    critical: false,
+  },
   partner_password_reset: {
     key: "partner_password_reset",
     ar: "رمز استعادة كلمة السر في تشاو للشركاء: {{code}} — صالح ٥ دقائق. لا تشاركه مع أحد، حتى لو طلبه أحد باسم تشاو.",

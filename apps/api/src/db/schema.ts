@@ -291,6 +291,29 @@ export const bookings = pgTable(
     /** Promo discount applied at request time, funded from our commission. */
     discountAmount: money("discount_amount").notNull().default(0),
     promoCode: varchar("promo_code", { length: 24 }),
+    /**
+     * ─────────── What the partner's own catalogue contributed ───────────
+     *
+     * These four are the booking's half of the partner catalogue, and they are
+     * columns on `bookings` rather than a join table for one reason: a booking
+     * is a **frozen record of an agreement** (§9.6 price-lock). If the add-on
+     * lines lived by reference, a partner renaming "شيشة" to "معسل" or
+     * repricing late checkout would silently rewrite what a guest agreed to
+     * pay three weeks ago. Snapshots cannot be edited after the fact, which is
+     * the entire point of them.
+     *
+     * `partnerDiscountAmount` is separate from `discountAmount` above and the
+     * separation is load-bearing: ours comes out of our commission, theirs
+     * comes out of their revenue. Netting them into one number would make the
+     * payout arithmetic unexplainable to the person it is being explained to.
+     */
+    partnerServiceId: uuid("partner_service_id"),
+    /** [{ addonId, nameAr, qty, unitPrice, total }] — priced at request time. */
+    addons: jsonb("addons").notNull().default(sql`'[]'::jsonb`),
+    /** [{ questionId, promptAr, answer }] — the partner's own intake form. */
+    intakeAnswers: jsonb("intake_answers").notNull().default(sql`'[]'::jsonb`),
+    partnerPromotionId: uuid("partner_promotion_id"),
+    partnerDiscountAmount: money("partner_discount_amount").notNull().default(0),
     concierge: boolean("concierge").notNull().default(false), // Phase A manual bookings
     notes: text("notes"),
     createdAt: now(),
@@ -332,8 +355,21 @@ export const paymentIntents = pgTable(
   "payment_intents",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    bookingId: uuid("booking_id").notNull().references(() => bookings.id),
-    purpose: varchar("purpose", { length: 20 }).notNull().default("deposit"), // deposit|stage|exchange|other
+    /**
+     * Null for money that is not about a booking.
+     *
+     * It was non-null until Ciao Plus started being sold for a year up front.
+     * The alternative — a second intents table with its own invoice numbering,
+     * its own webhook route and its own reconciliation — would have meant two
+     * places to look when a payment goes missing, and two chances to get
+     * replay protection subtly different. One pipeline, one journal, one
+     * `invoice_no` space; `purpose` says what the money was for.
+     */
+    bookingId: uuid("booking_id").references(() => bookings.id),
+    /** deposit|stage|exchange|subscription|other */
+    purpose: varchar("purpose", { length: 20 }).notNull().default("deposit"),
+    /** Who the non-booking money belongs to — a partner, for a subscription. */
+    subjectId: uuid("subject_id"),
     amount: money("amount").notNull(),
     rail: varchar("rail", { length: 12 }).notNull(), // sadad|adfali|local_card|tlync|mpgs|credit
     provider: varchar("provider", { length: 12 }).notNull(), // plutu|dpay|tlync|mock
@@ -1226,6 +1262,34 @@ export const partnerJobs = pgTable(
     /** Partner-entered money on direct jobs; mirrored from the booking on Ciao ones. */
     price: money("price").notNull().default(0),
     amountPaid: money("amount_paid").notNull().default(0),
+    /**
+     * ─────────────── The catalogue, as it landed on this job ───────────────
+     *
+     * Same snapshot discipline as `bookings`: names and prices are copied in,
+     * not referenced, so a job written in June still reads in December the way
+     * it was agreed — even if the service has since been renamed, repriced or
+     * deleted. A diary that quietly rewrites its own history is worse than a
+     * notebook, because a notebook cannot.
+     *
+     * `serviceId` is kept alongside the snapshot purely so the catalogue can
+     * count what sells. Nothing renders from it.
+     */
+    serviceId: uuid("service_id"),
+    units: integer("units").notNull().default(1),
+    guestCount: integer("guest_count"),
+    addons: jsonb("addons").notNull().default(sql`'[]'::jsonb`),
+    intakeAnswers: jsonb("intake_answers").notNull().default(sql`'[]'::jsonb`),
+    promotionId: uuid("promotion_id"),
+    discount: money("discount").notNull().default(0),
+    /**
+     * Who is doing the work.
+     *
+     * A hall with two coordinators and a studio with three photographers both
+     * need this, and the agenda is useless without it: "you have a wedding on
+     * Thursday" is not the same message as "Fatima has a wedding on Thursday".
+     * Team member ids from `partnerTeam`; empty means the owner.
+     */
+    assignedTo: jsonb("assigned_to").notNull().default(sql`'[]'::jsonb`),
     locationAr: text("location_ar"),
     notesAr: text("notes_ar"),
     blocksCalendar: boolean("blocks_calendar").notNull().default(true),
@@ -1387,10 +1451,21 @@ export const partnerPayoutAccounts = pgTable(
  * thing they genuinely cannot get anywhere else and that costs us real work to
  * produce honestly: what the rest of the market is doing.
  *
- * Settlement is netted from payouts rather than billed to a card, because
- * recurring card billing does not meaningfully exist in Libya and a monthly
- * invoice to a chalet owner is a monthly collections problem. Taking it out of
- * money we already owe them is the only mechanism that actually works here.
+ * Settlement has two shapes, and the second is now the headline one.
+ *
+ * `payout_netting` takes the fee out of money we already owe them. It works,
+ * it needs no payment rail, and it suits a partner with steady Ciao volume.
+ * But it fails exactly where the product needs to win: a partner whose book is
+ * mostly direct work has few payouts to net against, and they are precisely
+ * the partner for whom market data is worth paying for.
+ *
+ * `annual_upfront` is the answer, and it is shaped by the market rather than
+ * by convention. There is no direct debit in Libya and recurring card billing
+ * does not meaningfully exist, so a monthly subscription is a monthly
+ * collections problem — twelve chances a year to lose a customer to a failed
+ * charge nobody could have fixed. One payment, once, through the same rails
+ * that already take deposits, buying a year. That is a thing a Libyan business
+ * owner recognises: it is how they pay for everything else.
  */
 export const partnerSubscriptions = pgTable("partner_subscriptions", {
   partnerId: uuid("partner_id").primaryKey().references(() => users.id),
@@ -1401,12 +1476,345 @@ export const partnerSubscriptions = pgTable("partner_subscriptions", {
   currentPeriodStart: ts("current_period_start"),
   currentPeriodEnd: ts("current_period_end"),
   priceDirhams: money("price_dirhams").notNull().default(0),
-  /** How the monthly fee is collected. Netting is the default and the realistic one. */
+  /** How the fee is collected: payout_netting | annual_upfront. */
   settlement: varchar("settlement", { length: 16 }).notNull().default("payout_netting"),
+  /** monthly | annual — what the current period represents. */
+  term: varchar("term", { length: 8 }).notNull().default("monthly"),
+  /**
+   * The booking-style payment that bought the current annual term.
+   *
+   * Kept as a reference rather than a boolean so a partner querying "what did
+   * I actually pay and when" has a receipt to point at, and so a disputed
+   * charge can be traced to a rail transaction like any other money in the
+   * system. Null for netted subscriptions, which have no single payment.
+   */
+  paymentId: uuid("payment_id"),
+  /**
+   * Renewal reminders already sent for this period, as day-offsets ("30",
+   * "7", "1"). Idempotence for the reminder job: a subscription notice that
+   * arrives three times reads as dunning, and dunning a partner who has not
+   * lapsed is how they learn to ignore our messages.
+   */
+  renewalNoticesSent: jsonb("renewal_notices_sent").notNull().default(sql`'[]'::jsonb`),
+  /** Set when the partner asks not to be reminded again this period. */
+  renewalRemindersOff: boolean("renewal_reminders_off").notNull().default(false),
   cancelledAt: ts("cancelled_at"),
   createdAt: now(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * ═══════════════════ The catalogue: what a partner actually sells ══════════
+ *
+ * Everything above this line models work that has already been agreed — a job
+ * in the diary, a quote sent, money owed. What was missing is the thing every
+ * one of those starts from: **what this business offers, in its own words.**
+ *
+ * The design constraint is that "partner" covers a resort with forty chalets
+ * and a photographer who works alone out of a bag. A schema that models nights
+ * is wrong for her; a schema that models sessions is wrong for them. So the
+ * catalogue models neither. It models a *priced thing with a unit*, and the
+ * unit is the partner's choice:
+ *
+ *   night        a chalet, priced per night          — resorts, estirahas
+ *   day          a hall or a venue hired for a day   — halls, farms
+ *   session      a half-day or a named slot          — photographers, halls
+ *   hour         priced by the hour                  — studios, gyms
+ *   person       priced per head                     — catering, make-up
+ *   item         a flat price for a thing            — a cake, an album
+ *
+ * That list is deliberately short and deliberately not extensible by config.
+ * Six units cover the market, and each one changes how a price is computed and
+ * how the booking form reads. A seventh added carelessly would mean a unit the
+ * pricing engine cannot multiply and the consumer app cannot label.
+ */
+export const partnerServices = pgTable(
+  "partner_services",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    /**
+     * The Ciao listing this is sold under, when it is sold on the marketplace
+     * at all. Null is a first-class case and an important one: a partner's
+     * catalogue is theirs, and plenty of what they sell — the corporate rate,
+     * the thing they only do for regulars — is never going on the marketplace.
+     * Making the listing optional is what lets the console hold their whole
+     * business rather than the shop window we happen to run.
+     */
+    listingId: uuid("listing_id").references(() => listings.id),
+    nameAr: text("name_ar").notNull(),
+    nameEn: text("name_en"),
+    descriptionAr: text("description_ar"),
+    descriptionEn: text("description_en"),
+    /** night|day|session|hour|person|item — see the block comment above. */
+    unit: varchar("unit", { length: 8 }).notNull().default("item"),
+    basePrice: money("base_price").notNull().default(0),
+    /**
+     * Bounds on how many units may be bought at once. `minUnits` is how a
+     * two-night minimum, a ten-person minimum order, or a three-hour hire gets
+     * expressed without a rule engine.
+     */
+    minUnits: integer("min_units").notNull().default(1),
+    maxUnits: integer("max_units"),
+    /** Minutes, for the units where duration is real. Drives the agenda. */
+    durationMinutes: integer("duration_minutes"),
+    /** Head-count bounds where the thing has a capacity — a hall, a table. */
+    minGuests: integer("min_guests"),
+    maxGuests: integer("max_guests"),
+    /**
+     * Overrides of the profile defaults, per service, because one business
+     * genuinely has two answers. A photographer takes a portrait session
+     * tomorrow and needs three weeks for a wedding; one `noticeHours` on the
+     * profile cannot say both, and the version that protects the wedding
+     * refuses the easy money.
+     */
+    noticeHours: integer("notice_hours"),
+    depositBps: integer("deposit_bps"),
+    cancellationTier: varchar("cancellation_tier", { length: 12 }),
+    /** How many of THIS can run in a day, when it differs from the profile. */
+    dailyCapacity: integer("daily_capacity"),
+    /** Free-text bullets the customer sees: "شامل الإضاءة", "٣ ساعات تصوير". */
+    includesAr: jsonb("includes_ar").notNull().default(sql`'[]'::jsonb`),
+    media: jsonb("media").notNull().default(sql`'[]'::jsonb`),
+    /**
+     * Whether a customer may book this without the partner saying yes. Off by
+     * default and that default is the point: a partner who discovers the app
+     * sold something they cannot deliver will never trust it again. They turn
+     * this on per service once they believe us.
+     */
+    instantBook: boolean("instant_book").notNull().default(false),
+    /** Visible on the marketplace. A service can be active internally and unlisted. */
+    published: boolean("published").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    /** Cached demand counters so the catalogue list needs no fan-out. */
+    bookedCount: integer("booked_count").notNull().default(0),
+    createdAt: now(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("partner_services_partner_idx").on(t.partnerId, t.active, t.sortOrder),
+    index("partner_services_listing_idx").on(t.listingId, t.published),
+  ],
+);
+
+/**
+ * Add-ons — the second half of every real quote in this market.
+ *
+ * A chalet is never just a chalet: it is the chalet, plus the barbecue, plus
+ * an extra mattress, plus late checkout. A wedding photographer's price is a
+ * package plus an album plus a second shooter plus travel to Misrata. Those
+ * extras are where the margin lives, and today they are negotiated over
+ * WhatsApp and forgotten by the time anyone invoices.
+ *
+ * `serviceId` null means the add-on is offered across the whole business,
+ * which is how travel fees and late checkout actually behave.
+ */
+export const partnerAddons = pgTable(
+  "partner_addons",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    serviceId: uuid("service_id").references(() => partnerServices.id),
+    nameAr: text("name_ar").notNull(),
+    nameEn: text("name_en"),
+    descriptionAr: text("description_ar"),
+    price: money("price").notNull().default(0),
+    /**
+     * flat        one charge however big the booking
+     * per_unit    multiplied by nights/hours/sessions — late checkout per night
+     * per_person  multiplied by head count — an extra plate
+     * per_km      multiplied by distance — the travel fee, honestly modelled
+     */
+    priceModel: varchar("price_model", { length: 10 }).notNull().default("flat"),
+    maxQty: integer("max_qty").notNull().default(1),
+    /**
+     * Required add-ons exist and pretending otherwise makes the total a lie:
+     * a cleaning fee is not optional, and a customer who sees it appear at the
+     * last step feels tricked. Required means it is in the headline price and
+     * shown as a line, not hidden and added at checkout.
+     */
+    required: boolean("required").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: now(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("partner_addons_partner_idx").on(t.partnerId, t.active, t.sortOrder)],
+);
+
+/**
+ * Price rules — seasonality, weekends, and the last-minute deal.
+ *
+ * Every partner in this market already does this in their head: August is more,
+ * Thursday and Friday are more, a wedding date twelve months out gets a
+ * discount to lock it in. Making them type one number into a box and then
+ * quote a different one over the phone is how a marketplace's prices become
+ * fiction. So the rules are explicit, they stack in a defined order, and the
+ * partner can see the resulting price for any date before a customer does.
+ *
+ * `adjustBps` is a multiplier in basis points against the base — 12000 is
+ * +20%, 8500 is −15% — and `adjustFlat` is added after. Both are signed and
+ * both may be present, because "August is +20% and there is a 50 dinar
+ * generator surcharge" is a real sentence.
+ */
+export const partnerPriceRules = pgTable(
+  "partner_price_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    serviceId: uuid("service_id").references(() => partnerServices.id),
+    labelAr: text("label_ar").notNull(),
+    /** season | weekday | lead_time | duration */
+    kind: varchar("kind", { length: 10 }).notNull(),
+    /** season: inclusive date window. */
+    fromDay: date("from_day", { mode: "string" }),
+    toDay: date("to_day", { mode: "string" }),
+    /** weekday: ISO day numbers (1=Mon … 7=Sun). Friday here is 5. */
+    weekdays: jsonb("weekdays").notNull().default(sql`'[]'::jsonb`),
+    /** lead_time: applies when the booking is this far out (or nearer). */
+    minLeadDays: integer("min_lead_days"),
+    maxLeadDays: integer("max_lead_days"),
+    /** duration: applies from this many units — the weekly rate. */
+    minUnits: integer("min_units"),
+    adjustBps: integer("adjust_bps").notNull().default(10000),
+    adjustFlat: money("adjust_flat").notNull().default(0),
+    /** Lower runs first. Ties break on id so a price is never non-deterministic. */
+    priority: integer("priority").notNull().default(100),
+    active: boolean("active").notNull().default(true),
+    createdAt: now(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("partner_price_rules_partner_idx").on(t.partnerId, t.active, t.priority)],
+);
+
+/**
+ * Promotions the partner writes themselves.
+ *
+ * Distinct from `promoCodes`, which is Ciao's marketing spend and is capped at
+ * our commission so a platform campaign can never reach into a host's pocket.
+ * This is the opposite: the partner's own money, their own decision, and the
+ * cap is theirs to set. Eid offers, a first-booking discount, a quiet-Tuesday
+ * rate — the things they already post on Instagram and then honour manually.
+ *
+ * A promotion with no code is automatic: it applies to anyone who qualifies,
+ * which is what "10% off all September" actually means. Requiring a code for
+ * that would mean the discount only reaches customers who already knew.
+ */
+export const partnerPromotions = pgTable(
+  "partner_promotions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    /** Null = automatic. Uppercased and unique per partner when present. */
+    code: varchar("code", { length: 24 }),
+    labelAr: text("label_ar").notNull(),
+    labelEn: text("label_en"),
+    /** percent | fixed | free_addon */
+    kind: varchar("kind", { length: 10 }).notNull().default("percent"),
+    /** percent: basis points off (1500 = 15%). fixed: dirhams off. */
+    valueBps: integer("value_bps").notNull().default(0),
+    valueFlat: money("value_flat").notNull().default(0),
+    freeAddonId: uuid("free_addon_id").references(() => partnerAddons.id),
+    /** A ceiling on a percentage, so "20% off" cannot become a catastrophe. */
+    maxDiscount: money("max_discount"),
+    minSpend: money("min_spend").notNull().default(0),
+    /** Empty = every service. */
+    serviceIds: jsonb("service_ids").notNull().default(sql`'[]'::jsonb`),
+    /** When the offer may be *used*. */
+    fromDay: date("from_day", { mode: "string" }),
+    toDay: date("to_day", { mode: "string" }),
+    /** When the *stay or job* must fall — a September offer sold in June. */
+    travelFromDay: date("travel_from_day", { mode: "string" }),
+    travelToDay: date("travel_to_day", { mode: "string" }),
+    /** Total redemptions allowed, and per customer. 0 = unlimited. */
+    maxRedemptions: integer("max_redemptions").notNull().default(0),
+    maxPerClient: integer("max_per_client").notNull().default(0),
+    redemptions: integer("redemptions").notNull().default(0),
+    firstTimeOnly: boolean("first_time_only").notNull().default(false),
+    /** Show on the listing page, or keep it for people given the code. */
+    publicOnListing: boolean("public_on_listing").notNull().default(true),
+    active: boolean("active").notNull().default(true),
+    createdAt: now(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("partner_promotions_partner_idx").on(t.partnerId, t.active),
+    uniqueIndex("partner_promotions_code_uq").on(t.partnerId, t.code),
+  ],
+);
+
+/**
+ * The questions a partner needs answered before they can do the work.
+ *
+ * This is the most under-modelled thing in every booking product and the most
+ * requested thing by anyone who actually runs a service business. A make-up
+ * artist needs to know the bride's skin tone and whether there is a mirror
+ * with decent light. A caterer needs the head count and whether anyone is
+ * coeliac. A chalet needs to know if a generator will be needed overnight.
+ *
+ * Today those get asked over WhatsApp, one at a time, over three days. Asking
+ * them at booking is the difference between a job that runs and a job that
+ * turns into six phone calls — and it is the single feature most likely to
+ * make a partner say the app saves them time.
+ */
+export const partnerIntakeQuestions = pgTable(
+  "partner_intake_questions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    serviceId: uuid("service_id").references(() => partnerServices.id),
+    promptAr: text("prompt_ar").notNull(),
+    promptEn: text("prompt_en"),
+    helpAr: text("help_ar"),
+    /** text | number | choice | boolean | date | phone */
+    fieldType: varchar("field_type", { length: 8 }).notNull().default("text"),
+    /** choice: [{ valueAr }] — kept as data so the partner writes the options. */
+    options: jsonb("options").notNull().default(sql`'[]'::jsonb`),
+    required: boolean("required").notNull().default(false),
+    sortOrder: integer("sort_order").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    createdAt: now(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("partner_intake_partner_idx").on(t.partnerId, t.active, t.sortOrder)],
+);
+
+/**
+ * Costs, so the money screen can stop lying by omission.
+ *
+ * Revenue is not profit, and a console that only counts money coming in
+ * teaches a partner nothing they did not already know. The moment it can also
+ * hold the generator diesel, the assistant's day rate and the Instagram
+ * boost, "did August actually make money" becomes answerable — and that is a
+ * question nobody in this market can currently answer about their own
+ * business.
+ *
+ * Deliberately not an accounting system. No double entry, no chart of
+ * accounts, no VAT. A row is a date, an amount, a category and optionally the
+ * job it belonged to. Anything more would be a product nobody fills in.
+ */
+export const partnerExpenses = pgTable(
+  "partner_expenses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id").notNull().references(() => users.id),
+    jobId: uuid("job_id").references(() => partnerJobs.id),
+    day: date("day", { mode: "string" }).notNull(),
+    labelAr: text("label_ar").notNull(),
+    /** staff|supplies|fuel|maintenance|marketing|rent|transport|fees|other */
+    category: varchar("category", { length: 12 }).notNull().default("other"),
+    amount: money("amount").notNull().default(0),
+    /** Recurring costs entered once — rent, a salary. Expanded on read. */
+    recurring: varchar("recurring", { length: 8 }), // null|monthly|weekly
+    recurringUntil: date("recurring_until", { mode: "string" }),
+    notesAr: text("notes_ar"),
+    createdById: uuid("created_by_id").references(() => users.id),
+    createdAt: now(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("partner_expenses_partner_idx").on(t.partnerId, t.day)],
+);
 
 /**
  * ───────────────── Partner sign-in: passwords and sessions ─────────────────

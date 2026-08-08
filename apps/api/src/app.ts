@@ -20,6 +20,7 @@ import { businessRoutes } from "./modules/business/routes.js";
 import { accountRoutes } from "./modules/accounts/routes.js";
 import { partnerRoutes } from "./modules/partner/routes.js";
 import { partnerAuthRoutes } from "./modules/partner/auth-routes.js";
+import { partnerCatalogueRoutes } from "./modules/partner/catalogue-routes.js";
 import { bizAuthRoutes } from "./modules/business/auth-routes.js";
 import { bizMessagingRoutes } from "./modules/business/messaging-routes.js";
 
@@ -169,6 +170,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(accountRoutes);
   await app.register(partnerRoutes);
   await app.register(partnerAuthRoutes);
+  await app.register(partnerCatalogueRoutes);
   await app.register(bizAuthRoutes);
   await app.register(bizMessagingRoutes);
 

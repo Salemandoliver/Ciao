@@ -336,10 +336,23 @@ async function handle(job: Job): Promise<void> {
     case "partner_housekeeping": {
       const quotes = await import("./modules/partner/quotes.js");
       const money = await import("./modules/partner/money.js");
+      const subs = await import("./modules/partner/subscription.js");
       const expired = await quotes.expireStaleQuotes();
       const charged = await money.chargeDuePlusPeriods();
-      if (expired || charged)
-        console.log(`partner housekeeping: ${expired} quotes expired, ${charged} subscriptions billed`);
+      /*
+       * Annual terms need the opposite of billing: a nudge before they lapse
+       * and an honest status after. Both run here rather than on their own
+       * schedule because they are cheap, daily, and belong in the same "what
+       * changed overnight for partners" pass — one job to reason about when a
+       * partner asks why they were or were not reminded.
+       */
+      const notices = await subs.sendRenewalNotices();
+      const lapsed = await subs.expireLapsedSubscriptions();
+      if (expired || charged || notices.sent || lapsed.expired)
+        console.log(
+          `partner housekeeping: ${expired} quotes expired, ${charged} subscriptions billed, ` +
+            `${notices.sent} renewal notices, ${lapsed.expired} terms lapsed`,
+        );
       await db.insert(schema.scheduledJobs).values({
         kind: "partner_housekeeping",
         refId: null,

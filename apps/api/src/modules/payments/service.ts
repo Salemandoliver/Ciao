@@ -8,6 +8,7 @@ import { db, schema } from "../../db/client.js";
 import { getProvider } from "./registry.js";
 import { onDepositCaptured } from "../bookings/service.js";
 import { transition } from "../bookings/machine.js";
+import { grantAnnualTerm } from "../partner/subscription.js";
 
 export async function ingestWebhook(
   providerName: string,
@@ -72,6 +73,23 @@ async function processEvent(
           .where(eq(schema.paymentIntents.id, intent.id));
         return;
       }
+      /*
+       * Route by purpose.
+       *
+       * Not every payment on these rails is a booking deposit since Ciao Plus
+       * started being sold by the year. Sharing the pipeline is deliberate —
+       * one journal, one replay guard, one place to look when money goes
+       * missing — but it means the completion handler has to ask what the
+       * money was for before it acts on it.
+       */
+      if (intent.purpose === "subscription") {
+        await db
+          .update(schema.paymentIntents)
+          .set({ status: "captured", updatedAt: new Date() })
+          .where(eq(schema.paymentIntents.id, intent.id));
+        await grantAnnualTerm(intent.id);
+        break;
+      }
       await onDepositCaptured(intent.id);
       break;
     }
@@ -84,6 +102,11 @@ async function processEvent(
           updatedAt: new Date(),
         })
         .where(eq(schema.paymentIntents.id, intent.id));
+      // A subscription attempt that fails leaves the partner exactly where
+      // they were — on the free plan, with their diary intact. There is no
+      // state machine to move and nothing to tell them that the checkout
+      // screen has not already said.
+      if (!intent.bookingId) break;
       await transition({
         bookingId: intent.bookingId,
         to: "payment_failed",
@@ -99,6 +122,10 @@ async function processEvent(
         .update(schema.paymentIntents)
         .set({ status: "refunded", updatedAt: new Date() })
         .where(eq(schema.paymentIntents.id, intent.id));
+      // Subscription refunds are handled by a human today: they are rare, they
+      // are a conversation, and inventing an automatic clawback of a year
+      // somebody has been using would be worse than the manual path.
+      if (!intent.bookingId) break;
       await db
         .update(schema.refunds)
         .set({ status: "completed", completedAt: new Date() })

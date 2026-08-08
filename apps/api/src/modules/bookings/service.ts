@@ -268,6 +268,12 @@ export async function onDepositCaptured(intentId: string): Promise<void> {
     .where(eq(schema.paymentIntents.id, intentId))
     .limit(1);
   if (!intent) return;
+  // Not every captured payment is a deposit any more — Ciao Plus is sold for a
+  // year through the same rails and the same webhook. Returning quietly is
+  // right rather than throwing: the payments service routes by purpose, and a
+  // stray call here means somebody wired a new money path to the wrong
+  // handler, which should be inert, not an error the customer sees.
+  if (!intent.bookingId) return;
 
   const [booking] = await db
     .select()
