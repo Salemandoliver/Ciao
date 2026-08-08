@@ -23,6 +23,18 @@ export async function bookingRoutes(app: FastifyInstance) {
         guestCount: z.number().int().positive().optional(),
         rail: z.enum(["sadad", "adfali", "local_card", "tlync", "mpgs"]),
         sadad: z.object({ mobile: z.string(), birthYear: z.string() }).optional(),
+        promoCode: z.string().max(24).optional(),
+        /* The partner's catalogue, layered on the stay. Quantities are a
+           request — the server clamps them to what the partner allowed. */
+        addons: z
+          .array(z.object({ addonId: z.string().uuid(), qty: z.number().int().min(0).max(99) }))
+          .max(30)
+          .optional(),
+        intake: z
+          .array(z.object({ questionId: z.string().uuid(), answer: z.string().max(500) }))
+          .max(30)
+          .optional(),
+        partnerPromoCode: z.string().max(24).optional(),
       })
       .refine((b) => b.checkOut > b.checkIn, { message: "checkOut must be after checkIn" })
       .parse(req.body);
@@ -318,6 +330,18 @@ export async function bookingRoutes(app: FastifyInstance) {
       .object({
         rail: z.enum(["sadad", "adfali", "local_card", "tlync", "mpgs"]),
         sadad: z.object({ mobile: z.string(), birthYear: z.string() }).optional(),
+        promoCode: z.string().max(24).optional(),
+        /* The partner's catalogue, layered on the stay. Quantities are a
+           request — the server clamps them to what the partner allowed. */
+        addons: z
+          .array(z.object({ addonId: z.string().uuid(), qty: z.number().int().min(0).max(99) }))
+          .max(30)
+          .optional(),
+        intake: z
+          .array(z.object({ questionId: z.string().uuid(), answer: z.string().max(500) }))
+          .max(30)
+          .optional(),
+        partnerPromoCode: z.string().max(24).optional(),
       })
       .parse(req.body);
     const [b] = await db

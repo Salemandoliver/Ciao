@@ -57,6 +57,47 @@ export interface PublicListing {
   bedrooms?: number | null;
   familyOnly: boolean;
   cancellationTier: "flexible" | "moderate" | "strict";
+  /**
+   * The host's own catalogue, present on the detail response only.
+   *
+   * Absent from search and map payloads on purpose: a results page carrying
+   * every add-on of every listing is a payload nobody asked for on a 3G
+   * connection, which is the connection this app is designed against (§12.3).
+   */
+  catalogue?: {
+    addons: {
+      id: string;
+      serviceId: string | null;
+      nameAr: string;
+      nameEn: string | null;
+      descriptionAr: string | null;
+      price: number;
+      priceModel: string;
+      maxQty: number;
+      required: boolean;
+    }[];
+    offers: {
+      id: string;
+      labelAr: string;
+      labelEn: string | null;
+      kind: string;
+      valueBps: number;
+      valueFlat: number;
+      code: string | null;
+      minSpend: number;
+      travelFromDay: string | null;
+      travelToDay: string | null;
+    }[];
+    questions?: {
+      id: string;
+      promptAr: string;
+      promptEn: string | null;
+      helpAr: string | null;
+      fieldType: string;
+      options: { valueAr: string }[];
+      required: boolean;
+    }[];
+  } | null;
   media: { url: string; kind: string; order: number }[];
   bookingTypes: string[];
   hostReliability?: number | null;

@@ -12,6 +12,7 @@ import { localPhone, normalizePhone } from "@ciao/shared";
 import { trackClient } from "@/lib/tracker";
 import { listingTitle } from "@/lib/content";
 import { PAYMENT_RAILS, term } from "@/lib/vocab";
+import { Extras, type ListingCatalogue } from "./extras";
 import type { Locale } from "@/lib/i18n";
 
 type Step = "dates" | "phone" | "otp" | "rail" | "sadad_otp" | "done";
@@ -119,7 +120,14 @@ const copy = {
   },
 } satisfies Record<Locale, unknown>;
 
-export function BookingWidget({ listing }: { listing: PublicListing }) {
+export function BookingWidget({
+  listing,
+  catalogue,
+}: {
+  listing: PublicListing;
+  /** The host's own extras, offers and questions. Absent on older listings. */
+  catalogue?: ListingCatalogue | null;
+}) {
   const router = useRouter();
   const locale = useLocale();
   const c = copy[locale];
@@ -139,6 +147,11 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
   const [bookingCode, setBookingCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /* The host's catalogue selections. Quantities are a request — the server
+     clamps them and adds anything the host marked required. */
+  const [addonQty, setAddonQty] = useState<Record<string, number>>({});
+  const [intake, setIntake] = useState<Record<string, string>>({});
+  const [guests, setGuests] = useState(2);
 
   useEffect(() => {
     if (!checkIn || !checkOut || checkOut <= checkIn) {
@@ -228,6 +241,13 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
           checkIn,
           checkOut,
           rail,
+          guestCount: guests,
+          addons: Object.entries(addonQty)
+            .filter(([, n]) => n > 0)
+            .map(([addonId, qty]) => ({ addonId, qty })),
+          intake: Object.entries(intake)
+            .filter(([, answer]) => answer.trim())
+            .map(([questionId, answer]) => ({ questionId, answer })),
           ...(rail === "sadad"
             ? { sadad: { mobile: localPhone(normalizePhone(phone)), birthYear: sadadBirthYear } }
             : {}),
@@ -328,6 +348,23 @@ export function BookingWidget({ listing }: { listing: PublicListing }) {
             />
           </label>
         </>
+      ) : null}
+
+      {/*
+        The host's catalogue sits between the dates and the price, because it
+        changes the price. Putting it after the total would mean the number a
+        guest reads first is the one they never pay.
+      */}
+      {step === "dates" && catalogue ? (
+        <Extras
+          catalogue={catalogue}
+          qty={addonQty}
+          onQty={(id, next) => setAddonQty((p) => ({ ...p, [id]: next }))}
+          answers={intake}
+          onAnswer={(id, value) => setIntake((p) => ({ ...p, [id]: value }))}
+          nights={quote?.nights.length ?? 1}
+          guests={guests}
+        />
       ) : null}
 
       {quote ? (

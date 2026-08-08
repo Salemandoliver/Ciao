@@ -558,7 +558,7 @@ export default async function ListingPage({
 
         {/* Booking widget */}
         <div className="lg:col-span-1">
-          <BookingWidget listing={l} />
+          <BookingWidget listing={l} catalogue={l.catalogue ?? null} />
         </div>
       </div>
     </main>

@@ -16,7 +16,7 @@
  */
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "../../db/client.js";
 import { CiaoError } from "../../lib/errors.js";
 import { partnerContext } from "./guards.js";
@@ -516,6 +516,25 @@ export async function partnerCatalogueRoutes(app: FastifyInstance) {
  * map, so a future field cannot leak by being forgotten.
  */
 export async function publicCatalogue(listingId: string) {
+  /*
+   * Resolve the partner from the listing's venue, not from the first published
+   * service.
+   *
+   * Deriving it from a service meant a host with extras and offers but no
+   * catalogue services published — which is every host who existed before the
+   * catalogue did — got an empty object, so their barbecue and their September
+   * offer were invisible on their own page. The listing always has a venue and
+   * the venue always has a host; that is the durable link.
+   */
+  const [owner] = await db
+    .select({ hostId: schema.venues.hostId })
+    .from(schema.listings)
+    .innerJoin(schema.venues, eq(schema.listings.venueId, schema.venues.id))
+    .where(eq(schema.listings.id, listingId))
+    .limit(1);
+  if (!owner?.hostId) return { services: [], addons: [], offers: [] };
+  const partnerId = owner.hostId;
+
   const services = await db
     .select({
       id: schema.partnerServices.id,
@@ -544,9 +563,6 @@ export async function publicCatalogue(listingId: string) {
       ),
     )
     .orderBy(schema.partnerServices.sortOrder);
-
-  if (services.length === 0) return { services: [], addons: [], offers: [] };
-  const partnerId = services[0]!.partnerId;
 
   const addons = await db
     .select({
@@ -596,9 +612,38 @@ export async function publicCatalogue(listingId: string) {
       ),
     );
 
+  /*
+   * The questions travel with the catalogue.
+   *
+   * Only the business-wide ones: a question attached to a catalogue service is
+   * asked when that service is bought, and a stay booked from a listing is not
+   * one of those. Asking a chalet guest what style of make-up she wants is how
+   * a thoughtful feature becomes a joke.
+   */
+  const questions = await db
+    .select({
+      id: schema.partnerIntakeQuestions.id,
+      promptAr: schema.partnerIntakeQuestions.promptAr,
+      promptEn: schema.partnerIntakeQuestions.promptEn,
+      helpAr: schema.partnerIntakeQuestions.helpAr,
+      fieldType: schema.partnerIntakeQuestions.fieldType,
+      options: schema.partnerIntakeQuestions.options,
+      required: schema.partnerIntakeQuestions.required,
+    })
+    .from(schema.partnerIntakeQuestions)
+    .where(
+      and(
+        eq(schema.partnerIntakeQuestions.partnerId, partnerId),
+        eq(schema.partnerIntakeQuestions.active, true),
+        sql`${schema.partnerIntakeQuestions.serviceId} is null`,
+      ),
+    )
+    .orderBy(schema.partnerIntakeQuestions.sortOrder);
+
   return {
     services: services.map(({ partnerId: _p, ...s }) => s),
-    addons,
+    addons: addons.filter((a) => !a.serviceId),
     offers,
+    questions,
   };
 }

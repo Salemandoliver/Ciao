@@ -23,6 +23,7 @@ import { getProvider, railIsHealthy } from "../payments/registry.js";
 import { notify } from "../messaging/service.js";
 import type { PaymentRail } from "@ciao/shared";
 import { track } from "../intelligence/events.js";
+import { priceExtras } from "./extras.js";
 
 // ------------------------------------------------------------------ request
 export interface CreateStayRequestInput {
@@ -36,6 +37,19 @@ export interface CreateStayRequestInput {
   concierge?: boolean;
   /** Optional promo code, validated and capped at our commission. */
   promoCode?: string;
+  /**
+   * The partner's own catalogue, layered on top of the stay.
+   *
+   * Extras are the half of a Libyan booking that is currently negotiated over
+   * WhatsApp and forgotten by the time anyone invoices: the barbecue, the
+   * extra mattress, late checkout. Their money, not ours — see the pricing
+   * block below for why the two discounts never get netted into one number.
+   */
+  addons?: { addonId: string; qty: number }[];
+  /** Answers to the partner's own intake questions, snapshotted onto the booking. */
+  intake?: { questionId: string; answer: string }[];
+  /** A code from the partner's own offers — distinct from `promoCode`. */
+  partnerPromoCode?: string;
 }
 
 export async function createStayRequest(input: CreateStayRequestInput) {
@@ -103,7 +117,32 @@ export async function createStayRequest(input: CreateStayRequestInput) {
       throw e instanceof CiaoError ? e : new CiaoError("VALIDATION", "promo_invalid");
     }
   }
-  const payableTotal = quote.total - discount;
+  /*
+   * ───────────── The partner's own extras, offers and questions ─────────────
+   *
+   * Two discounts exist on this booking and they must never be netted into
+   * one, because they come out of different pockets. Ciao's promo code is
+   * marketing spend and is capped at our commission (above); the partner's own
+   * offer is their revenue and reduces what they receive. Adding them together
+   * would produce a payout arithmetic that cannot be explained to the person
+   * it is being explained to.
+   *
+   * Everything here is priced server-side against the live catalogue. The
+   * client sends a selection, never a total.
+   */
+  const extras = await priceExtras({
+    hostId: venue.hostId,
+    listingId: listing.id,
+    addons: input.addons ?? [],
+    intake: input.intake ?? [],
+    partnerPromoCode: input.partnerPromoCode,
+    subtotal: quote.total,
+    day: input.checkIn,
+    guests: input.guestCount ?? 1,
+    nights: quote.nights.length,
+  });
+
+  const payableTotal = quote.total + extras.addonsTotal - discount - extras.discount;
   const payableDeposit = Math.max(0, quote.deposit - discount);
   const payableCommission = Math.max(0, quote.commission - discount);
 
@@ -129,11 +168,19 @@ export async function createStayRequest(input: CreateStayRequestInput) {
         guestCount: input.guestCount,
         totalAmount: payableTotal,
         depositAmount: payableDeposit,
-        balanceOnArrival: quote.balanceOnArrival,
+        // Extras and the partner's discount land on arrival, not on the
+        // deposit: the deposit is Ciao's hold on the date and is calculated
+        // from the stay, while the barbecue is settled with the host in cash
+        // the way everything else in this market is.
+        balanceOnArrival: quote.balanceOnArrival + extras.addonsTotal - extras.discount,
         commissionAmount: payableCommission,
         discountAmount: discount,
         promoCode: appliedPromo?.code ?? null,
         cancellationTier: listing.cancellationTier as CancellationTier,
+        addons: extras.lines,
+        intakeAnswers: extras.answers,
+        partnerPromotionId: extras.promotionId,
+        partnerDiscountAmount: extras.discount,
         concierge: input.concierge ?? false,
       })
       .returning();
@@ -145,6 +192,10 @@ export async function createStayRequest(input: CreateStayRequestInput) {
   if (appliedPromo) {
     const promos = await import("../accounts/promos.js");
     await promos.applyPromo(appliedPromo, input.guestId, booking.id);
+  }
+  if (extras.promotionId) {
+    const cat = await import("../partner/catalogue.js");
+    await cat.recordRedemption(extras.promotionId);
   }
 
   await transition({

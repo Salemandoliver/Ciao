@@ -422,3 +422,167 @@ describe("catalogue over HTTP", () => {
     expect(overHttp.json().deposit).toBe(direct.deposit);
   });
 });
+
+// ══════════════════ the catalogue reaching a real booking ═══════════════════
+/**
+ * The consumer side.
+ *
+ * A partner's extras and offers are worth nothing if they stop at the console,
+ * so these assert the money that actually lands on a booking: that a required
+ * extra is charged, that the partner's discount is recorded apart from ours,
+ * that a required question cannot be skipped, and — the one that would be a
+ * genuine theft — that add-ons never quietly inflate the deposit Ciao takes.
+ */
+describe("extras on a real booking", () => {
+  let listingId = "";
+  let hostId = "";
+  let guestToken = "";
+  let cleaningId = "";
+  let questionId = "";
+
+  beforeAll(async () => {
+    const [host] = await db
+      .insert(schema.users)
+      .values({ phone: `+2189493${run.slice(-5)}`, role: "host" })
+      .returning();
+    hostId = host!.id;
+
+    const [venue] = await db
+      .insert(schema.venues)
+      .values({
+        type: "coast",
+        nameAr: "شاليه الاختبار",
+        city: "tripoli",
+        area: "janzour",
+        hostId,
+        addressAr: "عنوان",
+      })
+      .returning();
+    const [listing] = await db
+      .insert(schema.listings)
+      .values({
+        venueId: venue!.id,
+        slug: `extras-villa-${run}`,
+        titleAr: "شاليه الإضافات",
+        baseNightly: 200_000,
+        status: "live",
+        cancellationTier: "moderate",
+        maxGuests: 8,
+      })
+      .returning();
+    listingId = listing!.id;
+
+    const [cleaning] = await db
+      .insert(schema.partnerAddons)
+      .values({ partnerId: hostId, nameAr: "تنظيف", price: 25_000, required: true })
+      .returning();
+    cleaningId = cleaning!.id;
+    await db
+      .insert(schema.partnerAddons)
+      .values({ partnerId: hostId, nameAr: "شوّاية", price: 30_000, priceModel: "flat", maxQty: 2 });
+    const [q] = await db
+      .insert(schema.partnerIntakeQuestions)
+      .values({ partnerId: hostId, promptAr: "كم عدد الأطفال؟", fieldType: "number", required: true })
+      .returning();
+    questionId = q!.id;
+    await db.insert(schema.partnerPromotions).values({
+      partnerId: hostId,
+      labelAr: "خصم المضيف",
+      kind: "percent",
+      valueBps: 1000,
+      publicOnListing: true,
+    });
+
+    const otp = await app.inject({
+      method: "POST",
+      url: "/v1/auth/otp/request",
+      payload: { phone: `0949${run.slice(-6)}` },
+    });
+    const ver = await app.inject({
+      method: "POST",
+      url: "/v1/auth/otp/verify",
+      payload: { phone: `0949${run.slice(-6)}`, code: otp.json().devCode },
+    });
+    guestToken = ver.json().accessToken;
+  });
+
+  const future = (days: number) =>
+    new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+
+  it("refuses a booking that skips a required question", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/bookings",
+      headers: { authorization: `Bearer ${guestToken}` },
+      payload: {
+        listingId,
+        checkIn: future(40),
+        checkOut: future(42),
+        guestCount: 4,
+        rail: "local_card",
+      },
+    });
+    // The partner said they cannot do the job without knowing. A booking taken
+    // anyway becomes the phone call the feature exists to prevent.
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("charges the required extra, applies the host's offer, and leaves our deposit alone", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/bookings",
+      headers: { authorization: `Bearer ${guestToken}` },
+      payload: {
+        listingId,
+        checkIn: future(50),
+        checkOut: future(52),
+        guestCount: 4,
+        rail: "local_card",
+        intake: [{ questionId, answer: "2" }],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const { bookingId } = res.json();
+
+    const [b] = await db.select().from(schema.bookings).where(eq(schema.bookings.id, bookingId));
+    const stay = 400_000; // 2 nights × 200,000, no multipliers on this listing
+
+    // Cleaning was never requested and is charged anyway, because the partner
+    // marked it required — omission must not shave a mandatory fee.
+    const lines = b!.addons as { addonId: string; total: number }[];
+    expect(lines.find((l) => l.addonId === cleaningId)?.total).toBe(25_000);
+
+    // The host's automatic 10% comes off their revenue and is recorded in its
+    // own column — never netted with Ciao's promo discount, which is ours.
+    expect(b!.partnerDiscountAmount).toBe(Math.round((stay + 25_000) * 0.1));
+    expect(b!.discountAmount).toBe(0);
+    expect(b!.totalAmount).toBe(stay + 25_000 - b!.partnerDiscountAmount);
+
+    /*
+     * The deposit is Ciao's hold on the date and is computed from the stay
+     * alone. If extras inflated it we would be taking money online for a
+     * barbecue the guest has not yet decided to light — and refunding it on
+     * cancellation out of our own pocket.
+     */
+    expect(b!.depositAmount).toBe(Math.round(stay * 0.2));
+    expect(b!.intakeAnswers).toHaveLength(1);
+  });
+
+  it("publishes only what the partner chose to advertise", async () => {
+    await db.insert(schema.partnerPromotions).values({
+      partnerId: hostId,
+      labelAr: "كود خاص",
+      code: `PRIV${run.slice(-4)}`,
+      kind: "percent",
+      valueBps: 2000,
+      publicOnListing: false,
+    });
+    const res = await app.inject({ method: "GET", url: `/v1/listings/extras-villa-${run}` });
+    expect(res.statusCode).toBe(200);
+    const offers = res.json().catalogue.offers as { labelAr: string }[];
+    expect(offers.map((o) => o.labelAr)).toContain("خصم المضيف");
+    // A code handed out personally must not be readable by anyone who opens
+    // the page — that is the entire reason the switch exists.
+    expect(offers.map((o) => o.labelAr)).not.toContain("كود خاص");
+  });
+});

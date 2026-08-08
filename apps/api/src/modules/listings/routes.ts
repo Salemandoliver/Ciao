@@ -10,6 +10,7 @@ import { track } from "../intelligence/events.js";
 import { verifyAccessToken } from "../../lib/auth.js";
 import { publicLocation } from "./location.js";
 import { normaliseNeighbours } from "./neighbours.js";
+import { publicCatalogue } from "../partner/catalogue-routes.js";
 import {
   parseBoundingBox,
   parsePolygon,
@@ -261,6 +262,17 @@ export async function listingRoutes(app: FastifyInstance) {
       )
       .limit(4);
 
+    /*
+     * The partner's own catalogue, where they have published one.
+     *
+     * Kept out of `publicListing` because that shape is shared with search and
+     * the map, and a search result carrying every add-on of every listing is a
+     * payload nobody asked for on a 3G connection. Here it is exactly what the
+     * page needs: what else can be bought alongside, and what the partner is
+     * currently offering.
+     */
+    const catalogue = await publicCatalogue(row.listing.id);
+
     const base = publicListing(row.listing, row.venue, null, reviews.length);
     // Guest aggregate replaces the Ciao rating once real (§8.8: ≥3 reviews).
     if (aggregate != null) {
@@ -270,6 +282,7 @@ export async function listingRoutes(app: FastifyInstance) {
     return reply.send({
       ...base,
       packages,
+      catalogue,
       reviews: reviews.map((r) => ({
         scores: r.scores,
         text: r.text,
