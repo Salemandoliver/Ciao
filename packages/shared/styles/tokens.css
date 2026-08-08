@@ -231,3 +231,30 @@ body {
 .dark .card {
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
 }
+
+/*
+ * An arrow that means "onward", in a product that runs in both directions.
+ *
+ * Onward is leftward in Arabic and rightward in English, and no Unicode arrow
+ * mirrors itself — `←` draws leftward wherever it lands. Tailwind's `rtl:`
+ * variant is no use either: it keys off `[dir="rtl"]` on any *ancestor*, so
+ * inside the English preview in Ciao Business — an `ltr` block nested in the
+ * console's own `rtl` page — it fired anyway and pointed the English reader
+ * backwards. That is the bug this class exists to fix, and it is a good
+ * advertisement for building the preview out of the real component.
+ *
+ * `:dir()` resolves against the element's own inherited direction rather than
+ * an ancestor selector, which is exactly the question being asked.
+ *
+ * The base glyph is the right-to-left one on purpose. Where `:dir()` is not
+ * supported the rule is dropped and every arrow stays leftward — correct for
+ * the Arabic pages that are almost all of Ciao's traffic, and wrong only on
+ * the English minority. Defaulting the other way would have put the failure on
+ * the majority.
+ */
+.arrow-onward {
+  display: inline-block;
+}
+.arrow-onward:dir(ltr) {
+  transform: rotate(180deg);
+}

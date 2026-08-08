@@ -200,3 +200,16 @@ export function heroKey(group: string, width: number, ext: string): string {
   const safe = group.toLowerCase().replace(/[^a-f0-9]/g, "").slice(0, 32);
   return `hero/${safe || "image"}-${width}.${ext}`;
 }
+
+/**
+ * The object key for the small picture beside a brand message.
+ *
+ * Keyed by content hash like a listing photograph rather than by a
+ * caller-supplied prefix like a hero: there is only ever one encoding of it —
+ * it renders at about 120px and is never the subject of the screen — so
+ * nothing needs two files to share a stem. The hash also means re-uploading
+ * the same crescent for next year's Eid costs no storage and no new URL.
+ */
+export function brandKey(hash: string, width: number, ext: string): string {
+  return `brand/${hash.slice(0, 16)}-${width}.${ext}`;
+}

@@ -34,6 +34,7 @@ import { LoyaltyTab } from "./loyalty";
 import { PromosTab } from "./promos";
 import { MessagingTab } from "./messaging";
 import { SecurityTab } from "./security";
+import { BrandMessageTab } from "./brand-message";
 
 const TAB_KEYS = [
   "overview",
@@ -44,6 +45,7 @@ const TAB_KEYS = [
   "people",
   "loyalty",
   "promos",
+  "brandMessage",
   "messaging",
   "settings",
   "audit",
@@ -61,6 +63,7 @@ const TAB_EMOJI: Record<TabKey, string> = {
   people: "👥",
   loyalty: "⭐",
   promos: "🎟",
+  brandMessage: "✨",
   messaging: "📨",
   settings: "⚙️",
   audit: "📜",
@@ -86,6 +89,11 @@ const TAB_CAPABILITY: Record<Exclude<TabKey, "security">, BizCapability> = {
   people: "people",
   loyalty: "marketing",
   promos: "marketing",
+  // Words on the home page. A wrong one is embarrassing until it is fixed
+  // and nothing else, so it sits with the other marketing screens rather
+  // than behind `govern` — which would only guarantee the greeting goes up
+  // late, the one way a greeting can actually fail.
+  brandMessage: "marketing",
   messaging: "settings",
   settings: "settings",
   audit: "audit",
@@ -102,7 +110,8 @@ const copy = {
       people: "المستخدمون",
       loyalty: "النقاط والشركاء",
       promos: "أكواد الخصم",
-      messaging: "الرسائل",
+      brandMessage: "رسالة الواجهة",
+      messaging: "رسائل واتساب",
       settings: "الإعدادات",
       audit: "سجل التدقيق",
       security: "الأمان",
@@ -123,7 +132,8 @@ const copy = {
       people: "Users",
       loyalty: "Points & partners",
       promos: "Promo codes",
-      messaging: "Messaging",
+      brandMessage: "Home message",
+      messaging: "WhatsApp messages",
       settings: "Settings",
       audit: "Audit log",
       security: "Security",
@@ -231,6 +241,7 @@ function BizConsole() {
             {activeTab === "people" ? <PeopleTab isAdmin={isAdmin} /> : null}
             {activeTab === "loyalty" ? <LoyaltyTab isAdmin={isAdmin} /> : null}
             {activeTab === "promos" ? <PromosTab isAdmin={isAdmin} /> : null}
+            {activeTab === "brandMessage" ? <BrandMessageTab /> : null}
             {activeTab === "messaging" ? <MessagingTab isAdmin={isAdmin} /> : null}
             {activeTab === "settings" ? <SettingsTab isAdmin={isAdmin} /> : null}
             {activeTab === "audit" ? <AuditTab /> : null}

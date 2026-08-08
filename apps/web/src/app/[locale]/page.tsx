@@ -6,11 +6,13 @@ import { HeroRotator, type HeroImage } from "@/components/hero-rotator";
 import { Greeting } from "@/components/greeting";
 import { RecsStrip } from "@/components/recs";
 import { PartnerInvite } from "@/components/partner-invite";
+import { BrandSlot } from "@/components/brand-slot";
 import { ServiceTiles } from "@/components/service-tiles";
 import { LanguageToggle } from "@/components/language-toggle";
 import { API_URL } from "@/lib/api";
 import { asLocale, type Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
+import type { RenderedBrandMessage } from "@ciao/shared";
 
 /** Fallback if the control plane is unreachable — the page must still render. */
 const FALLBACK_HERO: { intervalMs: number; images: HeroImage[] } = {
@@ -61,11 +63,6 @@ const copy = {
     coast: "شاليهات واستراحات",
     halls: "قاعات الأفراح",
     seeAll: "عرض الكل ←",
-    promiseOver: "لكل مناسبة، مكانها",
-    promiseHead: "المكان الجميل يخلّي الذكرى",
-    promiseHeadAccent: "أجمل",
-    promiseBody:
-      "من أول جلسة عائلية إلى ليلة العمر، نقرّبك من أماكن يحبها أهل ليبيا ويثقون فيها.",
     footerAbout: "من نحن وكيف نعتمد الأماكن",
     footerRewards: "نقاط المكافآت",
     footerPlace: "تشاو — ciao.ly · صُنع بحب في ليبيا",
@@ -97,11 +94,6 @@ const copy = {
     coast: "Chalets & estirahas",
     halls: "Wedding halls",
     seeAll: "See all →",
-    promiseOver: "Every occasion has its place",
-    promiseHead: "The right place makes the memory",
-    promiseHeadAccent: "better",
-    promiseBody:
-      "From a first family afternoon to the night of a lifetime, we put you within reach of the places Libyans love and trust.",
     footerAbout: "Who we are and how we verify places",
     footerRewards: "Reward points",
     footerPlace: "Ciao — ciao.ly · Made with Love in Libya",
@@ -125,6 +117,39 @@ async function getHero(): Promise<{ intervalMs: number; images: HeroImage[] }> {
   }
 }
 
+/**
+ * The brand band's words, resolved by the API for this language and audience.
+ *
+ * The home page passes no city and no vertical, and that is a statement rather
+ * than an omission: a static page served from a CDN does not know who is
+ * reading it, and guessing would put a Misrata offer in front of Tripoli. A
+ * targeted message therefore appears on the search pages that do know, and the
+ * composer says exactly that to whoever schedules one.
+ *
+ * Sixty seconds, matching the rest of the public control plane. A greeting
+ * scheduled to start today appears within a minute of the day turning, which
+ * is the resolution anybody actually schedules at — and the alternative is an
+ * uncacheable request on every home-page view over a 3G connection.
+ *
+ * On failure the band renders nothing rather than something stale: the
+ * standing copy already lives behind this endpoint, so a fetch that fails
+ * means the origin is down, and an app with no origin has worse things to say
+ * than a missing paragraph.
+ */
+type BrandPayload = RenderedBrandMessage & { id: string; standing: boolean };
+
+async function getBrandMessage(locale: Locale): Promise<BrandPayload | null> {
+  try {
+    const res = await fetch(`${API_URL}/v1/brand-message?locale=${locale}`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as BrandPayload;
+  } catch {
+    return null;
+  }
+}
+
 export const revalidate = 300; // listing content is CDN-cacheable (§12.3)
 
 async function getFeatured(type: "coast" | "hall"): Promise<PublicListing[]> {
@@ -142,10 +167,11 @@ async function getFeatured(type: "coast" | "hall"): Promise<PublicListing[]> {
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const locale = asLocale((await params).locale);
   const c = copy[locale];
-  const [coast, halls, hero] = await Promise.all([
+  const [coast, halls, hero, brand] = await Promise.all([
     getFeatured("coast"),
     getFeatured("hall"),
     getHero(),
+    getBrandMessage(locale),
   ]);
 
   return (
@@ -207,24 +233,23 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       </section>
 
       {/*
-        The promise, stated once.
-        It sits after the trust strip because the trust strip is the argument
-        and this is the conclusion — and before the inventory, because a reason
-        to care has to arrive before the thing to care about.
+        The promise, stated once — and now written in Ciao Business rather than
+        deployed. It sits after the trust strip because the trust strip is the
+        argument and this is the conclusion, and before the inventory, because a
+        reason to care has to arrive before the thing to care about.
+
+        The copy that used to be hardcoded here still exists: it is the standing
+        message the API falls back to when nothing is scheduled, so no content
+        calendar can leave the page with a hole in it.
       */}
-      <section className="mt-10 sm:flex sm:items-center sm:gap-8">
-        <div className="sm:flex-1">
-          <p className="text-link font-bold text-sm">{c.promiseOver}</p>
-          <h2 className="font-bold text-2xl sm:text-3xl leading-snug mt-1 text-sea">
-            {c.promiseHead} <span className="text-amber-dark">{c.promiseHeadAccent}</span>
-          </h2>
-        </div>
-        {/* A rule on the leading edge in both directions — `border-s`, never
-            `border-l`, or it lands on the wrong side of the English page. */}
-        <p className="text-muted text-sm mt-3 sm:mt-0 sm:max-w-xs sm:border-s sm:border-sea/15 sm:ps-6">
-          {c.promiseBody}
-        </p>
-      </section>
+      {brand ? (
+        <BrandSlot
+          message={brand}
+          messageId={brand.id}
+          standing={brand.standing}
+          surface="home"
+        />
+      ) : null}
 
       <RecsStrip />
 

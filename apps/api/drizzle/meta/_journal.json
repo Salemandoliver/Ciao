@@ -127,6 +127,13 @@
       "when": 1786216034533,
       "tag": "0017_partner_catalogue",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786221300971,
+      "tag": "0018_brand_messages",
+      "breakpoints": true
     }
   ]
 }

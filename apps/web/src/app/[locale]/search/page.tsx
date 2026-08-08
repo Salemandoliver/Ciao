@@ -3,6 +3,7 @@ import { Logo } from "@/components/logo";
 import { LanguageToggle } from "@/components/language-toggle";
 import { HeroSearch } from "@/components/hero-search";
 import { TrackEvent } from "@/components/track";
+import { BrandSlot } from "@/components/brand-slot";
 import { SearchResults } from "./results";
 // From `map-geo`, not `map-view`: this is a server component, and everything a
 // "use client" module exports crosses the boundary as a client reference —
@@ -13,6 +14,7 @@ import { serviceCategories } from "@/lib/services";
 import { VERTICALS, term } from "@/lib/vocab";
 import { asLocale, type Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
+import type { RenderedBrandMessage } from "@ciao/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,36 @@ const copy = {
     womenGuests: "👥 400+ women guests",
   },
 } satisfies Record<Locale, unknown>;
+
+/**
+ * The brand message for this search — the only page that can honour targeting.
+ *
+ * The home page is a static shell served from a CDN and knows nothing about
+ * who is reading it, so a message aimed at Tripoli or at wedding halls can
+ * never fire there. Here both facts are in the URL the guest typed, so a
+ * «عيد مبارك في طرابلس» campaign reaches the people it was written for.
+ *
+ * Uncached, because this page already is (`dynamic = "force-dynamic"`): the
+ * filters are the product and a stale result set is a worse failure than a
+ * fresh request. A miss renders nothing rather than something wrong.
+ */
+type BrandPayload = RenderedBrandMessage & { id: string; standing: boolean };
+
+async function getBrandMessage(
+  locale: Locale,
+  vertical: string,
+  city: string | undefined,
+): Promise<BrandPayload | null> {
+  const q = new URLSearchParams({ locale, vertical });
+  if (city) q.set("city", city);
+  try {
+    const res = await fetch(`${API_URL}/v1/brand-message?${q}`, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    return (await res.json()) as BrandPayload;
+  } catch {
+    return null;
+  }
+}
 
 /** Search with the cultural filters that ARE the product (§8.4). */
 export default async function SearchPage({
@@ -79,6 +111,7 @@ export default async function SearchPage({
   }
 
   const maps = await getMapsSettings();
+  const brand = await getBrandMessage(locale, type, sp.city);
 
   /*
    * The same filters, without the page's own limit, so that a drawn area
@@ -138,6 +171,23 @@ export default async function SearchPage({
           }}
         />
       </div>
+
+      {/*
+        Below the search bar rather than above it. Somebody who has already
+        typed a city and a date came here to see results, and a greeting that
+        pushes the first chalet below the fold is an advertisement wearing a
+        brand message's clothes. The standing copy is suppressed for the same
+        reason: on the home page it is the argument for the product, and on a
+        results page it is a paragraph between a guest and what they asked for.
+      */}
+      {brand && !brand.standing ? (
+        <BrandSlot
+          message={brand}
+          messageId={brand.id}
+          standing={brand.standing}
+          surface="search"
+        />
+      ) : null}
 
       {/* Cultural filters (§8.4): satar, generator, family-only, women's capacity */}
       <div className="flex flex-wrap gap-2 mb-4">

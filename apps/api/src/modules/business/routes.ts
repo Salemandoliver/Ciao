@@ -22,12 +22,20 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { and, count, desc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
-import { normalizePhone } from "@ciao/shared";
+import { libyaDay, normalizePhone } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
 import { normaliseNeighbours } from "../listings/neighbours.js";
 import { mediaBase } from "../media/storage.js";
 import { CiaoError } from "../../lib/errors.js";
 import { bizGuard } from "./guards.js";
+import {
+  BrandMessageInput,
+  createMessage,
+  listMessages,
+  resolveMessage,
+  retireMessage,
+  updateMessage,
+} from "./brand-messages.js";
 import type { BizCapability } from "@ciao/shared";
 import {
   SETTING_KEYS,
@@ -132,6 +140,86 @@ export async function businessRoutes(app: FastifyInstance) {
   app.get("/v1/settings/public", async (_req, reply) => {
     reply.header("cache-control", "public, max-age=60, stale-while-revalidate=600");
     return reply.send(await publicSettings());
+  });
+
+  /**
+   * What the brand band should say on this page, right now.
+   *
+   * Cached for a minute like the rest of the public control plane, and that
+   * minute is the honest resolution of the whole feature: a message scheduled
+   * to start today appears within a minute of the day turning, not the instant
+   * it does. Nobody schedules a greeting to the second, and pretending
+   * otherwise would mean an uncacheable request on every home-page view over a
+   * 3G connection — which is the trade this app refuses everywhere else.
+   *
+   * `city` and `vertical` are what the *page* knows, not what we have guessed
+   * about the reader. The home page knows neither and therefore only ever sees
+   * untargeted messages; a search for halls in Tripoli knows both. Vary on
+   * them so the shared cache cannot serve a Misrata answer to Tripoli.
+   */
+  app.get("/v1/brand-message", async (req, reply) => {
+    const q = z
+      .object({
+        locale: z.enum(["ar", "en"]).default("ar"),
+        city: z.string().max(40).optional(),
+        vertical: z.enum(["coast", "hall", "service"]).optional(),
+      })
+      .parse(req.query);
+    reply.header("cache-control", "public, max-age=60, stale-while-revalidate=600");
+    reply.header("vary", "accept-encoding");
+    return reply.send(
+      await resolveMessage(q.locale, { city: q.city ?? null, vertical: q.vertical ?? null }),
+    );
+  });
+
+  // ======================================================== the brand message
+  /*
+   * `marketing`, not `govern`.
+   *
+   * Promo-code creation is a `govern` act because it changes what a guest is
+   * charged, and a mistake there is money. This is words on a page: a wrong one
+   * is embarrassing for as long as it takes to fix, and nothing else. Putting
+   * «عيد مبارك» behind the capability that also controls payout destinations
+   * would guarantee the greeting goes up late, which is the only way a greeting
+   * can actually fail.
+   */
+  app.get("/v1/biz/brand-messages", async (req, reply) => {
+    await opsGuard(req, "marketing");
+    return reply.send({ items: await listMessages(), today: libyaDay() });
+  });
+
+  app.post("/v1/biz/brand-messages", async (req, reply) => {
+    const claims = await opsGuard(req, "marketing");
+    const body = BrandMessageInput.parse(req.body);
+    const row = await createMessage(body, claims.sub);
+    await audit(claims.sub, "brand_message.created", "brand_message", row.id, {
+      name: row.name,
+      startsOn: row.startsOn,
+      endsOn: row.endsOn,
+    });
+    return reply.code(201).send(row);
+  });
+
+  app.patch("/v1/biz/brand-messages/:id", async (req, reply) => {
+    const claims = await opsGuard(req, "marketing");
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const body = BrandMessageInput.parse(req.body);
+    const row = await updateMessage(id, body);
+    await audit(claims.sub, "brand_message.updated", "brand_message", row.id, {
+      name: row.name,
+      startsOn: row.startsOn,
+      endsOn: row.endsOn,
+      active: row.active,
+    });
+    return reply.send(row);
+  });
+
+  app.delete("/v1/biz/brand-messages/:id", async (req, reply) => {
+    const claims = await opsGuard(req, "marketing");
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const row = await retireMessage(id);
+    await audit(claims.sub, "brand_message.retired", "brand_message", row.id, { name: row.name });
+    return reply.send(row);
   });
 
   /**

@@ -46,6 +46,7 @@ import { bizGuard } from "../business/guards.js";
 import { track } from "../intelligence/events.js";
 import {
   StorageError,
+  brandKey,
   configured,
   heroKey,
   listingKey,
@@ -88,7 +89,7 @@ const UploadBody = z.object({
    * and are keyed by a caller-supplied group so that the two encodings of one
    * photograph share a prefix — see `heroKey`.
    */
-  kind: z.enum(["listing", "hero"]).default("listing"),
+  kind: z.enum(["listing", "hero", "brand"]).default("listing"),
   listingId: z.string().uuid().optional(),
   group: z.string().max(64).optional(),
   contentType: z.string().max(40),
@@ -174,6 +175,13 @@ export async function mediaRoutes(app: FastifyInstance) {
        * be able to do the first but not the second.
        */
       if (body.kind === "hero") await bizGuard(req, "govern");
+      /*
+       * A brand-message picture is marketing's to change, not the catalogue
+       * team's — it is the decoration on a greeting, and gating it behind the
+       * capability that governs the price of a room would mean whoever writes
+       * «عيد مبارك» cannot attach a crescent to it.
+       */
+      if (body.kind === "brand") await bizGuard(req, "marketing");
 
       let slug = "";
       if (body.kind === "listing") {
@@ -185,7 +193,8 @@ export async function mediaRoutes(app: FastifyInstance) {
           .limit(1);
         if (!listing) throw new CiaoError("VALIDATION", "listing_not_found");
         slug = listing.slug;
-      } else if (!body.group) {
+      } else if (body.kind === "hero" && !body.group) {
+        /* Only a hero needs a caller-supplied prefix; see `heroKey`. */
         throw new CiaoError("VALIDATION", "group_required");
       }
 
@@ -195,7 +204,9 @@ export async function mediaRoutes(app: FastifyInstance) {
       const key =
         body.kind === "hero"
           ? heroKey(body.group!, body.width, format.ext)
-          : listingKey(slug, hash, body.width, format.ext);
+          : body.kind === "brand"
+            ? brandKey(hash, body.width, format.ext)
+            : listingKey(slug, hash, body.width, format.ext);
 
       let url: string;
       try {

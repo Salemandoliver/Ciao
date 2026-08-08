@@ -179,6 +179,25 @@ export const EVENT_TAXONOMY: Record<string, string> = {
    */
   "media.uploaded": "listingId, width, bytes",
   "partner.invited": "partnerId, hadPassword",
+  /*
+   * The brand band — a pair that brackets a decision, so the interesting
+   * number is a ratio rather than a count.
+   *
+   * `brand.message_shown` on render and `brand.message_clicked` on the call to
+   * action is the only way to answer the question an operator will ask the
+   * week after scheduling her first campaign: did anybody act on it. A count
+   * of impressions on its own cannot distinguish a message nobody read from a
+   * message everybody read and ignored, and those two failures have opposite
+   * fixes — one is placement, the other is the words.
+   *
+   * `messageId` is ours, not anyone's: it identifies the campaign, never the
+   * reader. `standing` marks the shipped fallback so the baseline can be
+   * separated from the campaigns it is being compared against — a greeting
+   * that beats the standing copy is the whole point, and without the flag the
+   * two are one undifferentiated pile.
+   */
+  "brand.message_shown": "messageId, surface, standing",
+  "brand.message_clicked": "messageId, surface",
   // engagement (client + server)
   "rail.selected": "rail",
   "share.clicked": "listingId, channel",

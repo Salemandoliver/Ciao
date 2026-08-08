@@ -2238,3 +2238,83 @@ export const waitlist = pgTable(
     uniqueIndex("waitlist_person_uq").on(t.listingId, t.phone, t.checkIn),
   ],
 );
+
+/**
+ * The brand message on the marketplace — written and scheduled from Ciao
+ * Business rather than deployed.
+ *
+ * The band under the trust strip used to be three strings hardcoded in the
+ * homepage, which meant «عيد مبارك» cost a pull request, a build and a deploy,
+ * and taking it down again cost another three. That is the wrong shape for a
+ * sentence whose entire value is that it is timely: the deploy queue is not
+ * where a greeting should wait.
+ *
+ * Text, not an uploaded card. The founder's first instinct was a JPEG and it
+ * is worth writing down why we did not build that: Arabic baked into an image
+ * cannot be shown on the English page, cannot be read aloud by a screen
+ * reader, cannot be selected or searched, and is either blurry on a laptop or
+ * enormous over a Libyan 3G connection. So the words stay words and the design
+ * stays ours; `imageUrl` is a small picture *beside* the words — a crescent, a
+ * product shot — which carries the decoration without carrying the meaning.
+ */
+export const brandMessages = pgTable(
+  "brand_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /**
+     * What operations calls it. Never rendered — «عيد الفطر ٢٠٢٧» in a list of
+     * twelve scheduled messages is how you find the one you meant to edit.
+     */
+    name: text("name").notNull(),
+    /* The small amber line above the headline. */
+    overlineAr: text("overline_ar"),
+    overlineEn: text("overline_en"),
+    headlineAr: text("headline_ar").notNull(),
+    headlineEn: text("headline_en"),
+    /**
+     * The tail of the headline, set in gold.
+     *
+     * A separate column rather than markup inside the headline: the alternative
+     * is letting a marketer type HTML into a database column that a server
+     * component renders, which is a cross-site-scripting hole with a content
+     * calendar attached to it.
+     */
+    accentAr: text("accent_ar"),
+    accentEn: text("accent_en"),
+    bodyAr: text("body_ar"),
+    bodyEn: text("body_en"),
+    /** Decoration beside the words, never instead of them. */
+    imageUrl: text("image_url"),
+    imageAltAr: text("image_alt_ar"),
+    imageAltEn: text("image_alt_en"),
+    /** Optional destination — the difference between a greeting and a campaign. */
+    ctaLabelAr: text("cta_label_ar"),
+    ctaLabelEn: text("cta_label_en"),
+    ctaHref: text("cta_href"),
+    /**
+     * The window, as days in Libya's calendar rather than instants.
+     *
+     * Whoever schedules Eid thinks "the 12th to the 16th", not "21:00 UTC on
+     * the 11th". Both ends are inclusive and null means open — a message with
+     * neither is simply live until it is retired.
+     */
+    startsOn: date("starts_on", { mode: "string" }),
+    endsOn: date("ends_on", { mode: "string" }),
+    /** Null = every city / every kind of place. */
+    city: varchar("city", { length: 40 }),
+    vertical: varchar("vertical", { length: 8 }), // coast|hall|service
+    /**
+     * Higher wins when two messages are live for the same audience.
+     *
+     * Ties break toward the more specific audience and then the newer message,
+     * so the common case needs no thought: schedule Eid, it beats the standing
+     * copy, and it stops beating it on the 17th.
+     */
+    priority: integer("priority").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    createdById: uuid("created_by_id").references(() => users.id),
+    createdAt: now(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("brand_messages_live_idx").on(t.active, t.startsOn, t.endsOn)],
+);
