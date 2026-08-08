@@ -132,6 +132,7 @@ export async function createStayRequest(input: CreateStayRequestInput) {
    */
   const extras = await priceExtras({
     hostId: venue.hostId,
+    guestId: input.guestId,
     listingId: listing.id,
     addons: input.addons ?? [],
     intake: input.intake ?? [],
@@ -142,7 +143,20 @@ export async function createStayRequest(input: CreateStayRequestInput) {
     nights: quote.nights.length,
   });
 
-  const payableTotal = quote.total + extras.addonsTotal - discount - extras.discount;
+  /*
+   * The partner's discount is capped at what is actually settled with them.
+   *
+   * Their offer comes out of their revenue, and their revenue arrives on
+   * arrival — the deposit is Ciao's hold on the date and already carries our
+   * commission. Without this cap a "50 LYD off" offer on a 40 LYD stay wrote a
+   * total of 0, a deposit of 8, and a balance of −8: the guest was charged a
+   * deposit larger than the whole booking, and the host owed money for a night
+   * somebody stayed. `money` is an unconstrained bigint, so it persisted.
+   */
+  const settledOnArrival = quote.balanceOnArrival + extras.addonsTotal;
+  const partnerDiscount = Math.min(extras.discount, Math.max(0, settledOnArrival));
+
+  const payableTotal = quote.total + extras.addonsTotal - discount - partnerDiscount;
   const payableDeposit = Math.max(0, quote.deposit - discount);
   const payableCommission = Math.max(0, quote.commission - discount);
 
@@ -172,7 +186,7 @@ export async function createStayRequest(input: CreateStayRequestInput) {
         // deposit: the deposit is Ciao's hold on the date and is calculated
         // from the stay, while the barbecue is settled with the host in cash
         // the way everything else in this market is.
-        balanceOnArrival: quote.balanceOnArrival + extras.addonsTotal - extras.discount,
+        balanceOnArrival: settledOnArrival - partnerDiscount,
         commissionAmount: payableCommission,
         discountAmount: discount,
         promoCode: appliedPromo?.code ?? null,
@@ -180,7 +194,7 @@ export async function createStayRequest(input: CreateStayRequestInput) {
         addons: extras.lines,
         intakeAnswers: extras.answers,
         partnerPromotionId: extras.promotionId,
-        partnerDiscountAmount: extras.discount,
+        partnerDiscountAmount: partnerDiscount,
         concierge: input.concierge ?? false,
       })
       .returning();

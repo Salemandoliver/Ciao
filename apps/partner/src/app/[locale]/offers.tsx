@@ -27,6 +27,9 @@ import { ApiError, api, fmtLyd } from "@/lib/api";
 import { useLocale } from "@/lib/locale";
 import type { Locale } from "@/lib/i18n";
 import { Section, Pill } from "@/components/panel";
+/* Offer names are the partner's own words — declared, like everything else
+   they type, so an English reader's screen reader does not spell them out. */
+import { hostText, textProps } from "@/lib/content";
 import { PlusTeaser } from "./plus-teaser";
 import type { PartnerMe } from "./types";
 import type { Service } from "./catalogue";
@@ -35,6 +38,7 @@ interface Promotion {
   id: string;
   code: string | null;
   labelAr: string;
+  labelEn: string | null;
   kind: string;
   valueBps: number;
   valueFlat: number;
@@ -271,7 +275,7 @@ export function OffersTab({ me, onGoPlus }: { me: PartnerMe; onGoPlus?: () => vo
               <li key={p.id} className="rounded-2xl bg-sand p-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-bold text-sea text-sm truncate">
-                    {p.labelAr}{" "}
+                    <Authored locale={locale} ar={p.labelAr} en={p.labelEn} />{" "}
                     {!p.active ? <Pill tone="slate">{c.stopped}</Pill> : null}
                     {p.active && !p.code ? <Pill tone="green">{c.automatic}</Pill> : null}
                   </p>
@@ -362,6 +366,8 @@ export function OffersTab({ me, onGoPlus }: { me: PartnerMe; onGoPlus?: () => vo
                     <button
                       key={s.id}
                       type="button"
+                      lang="ar"
+                      dir="rtl"
                       onClick={() =>
                         setF({
                           ...f,
@@ -422,6 +428,21 @@ export function OffersTab({ me, onGoPlus }: { me: PartnerMe; onGoPlus?: () => vo
       />
     </>
   );
+}
+
+/** Partner-authored text, declared as the language it actually is. */
+function Authored({
+  locale,
+  ar,
+  en,
+}: {
+  locale: Locale;
+  ar: string | null | undefined;
+  en?: string | null;
+}) {
+  const t = hostText(locale, ar, en);
+  if (!t) return null;
+  return <span {...textProps(t)}>{t.text}</span>;
 }
 
 function Field({

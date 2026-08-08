@@ -304,7 +304,10 @@ export function CostsPanel({ me }: { me: PartnerMe }) {
             {expenses.slice(0, 30).map((e) => (
               <li key={e.id} className="rounded-2xl bg-sand p-3 flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-bold text-sea text-sm truncate">{e.labelAr}</p>
+                  {/* The partner's own words for what they spent money on. */}
+                  <p className="font-bold text-sea text-sm truncate" lang="ar" dir="rtl">
+                    {e.labelAr}
+                  </p>
                   <p className="text-[11px] text-muted tabular-nums" dir="ltr">
                     {e.day} · {c.categories[e.category as keyof typeof c.categories] ?? e.category}
                     {e.recurring ? ` · ${e.recurring === "weekly" ? c.recurringWeekly : c.recurringMonthly}` : ""}

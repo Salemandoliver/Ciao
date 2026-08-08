@@ -53,11 +53,19 @@ export function Money({ dirhams }: { dirhams: number }) {
 
 export function Section({
   title,
+  titleLang,
   action,
   hint,
   children,
 }: {
   title: string;
+  /**
+   * Set when the title is text somebody else wrote — a partner's service name,
+   * a business name. Undeclared Arabic inside an English page is read out
+   * letter by letter by a screen reader and ordered wrongly by the browser,
+   * which is what `tools/locale-audit.mjs` fails the build on.
+   */
+  titleLang?: "ar" | "en";
   action?: ReactNode;
   /** One line explaining what the panel is for, where that isn't obvious. */
   hint?: ReactNode;
@@ -66,7 +74,12 @@ export function Section({
   return (
     <section className="card p-4 mt-4">
       <div className="flex items-center justify-between gap-2 mb-1">
-        <h2 className="font-bold text-sea">{title}</h2>
+        <h2
+          className="font-bold text-sea"
+          {...(titleLang ? { lang: titleLang, dir: titleLang === "ar" ? "rtl" : "ltr" } : {})}
+        >
+          {title}
+        </h2>
         {action}
       </div>
       {hint ? <p className="text-[11px] text-faint mb-3">{hint}</p> : <div className="mb-2" />}

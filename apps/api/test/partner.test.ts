@@ -729,9 +729,18 @@ describe("Ciao Plus", () => {
   });
 
   it("suppresses a price benchmark computed from too few businesses", async () => {
-    // Below the floor, a "market median" is a competitor's price with a hat
-    // on — and a partner could read a rival's rate off our own dashboard.
-    await setSettings({ "partner.benchmarkMinPeers": 40 }, owner.id);
+    /*
+     * Below the floor, a "market median" is a competitor's price with a hat on
+     * — and a partner could read a rival's rate off our own dashboard.
+     *
+     * The floor is set absurdly high rather than to a plausible 40, because
+     * the shared dev database keeps growing: at 40 this passed for months and
+     * then started failing as soon as the area had forty real peers, which is
+     * a red that says nothing about the product. What is being asserted is
+     * "below the floor, suppress" — so the floor must be one no dataset
+     * reaches.
+     */
+    await setSettings({ "partner.benchmarkMinPeers": 100_000 }, owner.id);
     invalidateSettingsCache();
     const res = await app.inject({
       method: "GET",

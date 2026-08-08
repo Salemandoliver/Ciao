@@ -625,3 +625,262 @@ describe("the ops partner panel", () => {
     expect(serialized).not.toContain("nameAr");
   });
 });
+
+// ═══════════════ regressions from the adversarial money review ══════════════
+/**
+ * Five defects an adversarial pass found in the money paths. Each one is here
+ * because it produced a number that was wrong rather than a screen that looked
+ * wrong, and none of them would have surfaced as an error.
+ */
+describe("money invariants", () => {
+  let hostId = "";
+  let listingId = "";
+  let guestToken = "";
+  let guestId = "";
+  const suffix = run.slice(-5);
+
+  beforeAll(async () => {
+    const [host] = await db
+      .insert(schema.users)
+      .values({ phone: `+2189613${suffix}`, role: "host" })
+      .returning();
+    hostId = host!.id;
+    const [venue] = await db
+      .insert(schema.venues)
+      .values({ type: "coast", nameAr: "رخيص", city: "tripoli", area: "janzour", hostId, addressAr: "x" })
+      .returning();
+    // A cheap listing, so a flat offer can exceed what is settled on arrival.
+    const [listing] = await db
+      .insert(schema.listings)
+      .values({
+        venueId: venue!.id,
+        slug: `cheap-${run}`,
+        titleAr: "شاليه رخيص",
+        baseNightly: 20_000,
+        status: "live",
+        cancellationTier: "moderate",
+        maxGuests: 4,
+      })
+      .returning();
+    listingId = listing!.id;
+
+    const otp = await app.inject({
+      method: "POST",
+      url: "/v1/auth/otp/request",
+      payload: { phone: `0948${run.slice(-6)}` },
+    });
+    const ver = await app.inject({
+      method: "POST",
+      url: "/v1/auth/otp/verify",
+      payload: { phone: `0948${run.slice(-6)}`, code: otp.json().devCode },
+    });
+    guestToken = ver.json().accessToken;
+    const [g] = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.phone, `+218948${run.slice(-6)}`))
+      .limit(1);
+    guestId = g!.id;
+  });
+
+  const future = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
+
+  it("never lets a host's offer push the balance negative or the deposit above the total", async () => {
+    /*
+     * A 50-dinar flat offer against a 40-dinar stay. Before the cap this wrote
+     * total 0, deposit 8,000 and balance −8,000: the guest was charged a
+     * deposit larger than the entire booking, and the host owed money for a
+     * night somebody stayed in their chalet.
+     */
+    await db.insert(schema.partnerPromotions).values({
+      partnerId: hostId,
+      labelAr: "خصم كبير",
+      kind: "fixed",
+      valueFlat: 50_000,
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/bookings",
+      headers: { authorization: `Bearer ${guestToken}` },
+      payload: {
+        listingId,
+        checkIn: future(60),
+        checkOut: future(62),
+        guestCount: 2,
+        rail: "local_card",
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const [b] = await db
+      .select()
+      .from(schema.bookings)
+      .where(eq(schema.bookings.id, res.json().bookingId));
+
+    expect(b!.balanceOnArrival).toBeGreaterThanOrEqual(0);
+    expect(b!.totalAmount).toBeGreaterThanOrEqual(0);
+    expect(b!.depositAmount).toBeLessThanOrEqual(b!.totalAmount);
+    // The identity the whole ledger rests on.
+    expect(b!.depositAmount + b!.balanceOnArrival).toBe(b!.totalAmount);
+  });
+
+  it("charges a required extra even when the client sends it as zero", async () => {
+    const [svc] = await db
+      .insert(schema.partnerServices)
+      .values({ partnerId: hostId, nameAr: "خدمة", unit: "item", basePrice: 100_000 })
+      .returning();
+    const [must] = await db
+      .insert(schema.partnerAddons)
+      .values({ partnerId: hostId, nameAr: "رسوم", price: 10_000, required: true })
+      .returning();
+
+    const token = await signAccessToken(
+      { sub: hostId, role: "host", phone: `+2189613${suffix}` },
+      "partner",
+    );
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/partner/price",
+      headers: { authorization: `Bearer ${token}` },
+      // Zero is how a client removes an *optional* extra. Sending it for a
+      // required one used to keep the entry and skip the forcing branch, so
+      // the mandatory fee priced at nothing.
+      payload: { serviceId: svc!.id, units: 1, addons: [{ addonId: must!.id, qty: 0 }] },
+    });
+    expect(res.json().addonsTotal).toBe(10_000);
+    // Subtotal rather than total: this host also carries the flat offer from
+    // the test above, and what is being asserted here is that the mandatory
+    // fee was charged at all, not what the offer then did to it.
+    expect(res.json().subtotal).toBe(110_000);
+  });
+
+  it("honours a first-booking-only offer against the host's actual customer book", async () => {
+    /*
+     * `firstTimeOnly` was a dead letter on the booking path: the context never
+     * carried the guest, and an absent `isFirstTime` reads as "not
+     * disqualified" — so a first-booking discount was granted to every
+     * returning guest, forever.
+     */
+    const [other] = await db
+      .insert(schema.users)
+      .values({ phone: `+2189614${suffix}`, role: "host" })
+      .returning();
+    const [venue2] = await db
+      .insert(schema.venues)
+      .values({ type: "coast", nameAr: "ثاني", city: "tripoli", area: "janzour", hostId: other!.id, addressAr: "x" })
+      .returning();
+    const [l2] = await db
+      .insert(schema.listings)
+      .values({
+        venueId: venue2!.id,
+        slug: `repeat-${run}`,
+        titleAr: "شاليه المكرر",
+        baseNightly: 100_000,
+        status: "live",
+        cancellationTier: "moderate",
+        maxGuests: 4,
+      })
+      .returning();
+    await db.insert(schema.partnerPromotions).values({
+      partnerId: other!.id,
+      labelAr: "أول حجز فقط",
+      kind: "percent",
+      valueBps: 1000,
+      firstTimeOnly: true,
+    });
+    // A returning customer: already in this host's book with a job behind them.
+    await db.insert(schema.partnerClients).values({
+      partnerId: other!.id,
+      nameAr: "زبون قديم",
+      ciaoUserId: guestId,
+      jobsCount: 3,
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/bookings",
+      headers: { authorization: `Bearer ${guestToken}` },
+      payload: {
+        listingId: l2!.id,
+        checkIn: future(70),
+        checkOut: future(72),
+        guestCount: 2,
+        rail: "local_card",
+      },
+    });
+    const [b] = await db
+      .select()
+      .from(schema.bookings)
+      .where(eq(schema.bookings.id, res.json().bookingId));
+    expect(b!.partnerDiscountAmount).toBe(0);
+  });
+
+  it("grants a year once per payment, however many times the capture arrives", async () => {
+    const subs = await import("../src/modules/partner/subscription.js");
+    const [buyer] = await db
+      .insert(schema.users)
+      .values({ phone: `+2189611${suffix}`, role: "host" })
+      .returning();
+    const [intent] = await db
+      .insert(schema.paymentIntents)
+      .values({
+        bookingId: null,
+        subjectId: buyer!.id,
+        purpose: "subscription",
+        amount: 2_500_000,
+        rail: "local_card",
+        provider: "mock",
+        invoiceNo: `PLUS-TEST-${run}`,
+        status: "captured",
+      })
+      .returning();
+
+    await subs.grantAnnualTerm(intent!.id);
+    const first = await subs.getSubscription(buyer!.id);
+    // A re-delivered completion — a new provider event id, or a retry that also
+    // reaches the OTP-confirm path — must not buy a second year.
+    await subs.grantAnnualTerm(intent!.id);
+    const second = await subs.getSubscription(buyer!.id);
+
+    expect(first!.currentPeriodEnd!.toISOString()).toBe(second!.currentPeriodEnd!.toISOString());
+  });
+
+  it("extends a renewal from the existing end date, so paying early costs nothing", async () => {
+    const subs = await import("../src/modules/partner/subscription.js");
+    const [buyer] = await db
+      .insert(schema.users)
+      .values({ phone: `+2189612${suffix}`, role: "host" })
+      .returning();
+    const inTenDays = new Date(Date.now() + 10 * 86_400_000);
+    await db.insert(schema.partnerSubscriptions).values({
+      partnerId: buyer!.id,
+      plan: "plus",
+      status: "active",
+      term: "annual",
+      currentPeriodEnd: inTenDays,
+    });
+    const [intent] = await db
+      .insert(schema.paymentIntents)
+      .values({
+        bookingId: null,
+        subjectId: buyer!.id,
+        purpose: "subscription",
+        amount: 2_500_000,
+        rail: "local_card",
+        provider: "mock",
+        invoiceNo: `PLUS-RENEW-${run}`,
+        status: "captured",
+      })
+      .returning();
+
+    await subs.grantAnnualTerm(intent!.id);
+    const sub = await subs.getSubscription(buyer!.id);
+    const expected = new Date(inTenDays);
+    expected.setUTCFullYear(expected.getUTCFullYear() + 1);
+    // Renewing ten days early must add a year to the ten days, not replace
+    // them. Getting this backwards is a small theft a customer never forgets.
+    expect(sub!.currentPeriodEnd!.toISOString().slice(0, 10)).toBe(
+      expected.toISOString().slice(0, 10),
+    );
+  });
+});

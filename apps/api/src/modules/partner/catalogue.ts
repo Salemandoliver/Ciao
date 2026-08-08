@@ -496,10 +496,17 @@ export async function priceRequest(
   const byId = new Map(addonRows.map((a) => [a.id, a]));
   for (const r of required) {
     if (r.serviceId && r.serviceId !== service.id) continue;
-    if (!byId.has(r.id)) {
-      byId.set(r.id, r);
-      wanted.set(r.id, 1);
-    }
+    byId.set(r.id, r);
+    /*
+     * Force at least one, whatever arrived.
+     *
+     * Guarding on `!byId.has(id)` alone left a hole: sending the required
+     * add-on's id with `qty: 0` — which the route's schema allows, because 0
+     * is how a client removes an optional extra — kept the entry and skipped
+     * the forcing branch, so the mandatory fee priced at zero. Omitting the id
+     * was covered; sending it as zero was not.
+     */
+    wanted.set(r.id, Math.max(1, wanted.get(r.id) ?? 1));
   }
 
   const choices: PricedAddonChoice[] = [...byId.values()]

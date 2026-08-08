@@ -35,6 +35,16 @@ import { ApiError, api, fmtLyd } from "@/lib/api";
 import { useLocale } from "@/lib/locale";
 import type { Locale } from "@/lib/i18n";
 import { Section, Pill } from "@/components/panel";
+/*
+ * Partner-written text is Arabic-only by design and must say so.
+ *
+ * A service called «مكياج عروس» rendered inside an otherwise English page has
+ * to declare itself as Arabic or a screen reader spells it letter by letter in
+ * an English accent and the browser orders it wrongly. Same rule the listing
+ * titles follow on the marketplace — `tools/locale-audit.mjs` fails the build
+ * on any Arabic string that is not declared.
+ */
+import { hostText, textProps } from "@/lib/content";
 import { PlusTeaser } from "./plus-teaser";
 import type { PartnerMe } from "./types";
 
@@ -390,7 +400,7 @@ export function CatalogueTab({ me }: { me: PartnerMe }) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-bold text-sea truncate">
-                        {s.nameAr}{" "}
+                        <Authored locale={locale} ar={s.nameAr} en={s.nameEn} />{" "}
                         {s.published ? (
                           <Pill tone="green">{c.live}</Pill>
                         ) : (
@@ -553,6 +563,7 @@ function ServiceEditor({
   return (
     <Section
       title={service ? service.nameAr : c.addService}
+      titleLang={service ? "ar" : undefined}
       action={
         <button className="text-xs font-bold text-faint underline" onClick={onClose}>
           {c.cancel}
@@ -733,7 +744,9 @@ function PricePreview({ me, service }: { me: PartnerMe; service: Service }) {
         <div className="mt-3 space-y-1">
           {priced.lines.map((l, i) => (
             <div key={`${l.labelAr}-${i}`} className="flex justify-between text-xs">
-              <span className="text-muted">{l.labelAr}</span>
+              <span className="text-muted" lang="ar" dir="rtl">
+                {l.labelAr}
+              </span>
               <span className="tabular-nums text-sea">{money(l.amount, locale)}</span>
             </div>
           ))}
@@ -806,7 +819,8 @@ function AddonsPanel({ me, data, onChanged }: { me: PartnerMe; data: Catalogue; 
             <li key={a.id} className="rounded-2xl bg-sand p-3 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="font-bold text-sea text-sm truncate">
-                  {a.nameAr} {a.required ? <Pill tone="amber">{c.required}</Pill> : null}
+                  <Authored locale={locale} ar={a.nameAr} />{" "}
+                  {a.required ? <Pill tone="amber">{c.required}</Pill> : null}
                 </p>
                 <p className="text-[11px] text-muted">
                   {money(a.price, locale)} · {c.addonModels[a.priceModel as keyof typeof c.addonModels]}
@@ -844,7 +858,7 @@ function AddonsPanel({ me, data, onChanged }: { me: PartnerMe; data: Catalogue; 
             <select className="input !py-2 !text-sm" value={f.serviceId} onChange={(e) => setF({ ...f, serviceId: e.target.value })}>
               <option value="">{c.allServices}</option>
               {data.services.filter((s) => s.active).map((s) => (
-                <option key={s.id} value={s.id}>
+                <option key={s.id} value={s.id} lang="ar" dir="rtl">
                   {s.nameAr}
                 </option>
               ))}
@@ -933,7 +947,8 @@ function RulesPanel({ me, data, onChanged }: { me: PartnerMe; data: Catalogue; o
             <li key={r.id} className="rounded-2xl bg-sand p-3 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="font-bold text-sea text-sm truncate">
-                  {r.labelAr} <Pill tone="slate">{c.ruleKinds[r.kind as keyof typeof c.ruleKinds]}</Pill>
+                  <Authored locale={locale} ar={r.labelAr} />{" "}
+                  <Pill tone="slate">{c.ruleKinds[r.kind as keyof typeof c.ruleKinds]}</Pill>
                 </p>
                 <p className="text-[11px] text-muted tabular-nums" dir="ltr">
                   {(r.adjustBps / 100).toFixed(0)}%
@@ -1027,7 +1042,7 @@ function RulesPanel({ me, data, onChanged }: { me: PartnerMe; data: Catalogue; o
             <select className="input !py-2 !text-sm" value={f.serviceId} onChange={(e) => setF({ ...f, serviceId: e.target.value })}>
               <option value="">{c.allServices}</option>
               {data.services.filter((s) => s.active).map((s) => (
-                <option key={s.id} value={s.id}>
+                <option key={s.id} value={s.id} lang="ar" dir="rtl">
                   {s.nameAr}
                 </option>
               ))}
@@ -1095,7 +1110,8 @@ function IntakePanel({ me, data, onChanged }: { me: PartnerMe; data: Catalogue; 
             <li key={q.id} className="rounded-2xl bg-sand p-3 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="font-bold text-sea text-sm truncate">
-                  {q.promptAr} {q.required ? <Pill tone="amber">{c.requiredQ}</Pill> : null}
+                  <Authored locale={locale} ar={q.promptAr} />{" "}
+                  {q.required ? <Pill tone="amber">{c.requiredQ}</Pill> : null}
                 </p>
                 <p className="text-[11px] text-muted">
                   {c.fieldTypes[q.fieldType as keyof typeof c.fieldTypes]}
@@ -1127,7 +1143,7 @@ function IntakePanel({ me, data, onChanged }: { me: PartnerMe; data: Catalogue; 
             <select className="input !py-2 !text-sm" value={f.serviceId} onChange={(e) => setF({ ...f, serviceId: e.target.value })}>
               <option value="">{c.allServices}</option>
               {data.services.filter((s) => s.active).map((s) => (
-                <option key={s.id} value={s.id}>
+                <option key={s.id} value={s.id} lang="ar" dir="rtl">
                   {s.nameAr}
                 </option>
               ))}
@@ -1151,6 +1167,27 @@ function IntakePanel({ me, data, onChanged }: { me: PartnerMe; data: Catalogue; 
 }
 
 // ─────────────────────────────── small pieces ───────────────────────────────
+/**
+ * Partner-authored text, declared as whatever language it actually is.
+ *
+ * Most of what a partner types has no English twin and never will — they wrote
+ * it once, in Arabic, about their own business. Rendering it undeclared inside
+ * an English page is the defect `locale-audit` exists to catch.
+ */
+function Authored({
+  locale,
+  ar,
+  en,
+}: {
+  locale: Locale;
+  ar: string | null | undefined;
+  en?: string | null;
+}) {
+  const t = hostText(locale, ar, en);
+  if (!t) return null;
+  return <span {...textProps(t)}>{t.text}</span>;
+}
+
 function Field({
   label,
   hint,

@@ -47,7 +47,25 @@ export async function paymentRoutes(app: FastifyInstance) {
     if (!provider.confirmOtp) return reply.status(400).send({ ok: false });
     const status = await provider.confirmOtp(intent.providerRef, body.otp);
     if (status.status === "captured") {
-      await onDepositCaptured(intent.id);
+      /*
+       * Route by purpose, exactly as the webhook does.
+       *
+       * This path used to send everything to `onDepositCaptured`, which is
+       * deliberately inert for a non-booking intent — so a partner who bought
+       * a year of Plus over Sadad had their money taken, got a success screen,
+       * and received nothing. The two capture paths must agree on what a
+       * payment was for or one of them is silently wrong.
+       */
+      if (intent.purpose === "subscription") {
+        const subs = await import("../partner/subscription.js");
+        await db
+          .update(schema.paymentIntents)
+          .set({ status: "captured", updatedAt: new Date() })
+          .where(eq(schema.paymentIntents.id, intent.id));
+        await subs.grantAnnualTerm(intent.id);
+      } else {
+        await onDepositCaptured(intent.id);
+      }
       return reply.send({ ok: true, status: "captured" });
     }
     return reply.status(402).send({ ok: false, status: status.status });

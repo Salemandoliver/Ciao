@@ -31,6 +31,8 @@ import { collectIntakeAnswers } from "../partner/catalogue.js";
 export interface ExtrasInput {
   /** The venue's host — the partner whose catalogue this is. */
   hostId: string | null;
+  /** The guest, so a per-customer offer limit can actually be evaluated. */
+  guestId?: string | null;
   listingId: string;
   addons: { addonId: string; qty: number }[];
   intake: { questionId: string; answer: string }[];
@@ -133,6 +135,48 @@ export async function priceExtras(input: ExtrasInput): Promise<ExtrasResult> {
 
   // ── the partner's own offer ────────────────────────────────────────────
   const promo = await findOffer(partnerId, input.partnerPromoCode);
+  /*
+   * Resolve the guest against the partner's own customer book.
+   *
+   * Without this, `firstTimeOnly` and `maxPerClient` were dead letters on the
+   * booking path: `evaluatePromotion` treats an absent `isFirstTime` as "not
+   * disqualified", so a first-booking-only offer was granted to every returning
+   * guest, every time. The link is `ciaoUserId`, set when a partner's client is
+   * matched to a Ciao member; no row genuinely means first time.
+   */
+  const client =
+    promo && input.guestId
+      ? (
+          await db
+            .select({ id: schema.partnerClients.id, jobs: schema.partnerClients.jobsCount })
+            .from(schema.partnerClients)
+            .where(
+              and(
+                eq(schema.partnerClients.partnerId, partnerId),
+                eq(schema.partnerClients.ciaoUserId, input.guestId),
+              ),
+            )
+            .limit(1)
+        )[0]
+      : undefined;
+  const clientRedemptions =
+    promo && client
+      ? Number(
+          (
+            await db
+              .select({ n: sql<string>`count(*)` })
+              .from(schema.partnerJobs)
+              .where(
+                and(
+                  eq(schema.partnerJobs.partnerId, partnerId),
+                  eq(schema.partnerJobs.clientId, client.id),
+                  eq(schema.partnerJobs.promotionId, promo.id),
+                ),
+              )
+          )[0]?.n ?? 0,
+        )
+      : 0;
+
   let discount = 0;
   let promotionId: string | null = null;
   let promotionLabel: string | null = null;
@@ -163,6 +207,8 @@ export async function priceExtras(input: ExtrasInput): Promise<ExtrasResult> {
         subtotal: input.subtotal + addonsTotal,
         travelDay: input.day,
         today: new Date().toISOString().slice(0, 10),
+        clientRedemptions,
+        isFirstTime: (client?.jobs ?? 0) === 0,
         addons: choices,
       },
     );

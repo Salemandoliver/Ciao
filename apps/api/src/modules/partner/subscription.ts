@@ -261,6 +261,22 @@ export async function grantAnnualTerm(intentId: string): Promise<void> {
     .limit(1);
   if (!intent?.subjectId || intent.purpose !== "subscription") return;
 
+  /*
+   * Grant once per payment, whatever the rail does.
+   *
+   * The webhook journal stops a byte-identical replay, but it keys on the
+   * provider's event id — a re-delivery under a new id, or a retry that also
+   * reaches the OTP-confirm path, would arrive here twice. Since a renewal
+   * deliberately extends from `currentPeriodEnd` rather than from today, a
+   * second grant would silently hand out a second year for one payment.
+   *
+   * The subscription's own `paymentId` is the guard: it records which payment
+   * bought the current term, so seeing our own id there means this work is
+   * already done.
+   */
+  const existing = await getSubscription(intent.subjectId);
+  if (existing?.paymentId === intent.id) return;
+
   const partnerId = intent.subjectId;
   const current = await getSubscription(partnerId);
   const now = new Date();
