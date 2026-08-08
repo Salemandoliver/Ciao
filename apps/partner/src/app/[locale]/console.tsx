@@ -19,7 +19,7 @@
  *    and refusing, because a screen that exists to say no is a screen that
  *    invites someone to find the way around it.
  */
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Link, useLocale, useRouter } from "@/lib/locale";
 import { localePath, type Locale } from "@/lib/i18n";
@@ -37,21 +37,33 @@ import { MoneyTab } from "./money";
 import { InsightsTab } from "./insights";
 import { TeamTab } from "./team";
 import { SettingsTab } from "./settings";
+import { CatalogueTab } from "./catalogue";
+import { OffersTab } from "./offers";
+import { PlusTab } from "./plus";
 import type { PartnerMe } from "./types";
 
-const TAB_KEYS = [
-  "today",
-  "calendar",
-  "jobs",
-  "quotes",
-  "clients",
-  "money",
-  "insights",
-  "team",
-  "settings",
-  "security",
+/*
+ * Twelve tabs, in four groups.
+ *
+ * The console outgrew a flat list the moment it stopped being a diary: a
+ * partner now has their work, their customers, their price list and their
+ * business in here, and eleven undifferentiated chips is a menu nobody reads
+ * past the fourth item. Grouping costs no extra taps — every tab is still one
+ * press — and gives the eye somewhere to land.
+ *
+ * The order inside each group is by frequency, not by importance. Today is
+ * first because that is the screen someone opens standing up at seven in the
+ * morning; Security is last because the day you need it you will look for it.
+ */
+const TAB_GROUPS = [
+  { key: "work", tabs: ["today", "calendar", "jobs", "quotes"] },
+  { key: "customers", tabs: ["clients", "catalogue", "offers"] },
+  { key: "business", tabs: ["money", "insights", "plus"] },
+  { key: "account", tabs: ["team", "settings", "security"] },
 ] as const;
-type TabKey = (typeof TAB_KEYS)[number];
+
+const TAB_KEYS = TAB_GROUPS.flatMap((g) => g.tabs);
+type TabKey = (typeof TAB_GROUPS)[number]["tabs"][number];
 
 const TAB_EMOJI: Record<TabKey, string> = {
   today: "☀️",
@@ -59,8 +71,11 @@ const TAB_EMOJI: Record<TabKey, string> = {
   jobs: "📋",
   quotes: "🧾",
   clients: "👤",
+  catalogue: "🏷",
+  offers: "🎁",
   money: "💰",
   insights: "📈",
+  plus: "★",
   team: "👥",
   settings: "⚙️",
   security: "🔒",
@@ -73,8 +88,19 @@ const TAB_CAPABILITY: Record<TabKey, "diary" | "clients" | "money" | "settings" 
   jobs: "diary",
   quotes: "diary",
   clients: "clients",
+  /*
+   * The catalogue is `settings`, not `diary`: a price list is commercially
+   * sensitive in a way a Thursday booking is not, and a receptionist reading
+   * the corporate rate is how it reaches a competitor. Offers sit with it for
+   * the same reason — they are pricing decisions wearing a different hat.
+   */
+  catalogue: "settings",
+  offers: "settings",
   money: "money",
   insights: "money",
+  /* Buying a year commits the business's money — owner-level, like the payout
+     destination and the team. */
+  plus: "admin",
   team: "admin",
   settings: "settings",
   /*
@@ -96,8 +122,11 @@ const copy = {
       jobs: "الحجوزات",
       quotes: "العروض",
       clients: "الزبائن",
+      catalogue: "ما أقدّمه",
+      offers: "عروضي",
       money: "الفلوس",
       insights: "الأرقام",
+      plus: "بلس",
       team: "الفريق",
       settings: "الإعدادات",
       security: "الأمان",
@@ -121,8 +150,11 @@ const copy = {
       jobs: "Bookings",
       quotes: "Quotes",
       clients: "Clients",
+      catalogue: "What I offer",
+      offers: "My offers",
       money: "Money",
       insights: "Numbers",
+      plus: "Plus",
       team: "Team",
       settings: "Settings",
       security: "Security",
@@ -145,6 +177,7 @@ function PartnerConsole() {
   const router = useRouter();
   const params = useSearchParams();
   const [tab, setTab] = useState<TabKey>((params.get("tab") as TabKey) ?? "today");
+  const tabBar = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "denied" | "error">("loading");
   const [me, setMe] = useState<PartnerMe | null>(null);
   const [partnerId, setPartnerId] = useState<string | undefined>(
@@ -183,6 +216,20 @@ function PartnerConsole() {
     // silently dropped back onto the Arabic console.
     window.history.replaceState(null, "", localePath(`/${query}`, locale));
   }
+
+  /*
+   * Scroll the active chip into view.
+   *
+   * With twelve tabs the strip is wider than a phone, and landing on a tab
+   * whose chip is off-screen leaves a partner reading a page with no visible
+   * indication of where they are — which reads as the app having lost its
+   * place rather than theirs. Runs on tab change and on first paint, because
+   * the deep link from a teaser is exactly the case that lands off-screen.
+   */
+  useEffect(() => {
+    const el = tabBar.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    el?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [tab, state]);
 
   const can = (cap: string) => Boolean(me?.capabilities.includes(cap as never));
   const visibleTabs = TAB_KEYS.filter((k) => can(TAB_CAPABILITY[k]));
@@ -283,19 +330,36 @@ function PartnerConsole() {
         </div>
       ) : me ? (
         <>
-          <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
-            {visibleTabs.map((key) => (
-              <button
-                key={key}
-                onClick={() => go(key)}
-                className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
-                  activeTab === key ? "bg-sea text-white" : "bg-surface text-muted hover:bg-sand"
-                }`}
-              >
-                <span aria-hidden>{TAB_EMOJI[key]}</span>
-                {c.tabs[key]}
-              </button>
-            ))}
+          <div ref={tabBar} className="flex items-center gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
+            {TAB_GROUPS.map((group, gi) => {
+              const tabs = group.tabs.filter((k) => visibleTabs.includes(k));
+              if (tabs.length === 0) return null;
+              return (
+                <div key={group.key} className="flex items-center gap-1.5 shrink-0">
+                  {/* A hairline, not a heading: the groups are there to give the
+                      eye a rhythm, and naming them would cost a line of vertical
+                      space on the screen with the least of it. */}
+                  {gi > 0 ? (
+                    <span className="h-4 w-px bg-sea/15 mx-0.5 shrink-0" aria-hidden />
+                  ) : null}
+                  {tabs.map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => go(key)}
+                      aria-current={activeTab === key ? "page" : undefined}
+                      className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                        activeTab === key
+                          ? "bg-sea text-white"
+                          : "bg-surface text-muted hover:bg-sand"
+                      }`}
+                    >
+                      <span aria-hidden>{TAB_EMOJI[key]}</span>
+                      {c.tabs[key]}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-3">
@@ -304,6 +368,9 @@ function PartnerConsole() {
             {activeTab === "jobs" ? <JobsTab me={me} /> : null}
             {activeTab === "quotes" ? <QuotesTab me={me} /> : null}
             {activeTab === "clients" ? <ClientsTab me={me} /> : null}
+            {activeTab === "catalogue" ? <CatalogueTab me={me} /> : null}
+            {activeTab === "offers" ? <OffersTab me={me} onGoPlus={() => go("plus")} /> : null}
+            {activeTab === "plus" ? <PlusTab me={me} /> : null}
             {activeTab === "money" ? <MoneyTab me={me} /> : null}
             {activeTab === "insights" ? <InsightsTab me={me} onReload={load} /> : null}
             {activeTab === "team" ? <TeamTab me={me} /> : null}

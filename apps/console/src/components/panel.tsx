@@ -84,7 +84,15 @@ export function Bars({
   rows,
   format = (n: number) => String(n),
 }: {
-  rows: { label: string; value: number }[];
+  /**
+   * `value` is the magnitude the bar draws. `display` overrides the printed
+   * figure when the two genuinely differ — a monthly profit of −1,020 has no
+   * magnitude to draw, so the bar sits empty while the number beside it still
+   * reads −1,020. Without the split, clamping the bar to zero also printed
+   * "0", which turns a loss-making month into a break-even one on the one
+   * screen a partner would use to notice.
+   */
+  rows: { label: string; value: number; display?: string }[];
   format?: (n: number) => string;
 }) {
   const locale = useLocale();
@@ -103,7 +111,7 @@ export function Bars({
             />
           </span>
           <span className="w-24 text-end tabular-nums text-sea font-bold shrink-0">
-            {format(r.value)}
+            {r.display ?? format(r.value)}
           </span>
         </div>
       ))}

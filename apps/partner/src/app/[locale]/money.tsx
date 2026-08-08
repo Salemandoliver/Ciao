@@ -20,6 +20,7 @@ import { JOB_SOURCES, PAYMENT_RAILS, UI, fmtDate, term } from "@/lib/vocab";
 import type { Locale } from "@/lib/i18n";
 import { Bars, Pill, Section, Stat } from "@/components/panel";
 import type { MoneyView, PartnerMe } from "./types";
+import { CostsPanel } from "./costs";
 
 const copy = {
   ar: {
@@ -369,6 +370,13 @@ export function MoneyTab({ me }: { me: PartnerMe }) {
           </button>
         )}
       </Section>
+
+      {/*
+        Costs sit under the payout account rather than above it, because the
+        screen answers the questions in the order they get asked: what came in,
+        where it goes, and only then whether any of it was actually profit.
+      */}
+      <CostsPanel me={me} />
 
       {message ? <p className="card p-3 mt-3 text-sm font-bold text-sea">{message}</p> : null}
     </>
