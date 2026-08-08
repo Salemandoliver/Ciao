@@ -24,6 +24,14 @@ import type { Locale } from "@/lib/i18n";
 import { Bars, Section, Stat } from "@/components/panel";
 
 interface PartnerPanel {
+  catalogue: {
+    withServices: number;
+    withAddons: number;
+    withRules: number;
+    withOffers: number;
+    publishedServices: number;
+  };
+  terms: { annual: number; annualRevenue: number; renewingSoon: number };
   profiles: number;
   onboarded: number;
   agendaOn: number;
@@ -51,6 +59,19 @@ const copy = {
     cancelled: "ملغى",
     payoutAlert: "طلبات تغيير حساب معلّقة",
     payoutAlertHint: "كل طلب يمر بمهلة أمان — راقبها إن زادت فجأة.",
+    catalogueTitle: "تبنّي كتالوج الخدمات",
+    catalogueHint:
+      "عدد الدخول يقول إن الشريك فتح التطبيق. الكتالوج يقول إنه نقل قائمة أسعاره من الورق — وهذا هو التبنّي الحقيقي.",
+    withServices: "عندهم خدمات",
+    withAddons: "عندهم إضافات",
+    withRules: "عندهم قواعد سعر",
+    withOffers: "عندهم عروض",
+    published: "خدمة معروضة في تشاو",
+    annualTitle: "الاشتراك السنوي",
+    annualHint: "الرهان التجاري: هل يدفع الشريك سنة مقدمًا في اقتصاد نقدي؟ هذا الرقم يجاوب.",
+    annual: "اشتراك سنوي فعّال",
+    annualRevenue: "قيمتها",
+    renewingSoon: "يجدّد خلال شهر",
   },
   en: {
     title: "Partner panel",
@@ -69,6 +90,20 @@ const copy = {
     cancelled: "Cancelled",
     payoutAlert: "Pending payout-account changes",
     payoutAlertHint: "Each sits out a security hold — watch this if it jumps.",
+    catalogueTitle: "Catalogue adoption",
+    catalogueHint:
+      "Login counts say a partner opened the app. A catalogue says they moved their price list off paper — which is what adoption actually looks like.",
+    withServices: "Have services",
+    withAddons: "Have extras",
+    withRules: "Have pricing rules",
+    withOffers: "Have offers",
+    published: "Services listed on Ciao",
+    annualTitle: "The annual subscription",
+    annualHint:
+      "The commercial bet: will a partner pay for a year up front in a cash economy? This is the number that answers it.",
+    annual: "Active annual terms",
+    annualRevenue: "Worth",
+    renewingSoon: "Renewing within a month",
   },
 } satisfies Record<Locale, unknown>;
 
@@ -124,6 +159,36 @@ export function PartnerPanel() {
           { label: c.cancelled, value: data.subscriptions.cancelled },
         ]}
       />
+
+      {/*
+        Adoption, and the commercial bet.
+
+        Both sit inside the same panel rather than getting their own, because
+        they answer one question between them: is the control panel becoming
+        the thing partners run their business on, and will they pay for the
+        part of it that costs us money to produce.
+      */}
+      <p className="text-xs font-bold text-muted mt-5 mb-1">{c.catalogueTitle}</p>
+      <p className="text-[11px] text-faint mb-2 leading-snug">{c.catalogueHint}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <Stat label={c.withServices} value={String(data.catalogue?.withServices ?? 0)} />
+        <Stat label={c.withAddons} value={String(data.catalogue?.withAddons ?? 0)} />
+        <Stat label={c.withRules} value={String(data.catalogue?.withRules ?? 0)} />
+        <Stat label={c.withOffers} value={String(data.catalogue?.withOffers ?? 0)} />
+        <Stat label={c.published} value={String(data.catalogue?.publishedServices ?? 0)} />
+      </div>
+
+      <p className="text-xs font-bold text-muted mt-5 mb-1">{c.annualTitle}</p>
+      <p className="text-[11px] text-faint mb-2 leading-snug">{c.annualHint}</p>
+      <div className="grid grid-cols-3 gap-2">
+        <Stat label={c.annual} value={String(data.terms?.annual ?? 0)} />
+        <Stat label={c.annualRevenue} value={fmtLyd(data.terms?.annualRevenue ?? 0, locale)} />
+        <Stat
+          label={c.renewingSoon}
+          value={String(data.terms?.renewingSoon ?? 0)}
+          tone={(data.terms?.renewingSoon ?? 0) > 0 ? "warn" : "normal"}
+        />
+      </div>
     </Section>
   );
 }

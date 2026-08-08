@@ -996,7 +996,64 @@ export async function partnerRoutes(app: FastifyInstance) {
       .from(schema.partnerPayoutAccounts)
       .where(eq(schema.partnerPayoutAccounts.status, "pending"));
 
+    /*
+     * Catalogue adoption — the question the panel could not previously ask.
+     *
+     * Login counts say a partner opened the app. What says they have adopted it
+     * as a business system is whether they have written down what they sell:
+     * a catalogue with services, extras and a seasonal rule is a partner who
+     * has moved their price list off paper. One with none has not, however
+     * often they sign in.
+     *
+     * Counts of businesses, never of anybody's prices. What a partner charges
+     * is their business, and an ops screen is the wrong place for a
+     * competitor's rate card to accumulate.
+     */
+    const [catalogue] = await db
+      .select({
+        withServices: sql<string>`count(distinct partner_id) filter (where kind = 'service')`,
+        withAddons: sql<string>`count(distinct partner_id) filter (where kind = 'addon')`,
+        withRules: sql<string>`count(distinct partner_id) filter (where kind = 'rule')`,
+        withOffers: sql<string>`count(distinct partner_id) filter (where kind = 'offer')`,
+        published: sql<string>`count(*) filter (where kind = 'service' and live)`,
+      })
+      .from(
+        sql`(
+          select partner_id, 'service' as kind, published as live from partner_services where active
+          union all
+          select partner_id, 'addon', false from partner_addons where active
+          union all
+          select partner_id, 'rule', false from partner_price_rules where active
+          union all
+          select partner_id, 'offer', false from partner_promotions where active
+        ) as cat`,
+      );
+
+    /* Annual terms, separately from the netted ones: whether partners will pay
+       for a year up front in a cash economy is the commercial bet this product
+       makes, and a single "active" count cannot answer it. */
+    const [terms] = await db
+      .select({
+        annual: sql<string>`count(*) filter (where term = 'annual' and status = 'active')`,
+        annualRevenue: sql<string>`coalesce(sum(price_dirhams) filter (where term = 'annual' and status = 'active'), 0)`,
+        renewingSoon: sql<string>`count(*) filter (where term = 'annual' and status = 'active'
+          and current_period_end < now() + interval '30 days')`,
+      })
+      .from(schema.partnerSubscriptions);
+
     return reply.send({
+      catalogue: {
+        withServices: Number(catalogue?.withServices ?? 0),
+        withAddons: Number(catalogue?.withAddons ?? 0),
+        withRules: Number(catalogue?.withRules ?? 0),
+        withOffers: Number(catalogue?.withOffers ?? 0),
+        publishedServices: Number(catalogue?.published ?? 0),
+      },
+      terms: {
+        annual: Number(terms?.annual ?? 0),
+        annualRevenue: Number(terms?.annualRevenue ?? 0),
+        renewingSoon: Number(terms?.renewingSoon ?? 0),
+      },
       profiles: Number(totals?.profiles ?? 0),
       onboarded: Number(totals?.onboarded ?? 0),
       agendaOn: Number(totals?.agendaOn ?? 0),

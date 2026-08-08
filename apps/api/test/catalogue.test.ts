@@ -586,3 +586,42 @@ describe("extras on a real booking", () => {
     expect(offers.map((o) => o.labelAr)).not.toContain("كود خاص");
   });
 });
+
+// ═════════════════════════ what ops can see about it ════════════════════════
+describe("the ops partner panel", () => {
+  it("reports catalogue adoption and annual terms without exposing a price list", async () => {
+    /*
+     * A console-audience token. The /v1/biz routes refuse a marketplace
+     * session since the business console became a standalone product, and
+     * that refusal is a feature worth not routing around in a test.
+     */
+    const [ops] = await db
+      .insert(schema.users)
+      .values({ phone: `+2189494${run.slice(-5)}`, role: "admin" })
+      .returning();
+    const opsToken = await signAccessToken(
+      { sub: ops!.id, role: "admin", phone: ops!.phone },
+      "biz",
+    );
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/v1/biz/partner-panel",
+      headers: { authorization: `Bearer ${opsToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    // Adoption counts businesses, not prices.
+    expect(body.catalogue.withServices).toBeGreaterThanOrEqual(1);
+    expect(body.catalogue.withAddons).toBeGreaterThanOrEqual(1);
+    expect(body.terms).toHaveProperty("annual");
+    /*
+     * Nothing here may carry what anybody charges. An ops screen is the wrong
+     * place for a competitor's rate card to accumulate, and the counts are
+     * what the panel is for.
+     */
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toContain("basePrice");
+    expect(serialized).not.toContain("nameAr");
+  });
+});
