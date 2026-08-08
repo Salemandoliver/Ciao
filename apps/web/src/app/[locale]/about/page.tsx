@@ -61,7 +61,6 @@ const copy = {
       "تشاو منصّة حجز ليبية: نزور كل مكان بأنفسنا، نصوّره، ونعتمده قبل النشر. العربون يحمي الطرفين، وسجل الشكاوى معلن للجميع.",
 
     navBrowse: "تصفّح",
-    navHosts: "للمضيفين",
     navSignIn: "دخول",
 
     eyebrow: "من نحن",
@@ -192,7 +191,7 @@ const copy = {
     ctaHostBody: "نزورك، نصوّر مكانك مجانًا، ونجيب لك ضيوفًا دفعوا عربونًا — لا مكالمات بلا نتيجة.",
     ctaHostLink: "سجّل مكانك ←",
 
-    footerPlace: "تشاو — ciao.ly · طرابلس، ليبيا",
+    footerPlace: "تشاو — ciao.ly · صُنع بحب في ليبيا",
     footerPrices: "الأسعار كلها بالدينار الليبي. العربون فقط أونلاين والباقي عند الوصول.",
   },
   en: {
@@ -201,7 +200,6 @@ const copy = {
       "Ciao is a Libyan booking platform: we visit every place ourselves, photograph it, and approve it before it goes live. The deposit protects both sides, and the complaint record is public.",
 
     navBrowse: "Browse",
-    navHosts: "For hosts",
     navSignIn: "Sign in",
 
     eyebrow: "About us",
@@ -337,7 +335,7 @@ const copy = {
       "We come to you, photograph your place free of charge, and bring you guests who have already paid a deposit — no calls that go nowhere.",
     ctaHostLink: "List your place →",
 
-    footerPlace: "Ciao — ciao.ly · Tripoli, Libya",
+    footerPlace: "Ciao — ciao.ly · Made with Love in Libya",
     footerPrices:
       "All prices are in Libyan dinars. Only the deposit is paid online; the rest is paid on arrival.",
   },
@@ -413,7 +411,9 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
         </Link>
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/search?type=coast">{c.navBrowse}</Link>
-          <a href="#hosts">{c.navHosts}</a>
+          {/* "للمضيفين" removed here for the same reason as the home page:
+              partners have their own product, and the one place to put your
+              hand up is the panel on the home page. */}
           <Link href="/login">{c.navSignIn}</Link>
           <LanguageToggle />
         </nav>
@@ -422,14 +422,14 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
       {/* ── Opening: the problem, stated plainly ───────────────────────── */}
       <section className="card relative overflow-hidden text-white">
         <HeroRotator images={hero} intervalMs={7000} />
-        <div className="absolute inset-0 photo-scrim-strong" aria-hidden />
+        <div className="absolute inset-0 photo-scrim-top-strong" aria-hidden />
         <div className="relative p-6 sm:p-10" data-on-photo>
-          <p className="text-amber font-bold text-sm mb-2">{c.eyebrow}</p>
-          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight drop-shadow">
+          <p className="brand-on-photo font-bold text-sm mb-2 type-on-photo">{c.eyebrow}</p>
+          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
             {c.heroTitle}
           </h1>
-          <p className="mt-4 text-white/95 leading-relaxed max-w-2xl drop-shadow">{c.heroBody1}</p>
-          <p className="mt-3 text-white/95 leading-relaxed max-w-2xl drop-shadow">{c.heroBody2}</p>
+          <p className="mt-4 text-white leading-relaxed max-w-2xl type-on-photo">{c.heroBody1}</p>
+          <p className="mt-3 text-white leading-relaxed max-w-2xl type-on-photo">{c.heroBody2}</p>
         </div>
       </section>
 
@@ -530,19 +530,20 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
           <span className="inline-block mt-3 text-link font-bold text-sm">{c.ctaGuestLink}</span>
         </Link>
         {/*
-          A route into `/hosts`, which is a marketing page — not a door into
-          anyone's console. The partner control panel is a separate product on
-          its own domain with its own sign-in, and the marketplace still
-          deliberately does not link into it: a guest browsing chalets has no
-          business one tap away from somebody's diary. Businesses are onboarded
-          by a field visit and receive that address with their sign-in link.
-
-          This card used to be a span styled to look like a link, because there
-          was nowhere for it to go. A label reading «سجّل مكانك ←» that does not
-          respond to a tap is worse than no label — it reads as a site that is
-          broken rather than one that is deliberate.
+          Information for businesses, not a door into their console. The
+          partner control panel is a separate product on its own domain with
+          its own sign-in, and the marketplace deliberately does not link into
+          it — a guest browsing chalets has no business one tap away from
+          somebody's diary. Businesses are onboarded by a field visit and
+          receive the address with their sign-in link.
         */}
-        <Link href="/hosts" id="hosts" className="card p-5 block hover:shadow-md transition">
+        {/*
+          This used to end in a `<span>` styled like a link, so the one thing
+          the card asks you to do did nothing at all. There is now a form to
+          send people to, on the home page, and it is the only one — a second
+          "register your place" flow is how two half-worked lead lists happen.
+        */}
+        <Link id="hosts" href="/#list-your-place" className="card p-5 block hover:shadow-md">
           <h3 className="font-bold text-sea">{c.ctaHostTitle}</h3>
           <p className="text-sm text-muted mt-1">{c.ctaHostBody}</p>
           <span className="inline-block mt-3 text-link font-bold text-sm">{c.ctaHostLink}</span>

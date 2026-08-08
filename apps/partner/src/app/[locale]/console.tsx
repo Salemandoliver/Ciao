@@ -33,6 +33,7 @@ import { CalendarTab } from "./calendar";
 import { JobsTab } from "./jobs";
 import { QuotesTab } from "./quotes";
 import { ClientsTab } from "./clients";
+import { FacebookTab } from "./facebook";
 import { MoneyTab } from "./money";
 import { InsightsTab } from "./insights";
 import { TeamTab } from "./team";
@@ -43,7 +44,7 @@ import { PlusTab } from "./plus";
 import type { PartnerMe } from "./types";
 
 /*
- * Twelve tabs, in four groups.
+ * Thirteen tabs, in four groups.
  *
  * The console outgrew a flat list the moment it stopped being a diary: a
  * partner now has their work, their customers, their price list and their
@@ -57,7 +58,7 @@ import type { PartnerMe } from "./types";
  */
 const TAB_GROUPS = [
   { key: "work", tabs: ["today", "calendar", "jobs", "quotes"] },
-  { key: "customers", tabs: ["clients", "catalogue", "offers"] },
+  { key: "customers", tabs: ["clients", "catalogue", "offers", "facebook"] },
   { key: "business", tabs: ["money", "insights", "plus"] },
   { key: "account", tabs: ["team", "settings", "security"] },
 ] as const;
@@ -73,6 +74,7 @@ const TAB_EMOJI: Record<TabKey, string> = {
   clients: "👤",
   catalogue: "🏷",
   offers: "🎁",
+  facebook: "📣",
   money: "💰",
   insights: "📈",
   plus: "★",
@@ -96,6 +98,15 @@ const TAB_CAPABILITY: Record<TabKey, "diary" | "clients" | "money" | "settings" 
    */
   catalogue: "settings",
   offers: "settings",
+  /*
+   * The Facebook kit is `diary`, not `money`. The person who posts to the page
+   * at a Libyan resort is very often the receptionist rather than the owner,
+   * and the link is public the moment it is pinned — gating it behind the money
+   * screens would stop the right person doing the one thing we most want done.
+   * Deciding what a discount costs is a different question, and the offer form
+   * inside the tab asks for `money` on its own.
+   */
+  facebook: "diary",
   money: "money",
   insights: "money",
   /* Buying a year commits the business's money — owner-level, like the payout
@@ -124,6 +135,7 @@ const copy = {
       clients: "الزبائن",
       catalogue: "ما أقدّمه",
       offers: "عروضي",
+      facebook: "فيسبوك",
       money: "الفلوس",
       insights: "الأرقام",
       plus: "بلس",
@@ -152,6 +164,7 @@ const copy = {
       clients: "Clients",
       catalogue: "What I offer",
       offers: "My offers",
+      facebook: "Facebook",
       money: "Money",
       insights: "Numbers",
       plus: "Plus",
@@ -371,6 +384,7 @@ function PartnerConsole() {
             {activeTab === "catalogue" ? <CatalogueTab me={me} /> : null}
             {activeTab === "offers" ? <OffersTab me={me} onGoPlus={() => go("plus")} /> : null}
             {activeTab === "plus" ? <PlusTab me={me} /> : null}
+            {activeTab === "facebook" ? <FacebookTab me={me} /> : null}
             {activeTab === "money" ? <MoneyTab me={me} /> : null}
             {activeTab === "insights" ? <InsightsTab me={me} onReload={load} /> : null}
             {activeTab === "team" ? <TeamTab me={me} /> : null}

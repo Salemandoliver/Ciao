@@ -23,6 +23,11 @@ import { partnerAuthRoutes } from "./modules/partner/auth-routes.js";
 import { partnerCatalogueRoutes } from "./modules/partner/catalogue-routes.js";
 import { bizAuthRoutes } from "./modules/business/auth-routes.js";
 import { bizMessagingRoutes } from "./modules/business/messaging-routes.js";
+import { partnerLeadRoutes } from "./modules/business/leads-routes.js";
+import { venueRoutes } from "./modules/listings/venue-routes.js";
+import { waitlistRoutes } from "./modules/listings/waitlist-routes.js";
+import { mediaRoutes } from "./modules/media/routes.js";
+import { flashOfferRoutes } from "./modules/partner/offer-routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -173,6 +178,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(partnerCatalogueRoutes);
   await app.register(bizAuthRoutes);
   await app.register(bizMessagingRoutes);
+  await app.register(partnerLeadRoutes);
+  await app.register(venueRoutes);
+  await app.register(waitlistRoutes);
+  await app.register(flashOfferRoutes);
+  await app.register(mediaRoutes);
 
   return app;
 }

@@ -11,8 +11,15 @@ import type { PublicListing, Quote } from "@/lib/types";
 import { localPhone, normalizePhone } from "@ciao/shared";
 import { trackClient } from "@/lib/tracker";
 import { listingTitle } from "@/lib/content";
-import { PAYMENT_RAILS, term } from "@/lib/vocab";
+import { BOARD, PAYMENT_RAILS, term } from "@/lib/vocab";
 import { Extras, type ListingCatalogue } from "./extras";
+import {
+  DEFAULT_PARTY,
+  PartyPicker,
+  RequirementsGate,
+  unmetRequirements,
+  type PartyValue,
+} from "./party";
 import type { Locale } from "@/lib/i18n";
 
 type Step = "dates" | "phone" | "otp" | "rail" | "sadad_otp" | "done";
@@ -53,6 +60,15 @@ const copy = {
     checkOut: "المغادرة",
     nights: (n: number, price: string) => `${n} ليالٍ × ${price}`,
     depositNow: "العربون الآن (٢٠٪)",
+    guestSupplement: "ضيوف إضافيون",
+    beds: "أسرّة إضافية",
+    depositCapped: "العربون عندنا له سقف — الباقي كله عند الوصول.",
+    childDiscount: (free: number, half: number) =>
+      [free ? `${free} مجانًا` : "", half ? `${half} بنص السعر` : ""]
+        .filter(Boolean)
+        .join(" · ") + " — خصم الأطفال محسوب",
+    minNights: (n: number) => `هذا التاريخ أقل حجز فيه ${n} ليالٍ`,
+    mustAccept: "وافق على شروط الدخول قبل الحجز",
     balance: "الباقي نقدًا عند الوصول",
     refundNote:
       "إذا رفض المضيف أو انتهت مهلة التأكيد، يرجع عربونك كاملًا فورًا كرصيد (+5٪ هدية) أو تحويلًا بنكيًا.",
@@ -99,6 +115,15 @@ const copy = {
     checkOut: "Check-out",
     nights: (n: number, price: string) => `${n} nights × ${price}`,
     depositNow: "Deposit now (20%)",
+    guestSupplement: "Extra guests",
+    beds: "Extra beds",
+    depositCapped: "We cap the deposit — the rest is all paid on arrival.",
+    childDiscount: (free: number, half: number) =>
+      [free ? `${free} free` : "", half ? `${half} at half price` : ""]
+        .filter(Boolean)
+        .join(" · ") + " — children's discount applied",
+    minNights: (n: number) => `These dates have a ${n}-night minimum`,
+    mustAccept: "Agree to the conditions of entry before booking",
     balance: "Rest in cash on arrival",
     refundNote:
       "If the host declines or the confirmation window runs out, your deposit comes back in full straight away — as credit (+5% on top) or a bank transfer.",
@@ -147,23 +172,54 @@ export function BookingWidget({
   const [bookingCode, setBookingCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [party, setParty] = useState<PartyValue>(DEFAULT_PARTY);
   /* The host's catalogue selections. Quantities are a request — the server
      clamps them and adds anything the host marked required. */
   const [addonQty, setAddonQty] = useState<Record<string, number>>({});
   const [intake, setIntake] = useState<Record<string, string>>({});
-  const [guests, setGuests] = useState(2);
+  const [accepted, setAccepted] = useState<string[]>([]);
+  /**
+   * Where this visitor came from, read once from the URL.
+   *
+   * A guest arriving from a venue's Facebook post carries `?src=fb` from the
+   * storefront through to here, and it rides onto the booking — which is how a
+   * partner finally gets a number for what their page is worth. Read from
+   * `window` rather than threaded through props because the storefront, the
+   * search page and a forwarded WhatsApp link all reach this component by
+   * different routes and every one of them should attribute.
+   */
+  const [source] = useState(() => {
+    if (typeof window === "undefined") return undefined;
+    const s = new URLSearchParams(window.location.search).get("src");
+    return s && ["fb", "wa", "ig", "qr", "tt", "direct"].includes(s) ? s : undefined;
+  });
+  const [promo] = useState(() => {
+    if (typeof window === "undefined") return undefined;
+    return new URLSearchParams(window.location.search).get("promo") ?? undefined;
+  });
+
+  const missing = unmetRequirements(listing, accepted);
+  const heads = party.adults + party.childAges.length;
+  const overCapacity = Boolean(listing.maxGuests && heads > listing.maxGuests);
 
   useEffect(() => {
     if (!checkIn || !checkOut || checkOut <= checkIn) {
       setQuote(null);
       return;
     }
-    api<Quote>(
-      `/v1/listings/${listing.id}/quote?checkIn=${checkIn}&checkOut=${checkOut}`,
-    )
+    /*
+     * The party rides in the quote request, so the total on screen is the
+     * total the server will charge. Anything else and the family watches one
+     * number at checkout and pays another at the gate, which is the precise
+     * complaint this marketplace was built to answer.
+     */
+    const qs = new URLSearchParams({ checkIn, checkOut, adults: String(party.adults) });
+    if (party.childAges.length) qs.set("childAges", party.childAges.join(","));
+    if (party.extraBeds) qs.set("extraBeds", String(party.extraBeds));
+    api<Quote>(`/v1/listings/${listing.id}/quote?${qs}`)
       .then(setQuote)
       .catch(() => setQuote(null));
-  }, [checkIn, checkOut, listing.id]);
+  }, [checkIn, checkOut, listing.id, party]);
 
   async function startBooking() {
     setError("");
@@ -240,14 +296,19 @@ export function BookingWidget({
           listingId: listing.id,
           checkIn,
           checkOut,
-          rail,
-          guestCount: guests,
+          adults: party.adults,
+          childAges: party.childAges,
+          extraBeds: party.extraBeds,
+          acceptedRequirements: accepted,
           addons: Object.entries(addonQty)
             .filter(([, n]) => n > 0)
             .map(([addonId, qty]) => ({ addonId, qty })),
           intake: Object.entries(intake)
             .filter(([, answer]) => answer.trim())
             .map(([questionId, answer]) => ({ questionId, answer })),
+          ...(source ? { source } : {}),
+          ...(promo ? { promoCode: promo } : {}),
+          rail,
           ...(rail === "sadad"
             ? { sadad: { mobile: localPhone(normalizePhone(phone)), birthYear: sadadBirthYear } }
             : {}),
@@ -350,21 +411,30 @@ export function BookingWidget({
         </>
       ) : null}
 
-      {/*
-        The host's catalogue sits between the dates and the price, because it
-        changes the price. Putting it after the total would mean the number a
-        guest reads first is the one they never pay.
-      */}
-      {step === "dates" && catalogue ? (
-        <Extras
-          catalogue={catalogue}
-          qty={addonQty}
-          onQty={(id, next) => setAddonQty((p) => ({ ...p, [id]: next }))}
-          answers={intake}
-          onAnswer={(id, value) => setIntake((p) => ({ ...p, [id]: value }))}
-          nights={quote?.nights.length ?? 1}
-          guests={guests}
-        />
+      {step === "dates" ? (
+        <>
+          <PartyPicker listing={listing} value={party} onChange={setParty} />
+          <RequirementsGate listing={listing} accepted={accepted} onChange={setAccepted} />
+          {/*
+            The host's catalogue sits between the party and the price, because
+            it changes the price. Putting it after the total would mean the
+            number a guest reads first is the one they never pay. It needs the
+            head count, which is why it follows the party picker rather than
+            leading it: an add-on charged per person cannot be priced before
+            anyone has said how many people are coming.
+          */}
+          {catalogue ? (
+            <Extras
+              catalogue={catalogue}
+              qty={addonQty}
+              onQty={(id, next) => setAddonQty((p) => ({ ...p, [id]: next }))}
+              answers={intake}
+              onAnswer={(id, value) => setIntake((p) => ({ ...p, [id]: value }))}
+              nights={quote?.nights.length ?? 1}
+              guests={heads}
+            />
+          ) : null}
+        </>
       ) : null}
 
       {quote ? (
@@ -377,18 +447,71 @@ export function BookingWidget({
             <span>{c.depositNow}</span>
             <span>{fmtLyd(quote.deposit, locale)}</span>
           </div>
+          {quote.guestTotal ? (
+            <div className="flex justify-between text-muted">
+              <span>{c.guestSupplement}</span>
+              <span>{fmtLyd(quote.guestTotal, locale)}</span>
+            </div>
+          ) : null}
+          {quote.bedTotal ? (
+            <div className="flex justify-between text-muted">
+              <span>{c.beds}</span>
+              <span>{fmtLyd(quote.bedTotal, locale)}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between text-muted">
             <span>{c.balance}</span>
             <span>{fmtLyd(quote.balanceOnArrival, locale)}</span>
           </div>
+          {/*
+            Say when the deposit is not the headline percentage. An operator
+            ceiling that quietly makes 20% into something else is the kind of
+            unexplained number that costs more trust than it saves conversion.
+          */}
+          {quote.depositCapped ? <p className="text-xs text-link">{c.depositCapped}</p> : null}
+          {quote.party && quote.party.childrenFree + quote.party.childrenReduced > 0 ? (
+            <p className="text-xs text-success font-bold">
+              {c.childDiscount(quote.party.childrenFree, quote.party.childrenReduced)}
+            </p>
+          ) : null}
+          {quote.board && quote.board !== "room_only" ? (
+            <p className="text-xs text-link font-bold">🍽 {term(BOARD, locale, quote.board)}</p>
+          ) : null}
+          {quote.requiredMinNights && quote.nights.length < quote.requiredMinNights ? (
+            <p className="text-xs font-bold text-danger">
+              {c.minNights(quote.requiredMinNights)}
+            </p>
+          ) : null}
           <p className="text-xs text-faint pt-1">{c.refundNote}</p>
         </div>
       ) : null}
 
       {step === "dates" && quote ? (
-        <button className="btn-amber w-full" onClick={startBooking} disabled={busy}>
-          {c.bookNow(fmtLyd(quote.deposit, locale))}
-        </button>
+        <>
+          <button
+            className="btn-amber w-full"
+            onClick={startBooking}
+            /*
+             * Blocked rather than allowed-then-rejected. The server refuses
+             * these too — it must, because a form is the thing an integration
+             * skips — but discovering at the payment step that you needed to
+             * tick a box is a worse experience than the box being obvious.
+             */
+            disabled={
+              busy ||
+              overCapacity ||
+              missing.length > 0 ||
+              Boolean(
+                quote.requiredMinNights && quote.nights.length < quote.requiredMinNights,
+              )
+            }
+          >
+            {c.bookNow(fmtLyd(quote.deposit, locale))}
+          </button>
+          {missing.length > 0 ? (
+            <p className="text-xs text-muted text-center">{c.mustAccept}</p>
+          ) : null}
+        </>
       ) : null}
 
       {step === "phone" ? (

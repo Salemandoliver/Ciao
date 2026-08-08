@@ -67,6 +67,29 @@ export const config = {
    */
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS ?? "http://localhost:3000"),
 
+  /**
+   * Object storage for photographs (Cloudflare R2, via the S3 API).
+   *
+   * Absent by default and absent is a supported state: the console keeps the
+   * older add-by-path workflow and tells the operator which variables are
+   * missing, rather than offering an upload button that throws. See
+   * `modules/media/storage.ts`.
+   *
+   * `publicBaseUrl` is separate from the credentials because it changes on a
+   * different schedule — it starts as an `r2.dev` address and becomes
+   * `img.ciao.ly` without any secret being touched.
+   */
+  media: {
+    accountId: process.env.R2_ACCOUNT_ID ?? "",
+    bucket: process.env.R2_BUCKET ?? "",
+    accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",
+    publicBaseUrl: (process.env.R2_PUBLIC_BASE_URL ?? "").replace(/\/+$/, ""),
+    /** Per-file ceiling. The console re-encodes before upload, so anything
+     *  larger than this is a bug or an attack, not a photograph. */
+    maxBytes: Number(process.env.MEDIA_MAX_BYTES ?? 4_000_000),
+  },
+
   // Payments (§10.2) — Plutu primary; mock provider used until credentials exist.
   paymentProvider: process.env.PAYMENT_PROVIDER ?? "mock",
   plutu: {

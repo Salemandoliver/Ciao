@@ -5,9 +5,8 @@ import { HeroSearch } from "@/components/hero-search";
 import { HeroRotator, type HeroImage } from "@/components/hero-rotator";
 import { Greeting } from "@/components/greeting";
 import { RecsStrip } from "@/components/recs";
+import { PartnerInvite } from "@/components/partner-invite";
 import { ServiceTiles } from "@/components/service-tiles";
-import { BrandStatement } from "@/components/brand";
-import { SupplyBand } from "@/components/supply-band";
 import { LanguageToggle } from "@/components/language-toggle";
 import { API_URL } from "@/lib/api";
 import { asLocale, type Locale } from "@/lib/i18n";
@@ -42,26 +41,10 @@ const copy = {
   ar: {
     wishlist: "المفضلة",
     about: "من نحن",
-    hosts: "للمضيفين",
     account: "حسابي",
-    heroEyebrow: "الحجز صار أقرب مما تتخيل",
     heroLead: "قول",
     heroBrand: "تشاو",
     heroTail: "للحجز بالمكالمات",
-    /*
-     * The emotional register. Everything else on this page argues that Ciao
-     * works; this argues that it matters. Both are needed and neither
-     * substitutes for the other — a marketplace that only ever talks about
-     * deposits and verification reads like a utility company.
-     */
-    statementEyebrow: "لكل مناسبة، مكانها",
-    statementHead: "المكان الجميل يخلّي الذكرى",
-    statementAccent: "أجمل",
-    statementBody:
-      "من أول جلسة عائلية إلى ليلة العمر، نقرّبك من أماكن يحبها أهل ليبيا ويثقون فيها.",
-    supplyEyebrow: "عندك مكان يستاهل الناس تعرفه؟",
-    supplyHead: "خلّ مكانك جزءًا من حكاياتهم",
-    supplyCta: "اعرض مكانك",
     heroBody:
       "الشاليهات والاستراحات وقاعات الأفراح — موثّقة ميدانيًا، صورناها بأنفسنا، والمولّد مجرَّب. احجز بعربون بسيط والباقي نقدًا عند الوصول.",
     trust: [
@@ -78,34 +61,23 @@ const copy = {
     coast: "شاليهات واستراحات",
     halls: "قاعات الأفراح",
     seeAll: "عرض الكل ←",
+    promiseOver: "لكل مناسبة، مكانها",
+    promiseHead: "المكان الجميل يخلّي الذكرى",
+    promiseHeadAccent: "أجمل",
+    promiseBody:
+      "من أول جلسة عائلية إلى ليلة العمر، نقرّبك من أماكن يحبها أهل ليبيا ويثقون فيها.",
     footerAbout: "من نحن وكيف نعتمد الأماكن",
     footerRewards: "نقاط المكافآت",
-    footerPlace: "تشاو — ciao.ly · طرابلس، ليبيا",
+    footerPlace: "تشاو — ciao.ly · صُنع بحب في ليبيا",
     footerPrices: "الأسعار كلها بالدينار الليبي. العربون فقط أونلاين والباقي عند الوصول.",
   },
   en: {
     wishlist: "Saved",
     about: "About",
-    hosts: "For hosts",
     account: "Account",
-    heroEyebrow: "Booking just got closer than you think",
     heroLead: "Say",
     heroBrand: "ciao",
     heroTail: "to booking by phone call",
-    /*
-     * Written, not translated. «المكان الجميل يخلّي الذكرى أجمل» is literally
-     * "a beautiful place makes the memory more beautiful", which in English
-     * lands as a greetings card. The claim underneath it — that the venue is
-     * part of what people remember — is the part worth keeping.
-     */
-    statementEyebrow: "Every occasion has its place",
-    statementHead: "The right place is half the",
-    statementAccent: "memory",
-    statementBody:
-      "From a first family afternoon to the night of a lifetime, we bring you closer to the places Libyans love and trust.",
-    supplyEyebrow: "Got a place people should know about?",
-    supplyHead: "Make it part of their story",
-    supplyCta: "List your place",
     heroBody:
       "Beach chalets, estirahas and wedding halls — visited and verified in person, photographed by us, generator tested. Book with a small deposit and pay the rest in cash on arrival.",
     trust: [
@@ -125,9 +97,14 @@ const copy = {
     coast: "Chalets & estirahas",
     halls: "Wedding halls",
     seeAll: "See all →",
+    promiseOver: "Every occasion has its place",
+    promiseHead: "The right place makes the memory",
+    promiseHeadAccent: "better",
+    promiseBody:
+      "From a first family afternoon to the night of a lifetime, we put you within reach of the places Libyans love and trust.",
     footerAbout: "Who we are and how we verify places",
     footerRewards: "Reward points",
-    footerPlace: "Ciao — ciao.ly · Tripoli, Libya",
+    footerPlace: "Ciao — ciao.ly · Made with Love in Libya",
     footerPrices:
       "All prices are in Libyan dinars. Only the deposit is paid online; the rest is paid on arrival.",
   },
@@ -178,7 +155,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
           <Link href="/wishlist" aria-label={c.wishlist}>🤍</Link>
           <Link href="/about">{c.about}</Link>
-          <Link href="/hosts">{c.hosts}</Link>
+          {/*
+            "للمضيفين" used to sit here, pointing at a section of the About
+            page. Partners have their own product on their own origin now, and
+            the panel further down this page is where a prospective one puts
+            their hand up — so the nav item was sending people to read about
+            hosting on a page that then had to send them somewhere else again.
+          */}
           <Link href="/account">{c.account}</Link>
           <LanguageToggle />
         </nav>
@@ -193,23 +176,18 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* Hero — the «قول تشاو» device (§3.2) over the Tripoli sunset */}
       <section className="card relative overflow-hidden text-white">
         <HeroRotator images={hero.images} intervalMs={hero.intervalMs} />
-        {/* Sea-blue gradient keeps text sunlight-readable (§3.3). Kept as
-            light as legibility allows so the photography stays the hero. */}
-        <div
-          className="absolute inset-0 photo-scrim-soft"
-          aria-hidden
-        />
+        {/*
+          Weighted at the top, where the headline is — it used to be weighted
+          at the bottom, where nothing but the self-contrasting search pill
+          sits, so the darkest part of the scrim was dulling the photograph for
+          no one. Legibility now comes mostly from `.type-on-photo`.
+        */}
+        <div className="absolute inset-0 photo-scrim-top" aria-hidden />
         <div className="relative p-6 sm:p-10 pb-4 sm:pb-6" data-on-photo>
-          {/* Amber on a photograph, so it carries the fixed colour the rest of
-              the photo chrome uses rather than the themed `link` token. */}
-          <p className="flex items-center gap-3 text-sm font-extrabold text-[#F0B458] drop-shadow mb-2">
-            <span>{c.heroEyebrow}</span>
-            <span className="hidden sm:block h-px w-16 bg-current opacity-60" aria-hidden />
-          </p>
-          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight drop-shadow">
-            {c.heroLead} <span className="text-amber">{c.heroBrand}</span> {c.heroTail}
+          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
+            {c.heroLead} <span className="brand-on-photo">{c.heroBrand}</span> {c.heroTail}
           </h1>
-          <p className="mt-3 text-white/95 text-lg max-w-xl drop-shadow">{c.heroBody}</p>
+          <p className="mt-3 text-white text-lg max-w-xl type-on-photo">{c.heroBody}</p>
         </div>
         {/* On the photo: contrast here comes from `.hero-pill` / `.tab-on-photo`,
             which are deliberately fixed rather than themed. */}
@@ -228,15 +206,25 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         ))}
       </section>
 
-      {/* The claim that this is about occasions rather than inventory. It sits
-          after the trust strip on purpose: earn the right to be sentimental by
-          first saying something checkable. */}
-      <BrandStatement
-        eyebrow={c.statementEyebrow}
-        headline={c.statementHead}
-        accent={c.statementAccent}
-        body={c.statementBody}
-      />
+      {/*
+        The promise, stated once.
+        It sits after the trust strip because the trust strip is the argument
+        and this is the conclusion — and before the inventory, because a reason
+        to care has to arrive before the thing to care about.
+      */}
+      <section className="mt-10 sm:flex sm:items-center sm:gap-8">
+        <div className="sm:flex-1">
+          <p className="text-link font-bold text-sm">{c.promiseOver}</p>
+          <h2 className="font-bold text-2xl sm:text-3xl leading-snug mt-1 text-sea">
+            {c.promiseHead} <span className="text-amber-dark">{c.promiseHeadAccent}</span>
+          </h2>
+        </div>
+        {/* A rule on the leading edge in both directions — `border-s`, never
+            `border-l`, or it lands on the wrong side of the English page. */}
+        <p className="text-muted text-sm mt-3 sm:mt-0 sm:max-w-xs sm:border-s sm:border-sea/15 sm:ps-6">
+          {c.promiseBody}
+        </p>
+      </section>
 
       <RecsStrip />
 
@@ -245,17 +233,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       <ServiceTiles />
 
-      {/* Addressed to a different reader than everything above it, which is why
-          it changes ground rather than merely changing words. Below the
-          listings because a guest came here to find a chalet, and a host who
-          owns one will scroll past their competitors to reach it. */}
-      <SupplyBand
-        surface="home"
-        eyebrow={c.supplyEyebrow}
-        headline={c.supplyHead}
-        cta={c.supplyCta}
-        href="/hosts"
-      />
+      {/*
+        The invitation to bring supply, placed last on purpose: an owner is
+        most likely to recognise that her own place belongs here directly
+        after scrolling past everyone else's.
+      */}
+      <PartnerInvite surface="home" />
 
       <footer className="mt-12 text-center text-sm text-faint space-y-1">
         <p>

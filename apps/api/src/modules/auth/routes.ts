@@ -26,6 +26,54 @@ export function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }
 
+/**
+ * Check a one-time code and burn it. Nothing else.
+ *
+ * This block was written out longhand in four places — sign-in here, the
+ * partner and business password resets, and now the partner-interest form —
+ * because each of them wants a *different* thing on the far side of a correct
+ * code: a session, an action token, or a database row. Only the check is
+ * common, so only the check is shared, and it deliberately returns nothing:
+ * a helper that also decided what a verified phone entitles you to is how the
+ * lead form would end up quietly minting sessions.
+ *
+ * Throws `AUTH_OTP_INVALID` for no live challenge, a wrong code, or an expired
+ * one — all three answer identically on purpose, so the endpoint cannot be used
+ * to ask whether a given number has a code outstanding. A wrong code costs an
+ * attempt; running out of attempts is `AUTH_OTP_THROTTLED`.
+ */
+export async function consumeOtp(phone: string, code: string): Promise<void> {
+  const [challenge] = await db
+    .select()
+    .from(schema.otpChallenges)
+    .where(
+      and(
+        eq(schema.otpChallenges.phone, phone),
+        isNull(schema.otpChallenges.consumedAt),
+        gt(schema.otpChallenges.expiresAt, new Date()),
+      ),
+    )
+    .orderBy(desc(schema.otpChallenges.createdAt))
+    .limit(1);
+
+  if (!challenge) throw new CiaoError("AUTH_OTP_INVALID");
+  if (challenge.attempts >= config.otp.maxAttempts)
+    throw new CiaoError("AUTH_OTP_THROTTLED");
+
+  if (challenge.codeHash !== hashCode(code)) {
+    await db
+      .update(schema.otpChallenges)
+      .set({ attempts: challenge.attempts + 1 })
+      .where(eq(schema.otpChallenges.id, challenge.id));
+    throw new CiaoError("AUTH_OTP_INVALID");
+  }
+
+  await db
+    .update(schema.otpChallenges)
+    .set({ consumedAt: new Date() })
+    .where(eq(schema.otpChallenges.id, challenge.id));
+}
+
 export async function authRoutes(app: FastifyInstance) {
   // Request OTP — phone-first identity (§13.8); no account creation before checkout (§6.1).
   app.post("/v1/auth/otp/request", {
@@ -66,35 +114,7 @@ export async function authRoutes(app: FastifyInstance) {
         })
         .parse(req.body);
 
-      const [challenge] = await db
-        .select()
-        .from(schema.otpChallenges)
-        .where(
-          and(
-            eq(schema.otpChallenges.phone, body.phone),
-            isNull(schema.otpChallenges.consumedAt),
-            gt(schema.otpChallenges.expiresAt, new Date()),
-          ),
-        )
-        .orderBy(desc(schema.otpChallenges.createdAt))
-        .limit(1);
-
-      if (!challenge) throw new CiaoError("AUTH_OTP_INVALID");
-      if (challenge.attempts >= config.otp.maxAttempts)
-        throw new CiaoError("AUTH_OTP_THROTTLED");
-
-      if (challenge.codeHash !== hashCode(body.code)) {
-        await db
-          .update(schema.otpChallenges)
-          .set({ attempts: challenge.attempts + 1 })
-          .where(eq(schema.otpChallenges.id, challenge.id));
-        throw new CiaoError("AUTH_OTP_INVALID");
-      }
-
-      await db
-        .update(schema.otpChallenges)
-        .set({ consumedAt: new Date() })
-        .where(eq(schema.otpChallenges.id, challenge.id));
+      await consumeOtp(body.phone, body.code);
 
       // Find-or-create user.
       let [user] = await db

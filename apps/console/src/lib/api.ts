@@ -199,6 +199,27 @@ export async function signOut(): Promise<void> {
 }
 
 /**
+ * Resolve a media URL for display in this app.
+ *
+ * Photographs added before object storage existed are static assets of the
+ * *marketplace* build, stored as root-relative paths like
+ * `/media/<slug>/1.webp`. Rendered here they resolve against the console's own
+ * origin, where nothing of the sort is served — which is why every thumbnail
+ * in the business console was a broken image icon while the same photograph
+ * displayed perfectly on the public site.
+ *
+ * The base comes from the API rather than a build-time variable, so the day
+ * the marketplace moves to ciao.ly the console follows without a rebuild.
+ * Uploaded photographs carry absolute URLs and pass through untouched.
+ */
+export function mediaSrc(url: string, base: string): string {
+  if (!url) return url;
+  if (/^(https?:)?\/\//i.test(url) || url.startsWith("data:")) return url;
+  if (!base) return url;
+  return `${base.replace(/\/+$/, "")}/${url.replace(/^\/+/, "")}`;
+}
+
+/**
  * Money.
  *
  * The currency is the Libyan dinar in both languages. Only the numerals and

@@ -243,6 +243,55 @@ export interface Insights {
   actions: { key: string; ar: string; en: string; plus: boolean }[];
 }
 
+/**
+ * The Facebook kit.
+ *
+ * A venue here is the property as the marketplace knows it, not a listing: the
+ * link a partner pins to their page points at the whole place, because that is
+ * what their followers know the name of. `storefrontPath` is null until ops has
+ * assigned a slug, and the screen has to say so rather than build a URL that
+ * 404s in front of forty-four thousand people.
+ */
+export interface StorefrontVenue {
+  id: string;
+  slug: string | null;
+  nameAr: string;
+  nameEn: string | null;
+  type: string;
+  city: string;
+  /** `/v/<slug>` — or null, meaning "not ready to be published yet". */
+  storefrontPath: string | null;
+}
+
+export interface PartnerOffer {
+  id: string;
+  code: string;
+  venueId: string;
+  kind: string;
+  /** Percent off in basis points: 1000 is 10%. */
+  value: number;
+  descriptionAr: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  maxRedemptions: number | null;
+  timesUsed: number;
+  active: boolean;
+  /**
+   * Active, started, and not yet expired — decided by the API against the
+   * server clock. A phone with the wrong date must not be able to make a dead
+   * offer look live in a post the partner is about to publish.
+   */
+  live: boolean;
+}
+
+export interface Storefront {
+  webBaseUrl: string;
+  venues: StorefrontVenue[];
+  offers: PartnerOffer[];
+  /** Counts and money per channel tag. Never a list of who visited. */
+  attribution: { venueId: string; source: string; bookings: number; value: number }[];
+}
+
 export interface TeamMember {
   id: string;
   role: PartnerRole;

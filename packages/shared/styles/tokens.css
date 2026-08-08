@@ -123,8 +123,14 @@
   --danger: 252 140 140;
   --success: 52 211 153;
   --sea-dark: 13 27 42;
-  --logo-ink: 232 160 32;
-  --logo-accent: 245 238 221;
+  /*
+   * The lettering goes cream and the stop stays amber — the same way round as
+   * on a light ground. These were inverted for a day, which put an amber word
+   * with a cream stop on every dark screen; that is not one of the colourways
+   * in the logo pack.
+   */
+  --logo-ink: 245 238 221;
+  --logo-accent: 232 160 32;
 }
 
 html {

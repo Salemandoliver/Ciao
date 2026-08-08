@@ -13,11 +13,15 @@ import type { Locale } from "@/lib/i18n";
  * Which areas belong to which city — keys only. The words come from vocab, so
  * that a place is named the same here, on the card and on the listing page.
  */
-const CITY_KEYS = ["tripoli", "misrata", "benghazi"];
+const CITY_KEYS = ["tripoli", "misrata", "benghazi", "sabratha", "zawiya", "zuwara", "khoms"];
 const AREA_KEYS: Record<string, string[]> = {
-  tripoli: ["janzour", "tajoura", "ain_zara", "airport_road"],
+  tripoli: ["janzour", "tajoura", "ain_zara", "airport_road", "gargaresh", "regatta"],
   misrata: [],
   benghazi: [],
+  sabratha: ["talil"],
+  zawiya: [],
+  zuwara: [],
+  khoms: [],
 };
 
 const copy = {

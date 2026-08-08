@@ -1,5 +1,5 @@
 {
-  "id": "f3dd1097-5211-4465-95bf-731a13e53299",
+  "id": "f0093823-1b9e-44a0-9654-e968394ddfcd",
   "prevId": "285549b8-4bc8-4987-92e0-c2e5b3f3be38",
   "version": "7",
   "dialect": "postgresql",
@@ -681,39 +681,6 @@
           "type": "varchar(24)",
           "primaryKey": false,
           "notNull": false
-        },
-        "partner_service_id": {
-          "name": "partner_service_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "addons": {
-          "name": "addons",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "intake_answers": {
-          "name": "intake_answers",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "partner_promotion_id": {
-          "name": "partner_promotion_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "partner_discount_amount": {
-          "name": "partner_discount_amount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "concierge": {
           "name": "concierge",
@@ -2364,167 +2331,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.partner_addons": {
-      "name": "partner_addons",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "partner_id": {
-          "name": "partner_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "service_id": {
-          "name": "service_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name_ar": {
-          "name": "name_ar",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name_en": {
-          "name": "name_en",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description_ar": {
-          "name": "description_ar",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "price": {
-          "name": "price",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "price_model": {
-          "name": "price_model",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'flat'"
-        },
-        "max_qty": {
-          "name": "max_qty",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "required": {
-          "name": "required",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "partner_addons_partner_idx": {
-          "name": "partner_addons_partner_idx",
-          "columns": [
-            {
-              "expression": "partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sort_order",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "partner_addons_partner_id_users_id_fk": {
-          "name": "partner_addons_partner_id_users_id_fk",
-          "tableFrom": "partner_addons",
-          "tableTo": "users",
-          "columnsFrom": [
-            "partner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "partner_addons_service_id_partner_services_id_fk": {
-          "name": "partner_addons_service_id_partner_services_id_fk",
-          "tableFrom": "partner_addons",
-          "tableTo": "partner_services",
-          "columnsFrom": [
-            "service_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.partner_clients": {
       "name": "partner_clients",
       "schema": "",
@@ -2771,318 +2577,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.partner_expenses": {
-      "name": "partner_expenses",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "partner_id": {
-          "name": "partner_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "job_id": {
-          "name": "job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "day": {
-          "name": "day",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label_ar": {
-          "name": "label_ar",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category": {
-          "name": "category",
-          "type": "varchar(12)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'other'"
-        },
-        "amount": {
-          "name": "amount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "recurring": {
-          "name": "recurring",
-          "type": "varchar(8)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recurring_until": {
-          "name": "recurring_until",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notes_ar": {
-          "name": "notes_ar",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "partner_expenses_partner_idx": {
-          "name": "partner_expenses_partner_idx",
-          "columns": [
-            {
-              "expression": "partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "day",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "partner_expenses_partner_id_users_id_fk": {
-          "name": "partner_expenses_partner_id_users_id_fk",
-          "tableFrom": "partner_expenses",
-          "tableTo": "users",
-          "columnsFrom": [
-            "partner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "partner_expenses_job_id_partner_jobs_id_fk": {
-          "name": "partner_expenses_job_id_partner_jobs_id_fk",
-          "tableFrom": "partner_expenses",
-          "tableTo": "partner_jobs",
-          "columnsFrom": [
-            "job_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "partner_expenses_created_by_id_users_id_fk": {
-          "name": "partner_expenses_created_by_id_users_id_fk",
-          "tableFrom": "partner_expenses",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.partner_intake_questions": {
-      "name": "partner_intake_questions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "partner_id": {
-          "name": "partner_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "service_id": {
-          "name": "service_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "prompt_ar": {
-          "name": "prompt_ar",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "prompt_en": {
-          "name": "prompt_en",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "help_ar": {
-          "name": "help_ar",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "field_type": {
-          "name": "field_type",
-          "type": "varchar(8)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'text'"
-        },
-        "options": {
-          "name": "options",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "required": {
-          "name": "required",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "partner_intake_partner_idx": {
-          "name": "partner_intake_partner_idx",
-          "columns": [
-            {
-              "expression": "partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sort_order",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "partner_intake_questions_partner_id_users_id_fk": {
-          "name": "partner_intake_questions_partner_id_users_id_fk",
-          "tableFrom": "partner_intake_questions",
-          "tableTo": "users",
-          "columnsFrom": [
-            "partner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "partner_intake_questions_service_id_partner_services_id_fk": {
-          "name": "partner_intake_questions_service_id_partner_services_id_fk",
-          "tableFrom": "partner_intake_questions",
-          "tableTo": "partner_services",
-          "columnsFrom": [
-            "service_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.partner_jobs": {
       "name": "partner_jobs",
       "schema": "",
@@ -3189,59 +2683,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
-        },
-        "service_id": {
-          "name": "service_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "units": {
-          "name": "units",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "guest_count": {
-          "name": "guest_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "addons": {
-          "name": "addons",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "intake_answers": {
-          "name": "intake_answers",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "promotion_id": {
-          "name": "promotion_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "discount": {
-          "name": "discount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "assigned_to": {
-          "name": "assigned_to",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
         },
         "location_ar": {
           "name": "location_ar",
@@ -3421,6 +2862,141 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.partner_leads": {
+      "name": "partner_leads",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "surface": {
+          "name": "surface",
+          "type": "varchar(24)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'home'"
+        },
+        "locale": {
+          "name": "locale",
+          "type": "varchar(2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ar'"
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'new'"
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_by_id": {
+          "name": "claimed_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "partner_leads_phone_uq": {
+          "name": "partner_leads_phone_uq",
+          "columns": [
+            {
+              "expression": "phone",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "partner_leads_status_idx": {
+          "name": "partner_leads_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "partner_leads_claimed_by_id_users_id_fk": {
+          "name": "partner_leads_claimed_by_id_users_id_fk",
+          "tableFrom": "partner_leads",
+          "tableTo": "users",
+          "columnsFrom": [
+            "claimed_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.partner_payout_accounts": {
       "name": "partner_payout_accounts",
       "schema": "",
@@ -3545,184 +3121,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "requested_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.partner_price_rules": {
-      "name": "partner_price_rules",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "partner_id": {
-          "name": "partner_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "service_id": {
-          "name": "service_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "label_ar": {
-          "name": "label_ar",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "from_day": {
-          "name": "from_day",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "to_day": {
-          "name": "to_day",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "weekdays": {
-          "name": "weekdays",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "min_lead_days": {
-          "name": "min_lead_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "max_lead_days": {
-          "name": "max_lead_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "min_units": {
-          "name": "min_units",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "adjust_bps": {
-          "name": "adjust_bps",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 10000
-        },
-        "adjust_flat": {
-          "name": "adjust_flat",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "priority": {
-          "name": "priority",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 100
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "partner_price_rules_partner_idx": {
-          "name": "partner_price_rules_partner_idx",
-          "columns": [
-            {
-              "expression": "partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "priority",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "partner_price_rules_partner_id_users_id_fk": {
-          "name": "partner_price_rules_partner_id_users_id_fk",
-          "tableFrom": "partner_price_rules",
-          "tableTo": "users",
-          "columnsFrom": [
-            "partner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "partner_price_rules_service_id_partner_services_id_fk": {
-          "name": "partner_price_rules_service_id_partner_services_id_fk",
-          "tableFrom": "partner_price_rules",
-          "tableTo": "partner_services",
-          "columnsFrom": [
-            "service_id"
           ],
           "columnsTo": [
             "id"
@@ -3871,247 +3269,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.partner_promotions": {
-      "name": "partner_promotions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "partner_id": {
-          "name": "partner_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "varchar(24)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "label_ar": {
-          "name": "label_ar",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label_en": {
-          "name": "label_en",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'percent'"
-        },
-        "value_bps": {
-          "name": "value_bps",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "value_flat": {
-          "name": "value_flat",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "free_addon_id": {
-          "name": "free_addon_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "max_discount": {
-          "name": "max_discount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "min_spend": {
-          "name": "min_spend",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "service_ids": {
-          "name": "service_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "from_day": {
-          "name": "from_day",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "to_day": {
-          "name": "to_day",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "travel_from_day": {
-          "name": "travel_from_day",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "travel_to_day": {
-          "name": "travel_to_day",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "max_redemptions": {
-          "name": "max_redemptions",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "max_per_client": {
-          "name": "max_per_client",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "redemptions": {
-          "name": "redemptions",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "first_time_only": {
-          "name": "first_time_only",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "public_on_listing": {
-          "name": "public_on_listing",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "partner_promotions_partner_idx": {
-          "name": "partner_promotions_partner_idx",
-          "columns": [
-            {
-              "expression": "partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "partner_promotions_code_uq": {
-          "name": "partner_promotions_code_uq",
-          "columns": [
-            {
-              "expression": "partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "partner_promotions_partner_id_users_id_fk": {
-          "name": "partner_promotions_partner_id_users_id_fk",
-          "tableFrom": "partner_promotions",
-          "tableTo": "users",
-          "columnsFrom": [
-            "partner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "partner_promotions_free_addon_id_partner_addons_id_fk": {
-          "name": "partner_promotions_free_addon_id_partner_addons_id_fk",
-          "tableFrom": "partner_promotions",
-          "tableTo": "partner_addons",
-          "columnsFrom": [
-            "free_addon_id"
           ],
           "columnsTo": [
             "id"
@@ -4594,270 +3751,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.partner_services": {
-      "name": "partner_services",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "partner_id": {
-          "name": "partner_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "listing_id": {
-          "name": "listing_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name_ar": {
-          "name": "name_ar",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name_en": {
-          "name": "name_en",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description_ar": {
-          "name": "description_ar",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description_en": {
-          "name": "description_en",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "unit": {
-          "name": "unit",
-          "type": "varchar(8)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'item'"
-        },
-        "base_price": {
-          "name": "base_price",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "min_units": {
-          "name": "min_units",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "max_units": {
-          "name": "max_units",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "duration_minutes": {
-          "name": "duration_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "min_guests": {
-          "name": "min_guests",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "max_guests": {
-          "name": "max_guests",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notice_hours": {
-          "name": "notice_hours",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "deposit_bps": {
-          "name": "deposit_bps",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancellation_tier": {
-          "name": "cancellation_tier",
-          "type": "varchar(12)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "daily_capacity": {
-          "name": "daily_capacity",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "includes_ar": {
-          "name": "includes_ar",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "media": {
-          "name": "media",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "instant_book": {
-          "name": "instant_book",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "published": {
-          "name": "published",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "booked_count": {
-          "name": "booked_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "partner_services_partner_idx": {
-          "name": "partner_services_partner_idx",
-          "columns": [
-            {
-              "expression": "partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sort_order",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "partner_services_listing_idx": {
-          "name": "partner_services_listing_idx",
-          "columns": [
-            {
-              "expression": "listing_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "published",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "partner_services_partner_id_users_id_fk": {
-          "name": "partner_services_partner_id_users_id_fk",
-          "tableFrom": "partner_services",
-          "tableTo": "users",
-          "columnsFrom": [
-            "partner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "partner_services_listing_id_listings_id_fk": {
-          "name": "partner_services_listing_id_listings_id_fk",
-          "tableFrom": "partner_services",
-          "tableTo": "listings",
-          "columnsFrom": [
-            "listing_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.partner_sessions": {
       "name": "partner_sessions",
       "schema": "",
@@ -5034,33 +3927,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'payout_netting'"
-        },
-        "term": {
-          "name": "term",
-          "type": "varchar(8)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'monthly'"
-        },
-        "payment_id": {
-          "name": "payment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "renewal_notices_sent": {
-          "name": "renewal_notices_sent",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "renewal_reminders_off": {
-          "name": "renewal_reminders_off",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "cancelled_at": {
           "name": "cancelled_at",

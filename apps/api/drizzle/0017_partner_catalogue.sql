@@ -124,6 +124,7 @@ CREATE TABLE "partner_services" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "payment_intents" ALTER COLUMN "booking_id" DROP NOT NULL;--> statement-breakpoint
 ALTER TABLE "bookings" ADD COLUMN "partner_service_id" uuid;--> statement-breakpoint
 ALTER TABLE "bookings" ADD COLUMN "addons" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
 ALTER TABLE "bookings" ADD COLUMN "intake_answers" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
@@ -141,6 +142,7 @@ ALTER TABLE "partner_subscriptions" ADD COLUMN "term" varchar(8) DEFAULT 'monthl
 ALTER TABLE "partner_subscriptions" ADD COLUMN "payment_id" uuid;--> statement-breakpoint
 ALTER TABLE "partner_subscriptions" ADD COLUMN "renewal_notices_sent" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
 ALTER TABLE "partner_subscriptions" ADD COLUMN "renewal_reminders_off" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "payment_intents" ADD COLUMN "subject_id" uuid;--> statement-breakpoint
 ALTER TABLE "partner_addons" ADD CONSTRAINT "partner_addons_partner_id_users_id_fk" FOREIGN KEY ("partner_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "partner_addons" ADD CONSTRAINT "partner_addons_service_id_partner_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "public"."partner_services"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "partner_expenses" ADD CONSTRAINT "partner_expenses_partner_id_users_id_fk" FOREIGN KEY ("partner_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

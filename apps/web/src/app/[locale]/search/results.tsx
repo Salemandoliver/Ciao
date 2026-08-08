@@ -50,6 +50,7 @@ import { trackClient } from "@/lib/tracker";
 import { fmtNum } from "@/lib/vocab";
 import type { Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
+import { thumb } from "@/lib/types";
 
 const copy = {
   ar: {
@@ -392,7 +393,7 @@ function PreviewCard({
         <div className="w-28 h-28 shrink-0 bg-sea/10 relative">
           {cover ? (
             <img
-              src={cover.url}
+              src={thumb(cover)}
               alt={title.text}
               className="absolute inset-0 h-full w-full object-cover"
             />

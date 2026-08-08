@@ -168,7 +168,7 @@ const copy = {
     ctaPoints: "افتح نقاطي",
     ctaPartners: "شركاء الصرف",
 
-    footerPlace: "تشاو — ciao.ly · طرابلس، ليبيا",
+    footerPlace: "تشاو — ciao.ly · صُنع بحب في ليبيا",
   },
   en: {
     metaTitle: "Reward points — programme terms | Ciao",
@@ -281,7 +281,7 @@ const copy = {
     ctaPoints: "Open my points",
     ctaPartners: "Where to spend",
 
-    footerPlace: "Ciao — ciao.ly · Tripoli, Libya",
+    footerPlace: "Ciao — ciao.ly · Made with Love in Libya",
   },
 } satisfies Record<Locale, unknown>;
 

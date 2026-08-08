@@ -68,6 +68,51 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "partner.agenda_sent": "jobCount, channel",
   "partner.team_changed": "action, role",
   "partner.signed_in": "mustChange",
+
+  /*
+   * Supply acquisition, from the marketplace side.
+   *
+   * These measure the invitation, not the person who answered it. `surface`
+   * tells us which block earns its place on the page; `locale` tells us
+   * whether the diaspora is the audience for it. The name and the number the
+   * lead typed exist only in `partner_leads`, under RBAC — putting either in a
+   * prop would put them in the events table, which is pruned on a schedule and
+   * read by every dashboard query (guardrail 2).
+   *
+   * `lead.opened` fires when the form is opened rather than when it is sent,
+   * because the gap between the two is the only measure of whether asking for
+   * a phone number at that moment is too much to ask.
+   */
+  "lead.opened": "surface",
+  "lead.submitted": "surface, locale",
+  "lead.status_changed": "status",
+
+  /*
+   * Supply as it actually is, learned from a real resort's rate card.
+   *
+   * `venue.viewed` is the storefront a partner pins to their Facebook page,
+   * and `src` is the whole reason it exists: until now nobody in this market
+   * could answer "what is my Facebook page worth", because the answer arrived
+   * as phone calls. It carries the shape of the arrival — which channel, how
+   * many units, whether an offer was live — and never who arrived.
+   *
+   * `party` counts are bands, not a family register. "Two adults and three
+   * children under ten" is how a price is computed and is exactly what a
+   * receptionist writes down; it is not "has three daughters" (guardrail 3).
+   */
+  "venue.viewed": "venueId, vertical, city, src, units, soldOutUnits, hasOffer",
+  "venue.unit_switched": "venueId, fromKind, toKind",
+  "quote.party_set": "listingId, adults, children, childrenFree, childrenReduced, overCapacity",
+  "quote.board_seen": "listingId, board",
+  "listing.sold_out_seen": "listingId, leadDays",
+  "waitlist.joined": "listingId, leadDays, guests",
+  "waitlist.status_changed": "status",
+  "requirements.acknowledged": "listingId, keys",
+  "requirements.abandoned": "listingId, keys",
+  "partner.offer_created": "valueBps, hours, vertical",
+  "partner.offer_stopped": "timesUsed",
+  "partner.storefront_copied": "channel",
+  "offer.redeemed": "fundedBy, valueBps, vertical, src",
   /*
    * The business console's own sign-ins — an internal surface, tracked for
    * the security trail's sake (dashboards, never profiles: folding an
@@ -127,6 +172,13 @@ export const EVENT_TAXONOMY: Record<string, string> = {
   "partner.plus_renewal_notice": "daysLeft",
   "partner.plus_teaser_shown": "panel",
   "partner.plus_teaser_clicked": "panel",
+  /*
+   * Catalogue work, counted so supply operations can be measured the way the
+   * booking funnel is: how long a venue sits without photographs is the single
+   * best predictor of whether it ever earns anything.
+   */
+  "media.uploaded": "listingId, width, bytes",
+  "partner.invited": "partnerId, hadPassword",
   // engagement (client + server)
   "rail.selected": "rail",
   "share.clicked": "listingId, channel",

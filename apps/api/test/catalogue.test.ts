@@ -23,6 +23,7 @@ import {
   annualPrice,
   annualSavings,
   evaluatePromotion,
+  FEES,
   priceSelection,
   type Promotion,
 } from "@ciao/shared";
@@ -722,6 +723,83 @@ describe("money invariants", () => {
     expect(b!.depositAmount).toBeLessThanOrEqual(b!.totalAmount);
     // The identity the whole ledger rests on.
     expect(b!.depositAmount + b!.balanceOnArrival).toBe(b!.totalAmount);
+  });
+
+  it("keeps the three numbers adding up when a partner-funded code meets the host's extras", async () => {
+    /*
+     * The seam this merge created, and the only place two independently-correct
+     * pieces of arithmetic could disagree.
+     *
+     * A partner-funded Ciao code moves the deposit to whichever is larger of
+     * the reduced deposit and our recomputed commission — it does not simply
+     * subtract. Extras and the host's own offer land on arrival. Each rule was
+     * written without knowledge of the other, and while the balance was stored
+     * as `quote.balanceOnArrival` the two together wrote a deposit and a
+     * balance that summed to more than the total: a guest could add up the
+     * invoice and find a dinar that belongs to nobody.
+     *
+     * The fix was to derive the balance by subtraction, which is what makes
+     * this assertion true by construction. It is pinned here because the next
+     * pricing rule anyone adds will be written without knowledge of these two.
+     */
+    const [svc] = await db
+      .insert(schema.partnerServices)
+      .values({ partnerId: hostId, nameAr: "ليلة", unit: "night", basePrice: 20_000, listingId })
+      .returning();
+    await db.insert(schema.partnerAddons).values({
+      partnerId: hostId,
+      serviceId: svc!.id,
+      nameAr: "شواء",
+      price: 15_000,
+      priceModel: "flat",
+      required: true,
+    });
+    const code = `PF${run.slice(-6)}`.toUpperCase();
+    await db.insert(schema.promoCodes).values({
+      code,
+      kind: "fixed",
+      value: 12_000,
+      fundedBy: "partner",
+      venueId: (
+        await db.select().from(schema.listings).where(eq(schema.listings.id, listingId)).limit(1)
+      )[0]!.venueId,
+      active: true,
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/bookings",
+      headers: { authorization: `Bearer ${guestToken}` },
+      payload: {
+        listingId,
+        checkIn: future(80),
+        checkOut: future(82),
+        guestCount: 2,
+        rail: "local_card",
+        promoCode: code,
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const [b] = await db
+      .select()
+      .from(schema.bookings)
+      .where(eq(schema.bookings.id, res.json().bookingId));
+
+    expect(b!.depositAmount + b!.balanceOnArrival).toBe(b!.totalAmount);
+    expect(b!.balanceOnArrival).toBeGreaterThanOrEqual(0);
+    expect(b!.depositAmount).toBeLessThanOrEqual(b!.totalAmount);
+    /*
+     * The barbecue is the host's trade, so it must not be inside the base our
+     * commission is a percentage of.
+     *
+     * Two nights at 20 with a partner-funded 12 off leaves a 28-dinar stay, and
+     * `FEES.coastCommissionBps` takes 10% of it. Asserted against the stay
+     * rather than against the total on purpose: the total here has also had the
+     * host's own offer taken off it, and a commission that tracked the total
+     * would fall every time a host ran a promotion — which is the arrangement
+     * this whole block exists to prevent.
+     */
+    expect(b!.commissionAmount).toBe(Math.round((28_000 * FEES.coastCommissionBps) / 10_000));
   });
 
   it("charges a required extra even when the client sends it as zero", async () => {

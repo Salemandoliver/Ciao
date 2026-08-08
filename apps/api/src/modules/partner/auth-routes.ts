@@ -365,7 +365,13 @@ export async function partnerAuthRoutes(app: FastifyInstance) {
         // one was issued and to whom, never the token itself.
         detail: { sent: body.send },
       });
-      return reply.send({ ok: true, link, hasPassword: await hasPassword(user.id) });
+      const had = await hasPassword(user.id);
+      track(
+        "partner.invited",
+        { partnerId: user.id, hadPassword: had },
+        { userId: claims.sub, source: "api" },
+      );
+      return reply.send({ ok: true, link, hasPassword: had });
     },
   });
 }

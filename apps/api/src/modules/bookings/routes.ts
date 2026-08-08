@@ -21,9 +21,22 @@ export async function bookingRoutes(app: FastifyInstance) {
         checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         guestCount: z.number().int().positive().optional(),
+        /*
+         * Who is coming. Ages, not a head count — under five free and six to
+         * ten at half price is the standard Libyan family rate, so the ages
+         * are the price. Optional, because concierge bookings taken on the
+         * phone arrive with a head count and the operator corrects it.
+         */
+        adults: z.number().int().min(1).max(40).optional(),
+        childAges: z.array(z.number().int().min(0).max(24)).max(20).optional(),
+        extraBeds: z.number().int().min(0).max(10).optional(),
+        /** Conditions of entry the guest ticked. Checked server-side. */
+        acceptedRequirements: z.array(z.string().max(32)).max(12).optional(),
+        /** fb | wa | ig | qr | tt | direct — where the booking came from. */
+        source: z.enum(["fb", "wa", "ig", "qr", "tt", "direct"]).optional(),
+        promoCode: z.string().max(24).optional(),
         rail: z.enum(["sadad", "adfali", "local_card", "tlync", "mpgs"]),
         sadad: z.object({ mobile: z.string(), birthYear: z.string() }).optional(),
-        promoCode: z.string().max(24).optional(),
         /* The partner's catalogue, layered on the stay. Quantities are a
            request — the server clamps them to what the partner allowed. */
         addons: z
@@ -51,7 +64,13 @@ export async function bookingRoutes(app: FastifyInstance) {
           quote: {
             total: r.quote.total,
             deposit: r.quote.deposit,
+            depositCapped: r.quote.depositCapped,
             balanceOnArrival: r.quote.balanceOnArrival,
+            roomTotal: r.quote.roomTotal,
+            guestTotal: r.quote.guestTotal,
+            bedTotal: r.quote.bedTotal,
+            party: r.quote.party,
+            board: r.quote.board,
           },
           payment: r.intent,
         },

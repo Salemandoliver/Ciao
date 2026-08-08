@@ -1,6 +1,6 @@
 "use client";
 /**
- * Image manager — add, remove, reorder, and choose the cover.
+ * Image manager — upload, add, remove, reorder, and choose the cover.
  *
  * The first image in the list IS the cover. One ordering concept means the
  * console never has to reconcile a separate "is cover" flag with an order
@@ -8,16 +8,45 @@
  *
  * Saving replaces the whole array, so delete and reorder are the same
  * operation and there is no partial state to recover from.
+ *
+ * ## Uploading
+ *
+ * Photographs arrive on WhatsApp during a field visit and have to be on the
+ * listing before the operator leaves. Previously the only way in was to commit
+ * a file to the repository and ship a release, so this dialog offered a text
+ * box for a path — which is a reasonable thing to hand an engineer and an
+ * absurd thing to hand a supply team.
+ *
+ * Files are re-encoded in this browser before they are sent (see
+ * `lib/encode-image.ts`): a twelve-megabyte phone photograph becomes about two
+ * hundred kilobytes, which is the difference between a field visit that
+ * finishes and one that stalls on a bar of signal. Each photograph uploads as
+ * two independent requests — the full size and a thumbnail — so a dropped
+ * connection costs one small retry rather than the whole batch.
+ *
+ * The path box stays. It is how the eight original demo listings were built,
+ * it is the escape hatch when somebody has already deployed an asset, and
+ * removing a working tool because a better one arrived is how you strand the
+ * one person who needed it.
  */
-import { useCallback, useEffect, useState } from "react";
-import { ApiError, api } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ApiError, api, mediaSrc } from "@/lib/api";
 import { useLocale } from "@/lib/locale";
 import type { Locale } from "@/lib/i18n";
+import { encodeImage, isSupportedImage, toBase64 } from "@/lib/encode-image";
 
 interface MediaItem {
   url: string;
+  thumbUrl?: string;
   kind?: "photo" | "video";
   alt?: string;
+}
+
+interface MediaConfig {
+  uploads: boolean;
+  missing: string[];
+  maxBytes: number;
+  base: string;
 }
 
 /**
@@ -45,11 +74,22 @@ const copy = {
     earlierGlyph: "›",
     laterGlyph: "‹",
     remove: "حذف",
-    addByPath: "إضافة صورة بالمسار",
+    addByPath: "أو أضف صورة بالمسار",
     add: "إضافة",
     library: (n: number) => `اختر من مكتبة الصور (${n})`,
-    footer:
-      "الرفع المباشر من الجهاز يصل مع شبكة توصيل الصور (CDN). حتى ذلك الحين تُضاف الصور بمسارها بعد رفعها مع الإصدار، أو تُختار من المكتبة أعلاه.",
+    drop: "اسحب الصور هنا أو اختر من الجهاز",
+    choose: "اختر صورًا من الجهاز",
+    dropHint:
+      "نصغّر الصور في المتصفح قبل رفعها، فالصورة من الهاتف تنزل من ١٢ ميغابايت إلى حوالي ٢٠٠ كيلوبايت — ترفع أسرع وتفتح أسرع عند الزبون.",
+    uploading: (done: number, total: number) => `جاري الرفع… ${done} من ${total}`,
+    uploadFailed: (name: string) => `تعذر رفع ${name}`,
+    notImage: (name: string) => `${name} ليست صورة`,
+    tooLarge: (name: string) => `${name} كبيرة جدًا حتى بعد التصغير`,
+    uploadedOk: (n: number) => `✅ رُفعت ${n} صورة — اضغط حفظ`,
+    uploadsOff: "الرفع من الجهاز غير مفعّل بعد",
+    uploadsOffWhy: (missing: string) =>
+      `مساحة تخزين الصور غير مهيأة. الناقص: ${missing}. أضفها في إعدادات الخادم ثم أعد المحاولة — حتى ذلك الحين أضف الصور بمسارها أو من المكتبة.`,
+    footer: "الصورة الأولى هي ما يراه الزبون في نتائج البحث.",
   },
   en: {
     title: (name: string) => `Photos: ${name}`,
@@ -69,11 +109,22 @@ const copy = {
     earlierGlyph: "‹",
     laterGlyph: "›",
     remove: "Remove",
-    addByPath: "Add a photo by path",
+    addByPath: "Or add a photo by path",
     add: "Add",
     library: (n: number) => `Pick from the photo library (${n})`,
-    footer:
-      "Direct upload from the device lands with the image CDN. Until then, add photos by the path they were deployed under, or pick from the library above.",
+    drop: "Drag photos here, or choose them from this device",
+    choose: "Choose photos from this device",
+    dropHint:
+      "Photos are shrunk in your browser before they upload, so a 12MB phone photo becomes about 200KB — faster to send, and much faster for a guest to load.",
+    uploading: (done: number, total: number) => `Uploading… ${done} of ${total}`,
+    uploadFailed: (name: string) => `Could not upload ${name}`,
+    notImage: (name: string) => `${name} is not an image`,
+    tooLarge: (name: string) => `${name} is too large even after shrinking`,
+    uploadedOk: (n: number) => `✅ Uploaded ${n} photo${n === 1 ? "" : "s"} — press Save`,
+    uploadsOff: "Uploading from this device is not switched on yet",
+    uploadsOffWhy: (missing: string) =>
+      `Photo storage is not configured. Missing: ${missing}. Add these to the server settings and try again — until then, add photos by path or from the library.`,
+    footer: "The first photo is what a guest sees in search results.",
   },
 } satisfies Record<Locale, unknown>;
 
@@ -92,19 +143,29 @@ export function MediaManager({
   const c = copy[locale];
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [library, setLibrary] = useState<string[]>([]);
+  const [base, setBase] = useState("");
+  const [cfg, setCfg] = useState<MediaConfig | null>(null);
   const [url, setUrl] = useState("");
   const [msg, setMsg] = useState("");
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     try {
-      const [m, lib] = await Promise.all([
-        api<{ media: MediaItem[] }>(`/v1/biz/listings/${listingId}/media`),
-        api<{ listings: { slug: string; urls: string[] }[] }>("/v1/biz/media/library"),
+      const [m, lib, conf] = await Promise.all([
+        api<{ media: MediaItem[]; base?: string }>(`/v1/biz/listings/${listingId}/media`),
+        api<{ listings: { slug: string; urls: string[] }[]; base?: string }>(
+          "/v1/biz/media/library",
+        ),
+        api<MediaConfig>("/v1/biz/media/config").catch(() => null),
       ]);
       setMedia(m.media ?? []);
       setLibrary([...new Set(lib.listings.flatMap((l) => l.urls))].sort());
+      setBase(m.base ?? lib.base ?? "");
+      setCfg(conf);
       setDirty(false);
     } catch {
       setMsg(copy[locale].loadFailed);
@@ -138,6 +199,81 @@ export function MediaManager({
     const next = [...media];
     [next[i], next[j]] = [next[j]!, next[i]!];
     mutate(next);
+  }
+
+  /**
+   * Upload the files an operator dropped or picked.
+   *
+   * Sequential rather than parallel: on a connection that is already the
+   * bottleneck, eight simultaneous uploads make all eight slow and turn one
+   * drop into eight failures, and the progress counter would stop meaning
+   * anything. One at a time is slower on a good connection and far more
+   * predictable on a bad one, which is the connection this is for.
+   *
+   * Files that fail are reported by name and the rest continue. A batch where
+   * one photograph was corrupt should not cost the other eleven.
+   */
+  async function uploadFiles(files: File[]) {
+    if (!files.length) return;
+    if (!cfg?.uploads) {
+      setMsg(c.uploadsOffWhy((cfg?.missing ?? []).join(", ") || "—"));
+      return;
+    }
+    setBusy(true);
+    setProgress({ done: 0, total: files.length });
+    const added: MediaItem[] = [];
+    const failures: string[] = [];
+
+    for (const [i, file] of files.entries()) {
+      try {
+        if (!isSupportedImage(file)) {
+          failures.push(c.notImage(file.name));
+          continue;
+        }
+        const { full, thumb } = await encodeImage(file);
+        if (full.blob.size > cfg.maxBytes) {
+          failures.push(c.tooLarge(file.name));
+          continue;
+        }
+        const [fullRes, thumbRes] = await Promise.all([
+          api<{ url: string }>("/v1/biz/media/upload", {
+            method: "POST",
+            body: JSON.stringify({
+              listingId,
+              contentType: full.contentType,
+              width: full.width,
+              data: await toBase64(full.blob),
+            }),
+          }),
+          api<{ url: string }>("/v1/biz/media/upload", {
+            method: "POST",
+            body: JSON.stringify({
+              listingId,
+              contentType: thumb.contentType,
+              width: thumb.width,
+              data: await toBase64(thumb.blob),
+            }),
+          }),
+        ]);
+        added.push({ url: fullRes.url, thumbUrl: thumbRes.url, kind: "photo" });
+      } catch (e) {
+        failures.push(
+          e instanceof ApiError && e.message ? `${file.name}: ${e.message}` : c.uploadFailed(file.name),
+        );
+      } finally {
+        setProgress({ done: i + 1, total: files.length });
+      }
+    }
+
+    // Duplicates are possible and harmless — the same photograph hashes to the
+    // same key — but a listing showing the same picture twice looks careless.
+    const fresh = added.filter((a) => !media.some((m) => m.url === a.url));
+    if (fresh.length) mutate([...media, ...fresh]);
+    setProgress(null);
+    setBusy(false);
+    setMsg(
+      [fresh.length ? c.uploadedOk(fresh.length) : "", ...failures].filter(Boolean).join(" · "),
+    );
   }
 
   async function save() {
@@ -201,7 +337,12 @@ export function MediaManager({
               {media.map((m, i) => (
                 <div key={m.url} className="relative rounded-xl overflow-hidden bg-sand group">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={m.url} alt="" className="w-full h-24 object-cover" />
+                  <img
+                    src={mediaSrc(m.thumbUrl ?? m.url, base)}
+                    alt=""
+                    loading="lazy"
+                    className="w-full h-24 object-cover"
+                  />
                   {i === 0 ? (
                     <span className="absolute top-1 start-1 rounded-full bg-amber px-2 py-0.5 text-[10px] font-bold text-sea-dark">
                       {c.cover}
@@ -237,7 +378,61 @@ export function MediaManager({
             </div>
           )}
 
-          <label className="block text-xs font-bold text-muted">
+          {/*
+            The drop zone. Disabled rather than hidden when storage is not
+            configured, with the reason spelled out — the operator who needs to
+            know is not the person who can fix it, so the message has to be
+            something they can forward.
+          */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (cfg?.uploads) setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              void uploadFiles(Array.from(e.dataTransfer.files));
+            }}
+            className={`rounded-2xl border-2 border-dashed p-5 text-center transition-colors ${
+              dragging ? "border-sea bg-sand" : "border-sand"
+            } ${cfg && !cfg.uploads ? "opacity-70" : ""}`}
+          >
+            {cfg && !cfg.uploads ? (
+              <>
+                <p className="text-sm font-bold text-sea">{c.uploadsOff}</p>
+                <p className="text-xs text-muted mt-1 leading-relaxed">
+                  {c.uploadsOffWhy(cfg.missing.join(", ") || "—")}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-bold text-sea">{c.drop}</p>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    void uploadFiles(Array.from(e.target.files ?? []));
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  className="btn-primary !py-1.5 !px-4 !text-sm mt-3 disabled:opacity-40"
+                  disabled={busy}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  {progress ? c.uploading(progress.done, progress.total) : c.choose}
+                </button>
+                <p className="text-[11px] text-faint mt-2 leading-relaxed">{c.dropHint}</p>
+              </>
+            )}
+          </div>
+
+          <label className="block text-xs font-bold text-muted mt-4">
             {c.addByPath}
             <div className="flex gap-2 mt-1">
               <input
@@ -268,7 +463,12 @@ export function MediaManager({
                     title={u}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={u} alt="" className="w-full h-16 object-cover" />
+                    <img
+                      src={mediaSrc(u, base)}
+                      alt=""
+                      loading="lazy"
+                      className="w-full h-16 object-cover"
+                    />
                   </button>
                 ))}
               </div>

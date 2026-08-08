@@ -21,6 +21,25 @@ export interface NeighbourRecord {
 
 export interface PublicListing {
   id: string;
+  /** How many guests the nightly rate covers — not the capacity. */
+  includedGuests?: number | null;
+  extraGuestFee?: number | null;
+  extraBedPrice?: number | null;
+  minNights?: number | null;
+  boardBasis?: string | null;
+  childPolicy?: { freeUnder: number; reducedUnder: number; reducedBps: number } | null;
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
+  unitKind?: string | null;
+  bathrooms?: number | null;
+  /** Conditions of entry the guest must satisfy at the gate. */
+  requirements?: { key: string; mustAcknowledge?: boolean; detailAr?: string; detailEn?: string }[];
+  houseRulesEn?: string | null;
+  venueId?: string;
+  venueSlug?: string | null;
+  venueNameAr?: string;
+  venueNameEn?: string | null;
+  officeHours?: { from: string; to: string } | null;
   slug: string;
   titleAr: string;
   titleEn?: string;
@@ -98,7 +117,7 @@ export interface PublicListing {
       required: boolean;
     }[];
   } | null;
-  media: { url: string; kind: string; order: number }[];
+  media: { url: string; thumbUrl?: string; kind: string; order: number }[];
   bookingTypes: string[];
   hostReliability?: number | null;
   rating?: number;
@@ -114,7 +133,7 @@ export interface PublicListing {
     titleEn?: string;
     area?: string;
     baseNightly: number;
-    media: { url: string; kind: string; order?: number }[];
+    media: { url: string; thumbUrl?: string; kind: string; order?: number }[];
     verified?: boolean;
     serviceCategory?: string | null;
   }[];
@@ -139,10 +158,25 @@ export interface HallPackage {
 }
 
 export interface Quote {
-  nights: { date: string; price: number }[];
+  nights: { date: string; price: number; room?: number; guests?: number; beds?: number; offerAr?: string; offerEn?: string }[];
   total: number;
+  roomTotal?: number;
+  guestTotal?: number;
+  bedTotal?: number;
   deposit: number;
+  /** True when the operator's ceiling trimmed the percentage deposit. */
+  depositCapped?: boolean;
   balanceOnArrival: number;
+  requiredMinNights?: number;
+  party?: {
+    adults: number;
+    childrenFree: number;
+    childrenReduced: number;
+    childrenFull: number;
+    chargedGuests: number;
+    includedGuests: number;
+  };
+  board?: string;
 }
 
 export interface BookingDetail {
@@ -157,7 +191,7 @@ export interface BookingDetail {
   balanceOnArrival: number;
   cancellationTier: string;
   confirmationDeadline?: string;
-  listing?: { slug: string; titleAr: string; titleEn?: string; media: { url: string }[] };
+  listing?: { slug: string; titleAr: string; titleEn?: string; media: { url: string; thumbUrl?: string }[] };
   venue?: {
     nameAr: string;
     city: string;
@@ -178,4 +212,22 @@ export interface BookingDetail {
     hostPhone?: string;
   };
   timeline: { seq: number; to: string; actor: string; at: string }[];
+}
+
+/**
+ * The right encoding of a photograph for the size it is about to be drawn at.
+ *
+ * Uploaded photographs are stored twice — a wide one for the gallery and a
+ * narrow one for everything else. Search results, cards, wishlists and the
+ * unit picker all draw images a few hundred pixels across, and handing them
+ * the 1600px file wastes roughly ninety percent of the bytes on pixels the
+ * screen cannot show. On a Libyan mobile connection a twelve-card search page
+ * is the difference between 200KB and 2.4MB, which is the difference between a
+ * product that feels fast and one people stop opening.
+ *
+ * Photographs added before uploads existed have only the one size, so the
+ * fallback is not an edge case — it is most of the catalogue today.
+ */
+export function thumb(m: { url: string; thumbUrl?: string } | undefined): string {
+  return m?.thumbUrl ?? m?.url ?? "";
 }

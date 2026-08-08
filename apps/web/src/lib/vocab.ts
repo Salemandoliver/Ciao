@@ -31,6 +31,13 @@ export const CITIES: Record<Locale, Vocab> = {
     benghazi: "بنغازي",
     zawiya: "الزاوية",
     khoms: "الخمس",
+    sabratha: "صبراتة",
+    zuwara: "زوارة",
+    zliten: "زليتن",
+    sirte: "سرت",
+    tobruk: "طبرق",
+    bayda: "البيضاء",
+    susah: "سوسة",
   },
   en: {
     tripoli: "Tripoli",
@@ -38,15 +45,30 @@ export const CITIES: Record<Locale, Vocab> = {
     benghazi: "Benghazi",
     zawiya: "Zawiya",
     khoms: "Khoms",
+    sabratha: "Sabratha",
+    zuwara: "Zuwara",
+    zliten: "Zliten",
+    sirte: "Sirte",
+    tobruk: "Tobruk",
+    bayda: "Bayda",
+    susah: "Susah",
   },
 };
 
 export const AREAS: Record<Locale, Vocab> = {
   ar: {
+    // Tripoli.
     janzour: "جنزور",
     tajoura: "تاجوراء",
     ain_zara: "عين زارة",
     airport_road: "طريق المطار",
+    gargaresh: "قرقارش",
+    regatta: "ريجاتا",
+    // Outside Tripoli. «تليل» is the coastal strip west of Sabratha where the
+    // resorts sit; people give it as the address instead of the town.
+    talil: "تليل",
+    sidi_khalifa: "سيدي خليفة",
+    qasr_ahmed: "قصر أحمد",
     // The aggregation's fallback bucket when an event carried neither an area
     // nor a city. A key from the API, labelled here.
     all: "الكل",
@@ -56,6 +78,11 @@ export const AREAS: Record<Locale, Vocab> = {
     tajoura: "Tajoura",
     ain_zara: "Ain Zara",
     airport_road: "Airport Road",
+    gargaresh: "Gargaresh",
+    regatta: "Regatta",
+    talil: "Talil",
+    sidi_khalifa: "Sidi Khalifa",
+    qasr_ahmed: "Qasr Ahmed",
     all: "All areas",
   },
 };
@@ -63,6 +90,37 @@ export const AREAS: Record<Locale, Vocab> = {
 export const VERTICALS: Record<Locale, Vocab> = {
   ar: { coast: "شاليهات واستراحات", hall: "قاعات أفراح", service: "خدمات" },
   en: { coast: "Chalets & estirahas", hall: "Wedding halls", service: "Services" },
+};
+
+/**
+ * What one bookable unit is, inside a property (`UnitKind` in @ciao/shared).
+ *
+ * A resort sells several of these from one gate — Lancaster lists chalets, a
+ * villa and a duplex suite behind the same facilities — so this is the word
+ * that tells a family which thing they are actually paying for. `estiraha`
+ * keeps its own name in English for the reason given at the top of this file.
+ */
+export const UNIT_KINDS_LABEL: Record<Locale, Vocab> = {
+  ar: {
+    chalet: "شاليه",
+    villa: "فيلا",
+    estiraha: "استراحة",
+    apartment: "شقة",
+    room: "غرفة",
+    suite: "جناح",
+    hall: "قاعة",
+    service: "خدمة",
+  },
+  en: {
+    chalet: "Chalet",
+    villa: "Villa",
+    estiraha: "Estiraha",
+    apartment: "Apartment",
+    room: "Room",
+    suite: "Suite",
+    hall: "Hall",
+    service: "Service",
+  },
 };
 
 export const SERVICE_CATEGORY_LABELS: Record<Locale, Vocab> = {
@@ -115,6 +173,29 @@ export const AMENITIES: Record<Locale, Vocab> = {
     membership: "اشتراكات",
     tiered_cake: "كيك متعدد الطوابق",
     custom_design: "تصميم حسب الطلب",
+    // What the property has, shared by every unit behind the same gate.
+    beach: "شاطئ خاص",
+    kids_pool: "مسبح للأطفال",
+    wifi: "إنترنت عالي السرعة",
+    security_24h: "أمن وحراسة ٢٤ ساعة",
+    restaurant: "مطعم",
+    cafe: "كافيه",
+    room_service: "خدمة الغرف",
+    laundry: "غسيل وكي",
+    nursery: "حضانة أطفال",
+    barber: "صالون حلاقة",
+    meeting_room: "غرفة اجتماعات",
+    mini_market: "ميني ماركت",
+    // What the unit itself has — the half of the list a family compares two
+    // chalets on, once they have already chosen the resort.
+    private_pool: "مسبح خاص",
+    sea_view: "إطلالة على البحر",
+    kitchen: "مطبخ متكامل",
+    air_conditioning: "تكييف",
+    smart_tv: "تلفزيون ذكي",
+    outdoor_seating: "جلسات خارجية",
+    garden: "مساحات خضراء",
+    bbq: "شواء",
   },
   en: {
     generator: "Backup generator",
@@ -145,6 +226,135 @@ export const AMENITIES: Record<Locale, Vocab> = {
     membership: "Memberships",
     tiered_cake: "Tiered cake",
     custom_design: "Made to order",
+    beach: "Private beach",
+    kids_pool: "Children's pool",
+    wifi: "High-speed internet",
+    security_24h: "Security on the gate, 24 hours",
+    restaurant: "Restaurant",
+    cafe: "Café",
+    room_service: "Room service",
+    laundry: "Laundry and ironing",
+    nursery: "Children's nursery",
+    barber: "Barber shop",
+    meeting_room: "Meeting room",
+    mini_market: "Mini-market on site",
+    private_pool: "Private pool",
+    sea_view: "Looks out on the sea",
+    kitchen: "Full kitchen",
+    air_conditioning: "Air conditioning",
+    smart_tv: "Smart TV",
+    outdoor_seating: "Outdoor seating",
+    garden: "Green space",
+    bbq: "Barbecue",
+  },
+};
+
+/**
+ * One glyph per amenity, for the same reason as the neighbour glyphs above and
+ * with the same rule: nothing newer than Emoji 5, because half this audience is
+ * reading it on a phone that ships a 2017 font and a blank box says less than
+ * no glyph at all. Not per-locale — a generator is a generator.
+ */
+export const AMENITY_EMOJI: Record<string, string> = {
+  generator: "⚡",
+  water_tank: "💧",
+  pool: "🏊",
+  bride_suite: "👰",
+  prayer_space: "🕌",
+  parking: "🅿",
+  kosha: "💒",
+  tasting: "😋",
+  delivery_setup: "🚚",
+  service_staff: "👥",
+  menu_fixed: "📋",
+  photo_video: "📸",
+  female_staff: "👩",
+  printed_album: "📔",
+  delivery_time: "⏱",
+  trial: "✨",
+  home_visit: "🏠",
+  original_products: "💯",
+  female_only: "🚺",
+  bridal: "💇",
+  appointment: "📅",
+  privacy: "🔒",
+  female_hours: "⏰",
+  female_trainer: "🏋",
+  equipment: "⚙",
+  membership: "🎟",
+  tiered_cake: "🎂",
+  custom_design: "🎨",
+  beach: "🏖",
+  kids_pool: "👶",
+  wifi: "📶",
+  security_24h: "🛡",
+  restaurant: "🍽",
+  cafe: "☕",
+  room_service: "🛎",
+  laundry: "👕",
+  nursery: "🍼",
+  barber: "💈",
+  meeting_room: "💼",
+  mini_market: "🛒",
+  private_pool: "🏊",
+  sea_view: "🌊",
+  kitchen: "🍳",
+  air_conditioning: "❄",
+  smart_tv: "📺",
+  outdoor_seating: "⛱",
+  garden: "🌳",
+  bbq: "🍖",
+};
+
+/**
+ * What the nightly rate feeds you (`BoardBasis` in @ciao/shared).
+ *
+ * This is the difference between a 3,600 villa and a 600 chalet looking like a
+ * scandal and looking like two different products, so the label spells the
+ * meals out rather than leaving "half board" to be guessed at — the phrase is
+ * hotel English, and most of the families reading it have never stayed in one.
+ */
+export const BOARD: Record<Locale, Vocab> = {
+  ar: {
+    room_only: "بدون وجبات",
+    breakfast: "يشمل الإفطار",
+    half_board: "إفطار وعشاء",
+    full_board: "إقامة كاملة — إفطار وغداء وعشاء",
+  },
+  en: {
+    room_only: "Room only",
+    breakfast: "Breakfast included",
+    half_board: "Half board — breakfast and dinner",
+    full_board: "Full board — all meals",
+  },
+};
+
+/**
+ * Conditions of entry (`RequirementKey` in @ciao/shared).
+ *
+ * These are not house rules and they are not a warning label. Each one is a
+ * thing that gets a family turned away at a gate in Sabratha at nine at night,
+ * so it is written as the guest has to act on it — bring this, expect that —
+ * and never as a suspicion about who is asking.
+ */
+export const REQUIREMENTS: Record<Locale, Vocab> = {
+  ar: {
+    family_proof: "إثبات الوضع العائلي",
+    id_card: "بطاقة شخصية أو جواز",
+    marriage_certificate: "عقد الزواج",
+    deposit_on_arrival: "تأمين عند الوصول",
+    no_single_men: "عائلات فقط",
+    no_music_after_hours: "بدون موسيقى بعد وقت محدد",
+    no_pets: "بدون حيوانات أليفة",
+  },
+  en: {
+    family_proof: "Proof of family status",
+    id_card: "ID or passport",
+    marriage_certificate: "Marriage certificate",
+    deposit_on_arrival: "Refundable deposit on arrival",
+    no_single_men: "Families only",
+    no_music_after_hours: "No music after hours",
+    no_pets: "No pets",
   },
 };
 
@@ -571,7 +781,6 @@ export const UI: Record<Locale, Vocab> = {
     signOut: "خروج",
     about: "من نحن",
     account: "حسابي",
-    hosts: "للمضيفين",
     wishlist: "المفضلة",
     perNight: "/ ليلة",
     onRequest: "حسب الطلب",
@@ -591,7 +800,6 @@ export const UI: Record<Locale, Vocab> = {
     signOut: "Sign out",
     about: "About",
     account: "Account",
-    hosts: "For hosts",
     wishlist: "Saved",
     perNight: "/ night",
     onRequest: "On request",

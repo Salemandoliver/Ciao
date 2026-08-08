@@ -13,14 +13,10 @@
  * flexibility.
  */
 import { eq, inArray } from "drizzle-orm";
-import { FEES } from "@ciao/shared";
+import { FEES, type HeroImage } from "@ciao/shared";
 import { db, schema } from "../../db/client.js";
 
-export interface HeroImage {
-  /** Base path without the width suffix, e.g. "/hero-marina" → -800/-1600.webp */
-  src: string;
-  alt: string;
-}
+export type { HeroImage };
 
 /**
  * The full settings surface. Adding a setting = adding a key here with its
@@ -65,6 +61,15 @@ export const SETTING_DEFAULTS = {
   /** Commercial terms (§9.1). Basis points, so 1000 = 10%. */
   "fees.coastCommissionBps": FEES.coastCommissionBps,
   "fees.coastDepositBps": FEES.coastDepositBps,
+  /**
+   * A ceiling on the deposit, in dirhams — 0 disables it.
+   *
+   * The flat percentage was sized against a 1,375 د.ل chalet weekend. Real
+   * resort supply asks 14,400 د.ل for three nights, where 20% is 2,880 د.ل on
+   * Sadad in one push from a first-time guest. Operator-owned because it is a
+   * conversion decision, not an engineering one.
+   */
+  "fees.coastDepositCapDirhams": FEES.coastDepositCapDirhams,
   "fees.hallCommissionBps": FEES.hallCommissionBps,
   "fees.hallCommissionCapDirhams": FEES.hallCommissionCapDirhams,
   "fees.hallDateLockBps": FEES.hallDateLockBps,
@@ -313,6 +318,7 @@ export async function effectiveFees() {
     ...FEES,
     coastCommissionBps: Number(all["fees.coastCommissionBps"]),
     coastDepositBps: Number(all["fees.coastDepositBps"]),
+    coastDepositCapDirhams: Number(all["fees.coastDepositCapDirhams"]),
     hallCommissionBps: Number(all["fees.hallCommissionBps"]),
     hallCommissionCapDirhams: Number(all["fees.hallCommissionCapDirhams"]),
     hallDateLockBps: Number(all["fees.hallDateLockBps"]),
@@ -367,6 +373,15 @@ export function validateSetting(key: string, value: unknown): string | null {
       return typeof value === "number" && value >= 500 && value <= 5000
         ? null
         : "العربون يجب أن يكون بين 5% و50%";
+    case "fees.coastDepositCapDirhams":
+      /*
+       * Zero is meaningful — it turns the ceiling off. Above zero the floor is
+       * 200 د.ل, below which the deposit stops bonding the guest against a
+       * no-show, which is the thing we sold the host.
+       */
+      return typeof value === "number" && (value === 0 || value >= 200_000)
+        ? null
+        : "سقف العربون يجب أن يكون صفرًا (بدون سقف) أو 200 د.ل فأكثر";
     case "trust.minReviewsForGuestRating":
       return typeof value === "number" && value >= 1 && value <= 20
         ? null
@@ -385,6 +400,23 @@ export function validateSetting(key: string, value: unknown): string | null {
       if (!Array.isArray(v?.images) || v.images.length === 0)
         return "يجب أن تبقى صورة واحدة على الأقل في الواجهة";
       if (v.images.length > 8) return "الحد الأقصى 8 صور في الواجهة";
+      /*
+       * `variants` is what stops an uploaded hero from claiming widths its
+       * files do not have — the failure that rendered two uploads blank on the
+       * home page while reporting nothing anywhere. Validated rather than
+       * trusted, because the console writes it and the console is a client.
+       */
+      for (const img of v.images as { src?: unknown; variants?: unknown }[]) {
+        if (typeof img?.src !== "string" || !img.src) return "كل صورة تحتاج مسارًا";
+        if (img.variants === undefined) continue;
+        if (!Array.isArray(img.variants) || img.variants.length === 0)
+          return "قائمة النسخ غير صالحة";
+        for (const variant of img.variants as { url?: unknown; width?: unknown }[]) {
+          if (typeof variant?.url !== "string" || !variant.url) return "قائمة النسخ غير صالحة";
+          if (typeof variant?.width !== "number" || !(variant.width > 0))
+            return "قائمة النسخ غير صالحة";
+        }
+      }
       return null;
     }
     case "loyalty.pointToDirham":

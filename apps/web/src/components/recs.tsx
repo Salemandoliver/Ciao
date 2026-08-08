@@ -5,6 +5,7 @@ import { Link, useLocale } from "@/lib/locale";
 import { api, hasSession, fmtLyd } from "@/lib/api";
 import { listingTitle, textProps } from "@/lib/content";
 import type { Locale } from "@/lib/i18n";
+import { thumb } from "@/lib/types";
 
 /**
  * The recommendation reason is written server-side in Arabic and there is no
@@ -66,7 +67,7 @@ export function RecsStrip() {
             <Link key={r.id} href={`/l/${r.slug}`} className="card block hover:shadow-md">
               <div className="relative aspect-[4/3] bg-sea/10">
                 {cover ? (
-                  <img src={cover.url} alt={title.text} loading="lazy"
+                  <img src={thumb(cover)} alt={title.text} loading="lazy"
                     className="absolute inset-0 h-full w-full object-cover" />
                 ) : null}
               </div>

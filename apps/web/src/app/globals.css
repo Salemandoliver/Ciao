@@ -19,30 +19,153 @@
 /**
  * The scrim over hero photography.
  *
- * This was written as `bg-gradient-to-t from-sea/80 …`, and `sea` inverts in
- * dark mode — so at night the "darkening" gradient became a near-white wash
- * and the white headline on top of it all but vanished. The scrim's job is to
- * darken a photograph so white type reads on it, and a photograph does not
- * change with the theme, so neither does this. Fixed sea-blue in both.
+ * Fixed sea-blue in both themes, never `sea`, which inverts: written as
+ * `from-sea/80` this became a near-white wash at night and the white headline
+ * on top of it all but vanished. A photograph does not change with the theme,
+ * so neither can the thing darkening it.
  *
- * `-strong` is for pages where the type runs long (About) and needs more
- * cover; `-soft` keeps the photography dominant (home).
+ * ## These are named by where the type sits, and that is the point
+ *
+ * They used to be named by strength — `-soft` and `-strong` — and both were
+ * bottom-weighted, because the first page to need one had its type at the
+ * bottom. The home page and the About page put their headline at the *top*,
+ * picked `-soft` for its name, and got a gradient pointing the wrong way: 5%
+ * cover behind the headline that needed it, and 72% over the lower half of the
+ * photograph, where the only things on top — the search pill and the vertical
+ * tabs — already carry their own opaque backgrounds and need no help at all.
+ *
+ * So the darkest part of every hero was darkening a part of the picture
+ * nothing was written on. Photography is the strongest sales tool this
+ * marketplace has; a resort's beach arriving 30% duller than it is costs
+ * bookings, and it bought nothing.
+ *
+ * Named by position now, weighted where the type is, and clear everywhere
+ * else. Type gets `.type-on-photo` as well, so legibility comes from the
+ * letters rather than from flooding the photograph.
  */
-.photo-scrim-soft {
+.photo-scrim-top {
+  /*
+   * Two axes, both measured rather than eyeballed.
+   *
+   * Vertically it fades to nothing before the halfway line, so the part of the
+   * picture people are actually looking at — the sea, the buildings, the beach
+   * — carries no scrim at all.
+   *
+   * Horizontally it is heavier on the side the type is set from and clears
+   * completely across the other half of the frame. That is the change that
+   * made the numbers work without flooding the photograph: the words occupy
+   * one column, so only that column needs covering, and the wide half of every
+   * hero stays exactly as the photographer left it.
+   *
+   * The horizontal direction has to follow the writing direction — the type is
+   * set from the right in Arabic and from the left in English — so the two
+   * cases are declared separately below. A gradient cannot express that
+   * logically, and getting it backwards puts the cover on the empty side.
+   */
   background-image: linear-gradient(
-    to top,
-    rgb(13 27 42 / 0.72),
-    rgb(13 27 42 / 0.28),
-    rgb(13 27 42 / 0.05)
+    to bottom,
+    rgb(13 27 42 / 0.62) 0%,
+    rgb(13 27 42 / 0.3) 32%,
+    rgb(13 27 42 / 0) 58%
   );
 }
-.photo-scrim-strong {
+[dir="rtl"] .photo-scrim-top {
+  background-image:
+    linear-gradient(
+      to left,
+      rgb(13 27 42 / 0.58) 0%,
+      rgb(13 27 42 / 0.32) 45%,
+      rgb(13 27 42 / 0) 78%
+    ),
+    linear-gradient(
+      to bottom,
+      rgb(13 27 42 / 0.72) 0%,
+      rgb(13 27 42 / 0.5) 32%,
+      rgb(13 27 42 / 0.26) 50%,
+      rgb(13 27 42 / 0) 64%
+    );
+}
+[dir="ltr"] .photo-scrim-top {
+  background-image:
+    linear-gradient(
+      to right,
+      rgb(13 27 42 / 0.58) 0%,
+      rgb(13 27 42 / 0.32) 45%,
+      rgb(13 27 42 / 0) 78%
+    ),
+    linear-gradient(
+      to bottom,
+      rgb(13 27 42 / 0.72) 0%,
+      rgb(13 27 42 / 0.5) 32%,
+      rgb(13 27 42 / 0.26) 50%,
+      rgb(13 27 42 / 0) 64%
+    );
+}
+/**
+ * About: a broad wash, and deliberately so.
+ *
+ * The home hero and the venue hero are showcases — the photograph is the
+ * argument, the type is a caption, and the scrim is a narrow band behind the
+ * caption. The About hero is the opposite: three paragraphs of body copy
+ * covering most of the panel, with a photograph behind them as texture. Body
+ * copy needs 4.5:1, not 3:1, and measured against the brightest frame that
+ * takes about 65% cover across the whole box — a lighter ramp measured 2.5:1,
+ * which is not readable.
+ *
+ * Two heroes, two jobs, two scrims. Trying to serve both with one value is
+ * what produced a gradient that was too heavy for the picture and too light
+ * for the paragraphs at the same time.
+ */
+.photo-scrim-top-strong {
+  background-image: linear-gradient(
+    to bottom,
+    rgb(13 27 42 / 0.82) 0%,
+    rgb(13 27 42 / 0.68) 50%,
+    rgb(13 27 42 / 0.6) 100%
+  );
+}
+/* Venue storefront: the name and city sit along the bottom edge. */
+.photo-scrim-bottom {
   background-image: linear-gradient(
     to top,
-    rgb(13 27 42 / 0.88),
-    rgb(13 27 42 / 0.5),
-    rgb(13 27 42 / 0.18)
+    rgb(13 27 42 / 0.66) 0%,
+    rgb(13 27 42 / 0.24) 34%,
+    rgb(13 27 42 / 0) 62%
   );
+}
+
+/**
+ * White type directly on a photograph.
+ *
+ * Tailwind's `drop-shadow` is a 1px shadow at 10% — invisible against a bright
+ * sky, which is exactly the frame where white type is at risk. Two stacked
+ * shadows do the work instead: a tight dark one for edge definition and a
+ * wide soft one that darkens only the few pixels around each letter. That
+ * buys the legibility a heavy scrim was being asked for, at the cost of
+ * nothing in the photograph itself.
+ */
+/**
+ * The brand word set in gold, directly on a photograph.
+ *
+ * `--amber` is #e8a020, and measured against the brightest frame of the hero
+ * rotation it lands at 2.8:1 — under the 3:1 a large word needs, and the one
+ * word on the page that has to be unmistakable. Gold is a mid-luminance
+ * colour, so unlike white it cannot be rescued by darkening the background
+ * without darkening the photograph far more than the picture can afford.
+ *
+ * A lighter tint of the same hue solves it at no cost to the photograph: same
+ * gold, same brand, ~3.6:1. It applies only on photography, exactly as
+ * `.chip-on-photo` and `.tab-on-photo` already depart from the tokens for the
+ * same reason — a photograph is not a themed surface.
+ */
+.brand-on-photo {
+  color: #f5c978;
+}
+
+.type-on-photo {
+  text-shadow:
+    0 1px 2px rgb(13 27 42 / 0.6),
+    0 2px 10px rgb(13 27 42 / 0.55);
 }
 /* The placeholder wash behind a card photo while it loads — same logic. */
 .photo-placeholder {
