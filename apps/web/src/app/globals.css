@@ -42,65 +42,15 @@
  * Named by position now, weighted where the type is, and clear everywhere
  * else. Type gets `.type-on-photo` as well, so legibility comes from the
  * letters rather than from flooding the photograph.
+ *
+ * The home hero has since gone further and dropped its scrim altogether —
+ * founder direction, August 2026: the photograph shows through as taken. Its
+ * `.photo-scrim-top` is gone with it rather than left behind as a class
+ * nothing uses, because an unused scrim is one somebody re-applies later
+ * without knowing it was removed on purpose. The two below stay: the About
+ * hero carries three paragraphs of body copy that need 4.5:1, and the venue
+ * storefront sets a name along the bottom edge of a partner's own photograph.
  */
-.photo-scrim-top {
-  /*
-   * Two axes, both measured rather than eyeballed.
-   *
-   * Vertically it fades to nothing before the halfway line, so the part of the
-   * picture people are actually looking at — the sea, the buildings, the beach
-   * — carries no scrim at all.
-   *
-   * Horizontally it is heavier on the side the type is set from and clears
-   * completely across the other half of the frame. That is the change that
-   * made the numbers work without flooding the photograph: the words occupy
-   * one column, so only that column needs covering, and the wide half of every
-   * hero stays exactly as the photographer left it.
-   *
-   * The horizontal direction has to follow the writing direction — the type is
-   * set from the right in Arabic and from the left in English — so the two
-   * cases are declared separately below. A gradient cannot express that
-   * logically, and getting it backwards puts the cover on the empty side.
-   */
-  background-image: linear-gradient(
-    to bottom,
-    rgb(13 27 42 / 0.62) 0%,
-    rgb(13 27 42 / 0.3) 32%,
-    rgb(13 27 42 / 0) 58%
-  );
-}
-[dir="rtl"] .photo-scrim-top {
-  background-image:
-    linear-gradient(
-      to left,
-      rgb(13 27 42 / 0.58) 0%,
-      rgb(13 27 42 / 0.32) 45%,
-      rgb(13 27 42 / 0) 78%
-    ),
-    linear-gradient(
-      to bottom,
-      rgb(13 27 42 / 0.72) 0%,
-      rgb(13 27 42 / 0.5) 32%,
-      rgb(13 27 42 / 0.26) 50%,
-      rgb(13 27 42 / 0) 64%
-    );
-}
-[dir="ltr"] .photo-scrim-top {
-  background-image:
-    linear-gradient(
-      to right,
-      rgb(13 27 42 / 0.58) 0%,
-      rgb(13 27 42 / 0.32) 45%,
-      rgb(13 27 42 / 0) 78%
-    ),
-    linear-gradient(
-      to bottom,
-      rgb(13 27 42 / 0.72) 0%,
-      rgb(13 27 42 / 0.5) 32%,
-      rgb(13 27 42 / 0.26) 50%,
-      rgb(13 27 42 / 0) 64%
-    );
-}
 /**
  * About: a broad wash, and deliberately so.
  *
@@ -163,9 +113,29 @@
 }
 
 .type-on-photo {
+  /*
+   * Three stacked shadows, because the home hero no longer has a scrim.
+   *
+   * Founder direction is that the photograph shows through unfiltered, so the
+   * cover the wash used to provide has to be bought somewhere else — and the
+   * only place left that does not touch the picture is the few pixels around
+   * each letter. A tight dark shadow gives the glyph its edge, a mid one
+   * thickens it, and a wide soft one lifts the whole word off a bright sky.
+   *
+   * The wide shadow is the one doing the real work and the one that looks
+   * wrong if you tune it by eye on a sunset: measure against the *brightest*
+   * frame of the rotation with `tools/photo-contrast.mjs`. White type on white
+   * cloud is the case that fails, and there is no frame in the current set
+   * worse than the marina at midday.
+   *
+   * A halo rather than a wash also degrades better. If a partner ever supplies
+   * a hero photograph brighter than anything here, a scrim would have to be
+   * re-tuned for it; a halo is attached to the letters and travels with them.
+   */
   text-shadow:
-    0 1px 2px rgb(13 27 42 / 0.6),
-    0 2px 10px rgb(13 27 42 / 0.55);
+    0 1px 2px rgb(13 27 42 / 0.85),
+    0 2px 6px rgb(13 27 42 / 0.7),
+    0 4px 18px rgb(13 27 42 / 0.65);
 }
 /* The placeholder wash behind a card photo while it loads — same logic. */
 .photo-placeholder {

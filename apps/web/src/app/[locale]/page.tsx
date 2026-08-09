@@ -34,10 +34,10 @@ const FALLBACK_HERO: { intervalMs: number; images: HeroImage[] } = {
  * change to one is visibly a change to a pair, and nobody edits a headline and
  * leaves the other language stale three directories away.
  *
- * The English is written, not translated. «قول تشاو للحجز بالمكالمات» is a pun
- * — "say ciao to booking by phone call", where ciao is both the brand and the
- * goodbye — and it happens to work in English, so it stays. Elsewhere the
- * English says what the Arabic means rather than what it literally says.
+ * The English is written, not translated. «قول تشاو للحجز أونلاين» is a pun —
+ * "say ciao to booking online", where ciao is both the brand and the goodbye —
+ * and it happens to work in English, so it stays. Elsewhere the English says
+ * what the Arabic means rather than what it literally says.
  */
 const copy = {
   ar: {
@@ -46,9 +46,9 @@ const copy = {
     account: "حسابي",
     heroLead: "قول",
     heroBrand: "تشاو",
-    heroTail: "للحجز بالمكالمات",
+    heroTail: "للحجز أونلاين",
     heroBody:
-      "الشاليهات والاستراحات وقاعات الأفراح — موثّقة ميدانيًا، صورناها بأنفسنا، والمولّد مجرَّب. احجز بعربون بسيط والباقي نقدًا عند الوصول.",
+      "الشاليهات والاستراحات وقاعات الأفراح — كلها بين يديك. احجز بعربون بسيط وادفع الباقي عند الوصول.",
     trust: [
       [
         "✓ نعتمدها بأنفسنا",
@@ -74,9 +74,9 @@ const copy = {
     account: "Account",
     heroLead: "Say",
     heroBrand: "ciao",
-    heroTail: "to booking by phone call",
+    heroTail: "to booking online.",
     heroBody:
-      "Beach chalets, estirahas and wedding halls — visited and verified in person, photographed by us, generator tested. Book with a small deposit and pay the rest in cash on arrival.",
+      "Beach chalets, estirahas and wedding halls — all at your fingertips. Book with a small deposit and pay the rest on arrival.",
     trust: [
       [
         "✓ We verify them ourselves",
@@ -203,12 +203,18 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <section className="card relative overflow-hidden text-white">
         <HeroRotator images={hero.images} intervalMs={hero.intervalMs} />
         {/*
-          Weighted at the top, where the headline is — it used to be weighted
-          at the bottom, where nothing but the self-contrasting search pill
-          sits, so the darkest part of the scrim was dulling the photograph for
-          no one. Legibility now comes mostly from `.type-on-photo`.
+          No scrim. Founder direction, August 2026: the photograph shows
+          through exactly as it was taken.
+
+          Nothing was simply deleted — the legibility the wash was buying had
+          to go somewhere, so it moved into the letters. `.type-on-photo` now
+          carries a heavier halo (see globals.css), which darkens the few
+          pixels around each glyph instead of the whole picture. Measured
+          against the brightest frame of the rotation with
+          `tools/photo-contrast.mjs`, which is the check to re-run before
+          anyone adds a fourth hero photograph: a white sky is the frame that
+          breaks this, not a sunset.
         */}
-        <div className="absolute inset-0 photo-scrim-top" aria-hidden />
         <div className="relative p-6 sm:p-10 pb-4 sm:pb-6" data-on-photo>
           <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
             {c.heroLead} <span className="brand-on-photo">{c.heroBrand}</span> {c.heroTail}
