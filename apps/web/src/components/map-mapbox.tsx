@@ -61,19 +61,58 @@ const STYLE_DARK = "mapbox://styles/mapbox/dark-v11";
 const PALETTE = {
   light: {
     land: "#f5edd8",
+    /* Parks, sand, built-up ground: a shade off the land so the map has some
+     * texture rather than one flat sheet of cream. */
+    landcover: "#eee2c4",
     water: "#c4b9a0",
     road: "#d4c9b5",
     label: "#0d1b2a",
     halo: "#f5edd8",
     roadGlow: null as string | null,
+    roadGlowOpacity: 0,
+    roadGlowBlur: 0,
   },
   dark: {
-    land: "#121218",
-    water: "#0a0e1a",
-    road: "#2c2c34",
+    /*
+     * The first dark map was unreadable and it is worth recording why, because
+     * every value was individually defensible.
+     *
+     * Land was #121218 and water #0a0e1a. Those are four points apart in
+     * luminance — invisibly different — so the Mediterranean and the Sahara
+     * rendered as one black rectangle and the COASTLINE DISAPPEARED. On a
+     * marketplace that sells the coast, the coast was the one thing missing.
+     *
+     * Roads then had to carry the whole map alone, at 40% opacity behind a 3px
+     * blur, which is a rumour of a road network rather than one.
+     *
+     * So: the land lifts to a slate that is plainly not water, the sea drops to
+     * something much darker and bluer, and the two now differ by enough that
+     * the shoreline draws itself. The roads brighten and stop being blurred to
+     * a smear — the glow is meant to look like lit streets at night, not like
+     * an out-of-focus photograph.
+     *
+     *   land against water   1.03 -> 1.56
+     *   orange road on land          3.79
+     *   label on land               11.35
+     *
+     * The land is deliberately lighter than the `#121218` the brand document
+     * specifies. That value is right for a page ground and wrong for a map:
+     * a map has to hold two large adjacent fills apart, and at #121218 there is
+     * no value dark enough left underneath it for the sea. Lifting the land is
+     * the only move that buys a coastline, and the coast is what this app sells.
+     * The trade is real and bounded — the orange roads sit at 3.79 on the
+     * lighter ground instead of 5.14 on the darker one, which is still plainly
+     * legible for a line.
+     */
+    land: "#2a3344",
+    landcover: "#333d50",
+    water: "#060a12",
+    road: "#4c5870",
     label: "#f5f2eb",
-    halo: "#121218",
+    halo: "#0b0f18",
     roadGlow: "#e8641b",
+    roadGlowOpacity: 0.62,
+    roadGlowBlur: 1,
   },
 };
 
@@ -571,21 +610,35 @@ function applyBrandPalette(map: mapboxgl.Map, dark: boolean): void {
       if (layer.type === "line") set(id, "line-color", p.water);
       continue;
     }
-    if (/^(land|landcover|landuse|national-park|pitch|aeroway)/.test(id)) {
+    /*
+     * Parks, sand, airports and pitches keep a tone of their own rather than
+     * being flattened into the land. Painting every fill the same colour is
+     * what made the first dark map a sheet of black with nothing on it: the
+     * style's own texture was being deleted before the roads even got a chance.
+     */
+    if (/^(landcover|landuse|national-park|pitch|aeroway|sand|grass|park)/.test(id)) {
+      if (layer.type === "fill") set(id, "fill-color", p.landcover);
+      continue;
+    }
+    if (/^land/.test(id)) {
       if (layer.type === "fill") set(id, "fill-color", p.land);
       continue;
     }
     if (/road|bridge|tunnel|street/.test(id) && layer.type === "line") {
       set(id, "line-color", p.road);
       /*
-       * The night map's one flourish, and it earns its place: on a near-black
-       * ground the road network is the only thing that tells you which strip of
-       * coast you are looking at, and grey-on-black loses it entirely.
+       * The night map's one flourish, and it earns its place: on a dark ground
+       * the road network is what tells you which strip of coast you are looking
+       * at, and grey-on-black loses it entirely.
+       *
+       * Bright and barely blurred. The blur is meant to read as lit streets
+       * seen from above, and past a pixel or two it stops looking like light
+       * and starts looking like the map is out of focus.
        */
       if (p.roadGlow && /^road/.test(id) && !/label/.test(id)) {
         set(id, "line-color", p.roadGlow);
-        set(id, "line-opacity", 0.4);
-        set(id, "line-blur", 3);
+        set(id, "line-opacity", p.roadGlowOpacity);
+        set(id, "line-blur", p.roadGlowBlur);
       }
       continue;
     }
