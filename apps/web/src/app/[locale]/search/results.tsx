@@ -305,9 +305,30 @@ export function SearchResults({
         <p className="text-sm text-muted mb-3">{c.noPin(fmtNum(locale, withoutPin))}</p>
       ) : null}
 
-      <div className={`lg:grid lg:grid-cols-2 lg:gap-4 ${showMapMobile ? "hidden lg:grid" : ""}`}>
+      {/*
+        Desktop is a map with a rail beside it, not two equal halves.
+
+        The frames give the map roughly three fifths and the results a
+        scrollable sidebar, which is the right weight: on a phone the list is
+        the product and the map is a toggle, but on a wide screen the map is the
+        thing you cannot get anywhere else, and 50/50 spends half a monitor
+        rendering a column of cards two abreast.
+
+        The map leads on `lg` via `order`, not by moving it in the DOM. Source
+        order still puts the list first, which is what a screen reader follows
+        and what the mobile stack needs — down there the map is a toggle and
+        must not come first.
+      */}
+      <div
+        className={`lg:grid lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:gap-4 ${
+          showMapMobile ? "hidden lg:grid" : ""
+        }`}
+      >
         {/* results list */}
-        <div ref={listRef} className="lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:pe-1">
+        <div
+          ref={listRef}
+          className="lg:order-2 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:pe-1"
+        >
           {shown.length === 0 ? (
             <div className="card p-6 space-y-2 mb-4">
               <p className="font-bold text-sea">
@@ -339,9 +360,9 @@ export function SearchResults({
           </div>
         </div>
 
-        {/* map — sticky, always present on desktop */}
+        {/* map — sticky, always present on desktop, and leading the row */}
         {showMap ? (
-          <div className="hidden lg:block relative">
+          <div className="hidden lg:block relative lg:order-1">
             <div className="sticky top-4">
               <MapView
                 {...mapProps}

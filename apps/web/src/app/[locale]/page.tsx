@@ -1,5 +1,4 @@
 import { Link } from "@/lib/locale";
-import { Logo } from "@/components/logo";
 import { ListingCard, RatingPill, VerifiedBadge } from "@/components/listing-card";
 import { listingTitle, textProps } from "@/lib/content";
 import { placeLabel } from "@/lib/vocab";
@@ -12,7 +11,7 @@ import { BrandSlot } from "@/components/brand-slot";
 import { ServiceTiles } from "@/components/service-tiles";
 import { CategoryTiles } from "@/components/category-tiles";
 import { SiteFooter } from "@/components/site-footer";
-import { LanguageToggle } from "@/components/language-toggle";
+import { SiteHeader } from "@/components/site-header";
 import { API_URL } from "@/lib/api";
 import { asLocale, type Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
@@ -45,9 +44,6 @@ const FALLBACK_HERO: { intervalMs: number; images: HeroImage[] } = {
  */
 const copy = {
   ar: {
-    wishlist: "المفضلة",
-    about: "من نحن",
-    account: "حسابي",
     heroLead: "قول",
     heroBrand: "تشاو",
     heroTail: "للحجز أونلاين",
@@ -69,9 +65,6 @@ const copy = {
     seeAll: "عرض الكل ←",
   },
   en: {
-    wishlist: "Saved",
-    about: "About",
-    account: "Account",
     heroLead: "Say",
     heroBrand: "ciao",
     heroTail: "to booking online.",
@@ -196,22 +189,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         widened rather than a desktop layout.
       */}
       <main className="mx-auto max-w-7xl px-4 pb-16">
-      <header className="flex items-center justify-between py-4">
-        <Logo />
-        <nav className="flex items-center gap-3 text-sm font-bold text-sea">
-          <Link href="/wishlist" aria-label={c.wishlist}>🤍</Link>
-          <Link href="/about">{c.about}</Link>
-          {/*
-            "للمضيفين" used to sit here, pointing at a section of the About
-            page. Partners have their own product on their own origin now, and
-            the panel further down this page is where a prospective one puts
-            their hand up — so the nav item was sending people to read about
-            hosting on a page that then had to send them somewhere else again.
-          */}
-          <Link href="/account">{c.account}</Link>
-          <LanguageToggle />
-        </nav>
-      </header>
+      {/*
+        The same bar the search and listing pages now carry. "للمضيفين" is still
+        not in it: partners have their own product on their own origin, and the
+        panel further down this page is where a prospective one puts their hand
+        up — a nav item there sent people to read about hosting on a page that
+        then had to send them somewhere else again.
+      */}
+      <SiteHeader />
 
       {/* Signed-in members only, and client-side — the page itself is cached
           for everyone (§12.3), so it cannot know a name. Renders nothing at

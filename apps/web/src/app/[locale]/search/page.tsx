@@ -1,10 +1,9 @@
 import { Link } from "@/lib/locale";
-import { Logo } from "@/components/logo";
-import { LanguageToggle } from "@/components/language-toggle";
 import { HeroSearch } from "@/components/hero-search";
 import { TrackEvent } from "@/components/track";
 import { BrandSlot } from "@/components/brand-slot";
 import { SearchResults } from "./results";
+import { SiteHeader } from "@/components/site-header";
 // From `map-geo`, not `map-view`: this is a server component, and everything a
 // "use client" module exports crosses the boundary as a client reference —
 // including a plain settings object, which would arrive here as a proxy.
@@ -134,15 +133,7 @@ export default async function SearchPage({
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-16">
-      <header className="flex items-center gap-4 py-4">
-        <Link href="/">
-          <Logo />
-        </Link>
-        <h1 className="font-bold text-sea">{term(VERTICALS, locale, type)}</h1>
-        <div className="ms-auto">
-          <LanguageToggle />
-        </div>
-      </header>
+      <SiteHeader centre={<h1 className="font-bold text-sea">{term(VERTICALS, locale, type)}</h1>} />
 
       <TrackEvent
         name="search.performed"
