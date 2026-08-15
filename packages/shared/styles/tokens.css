@@ -75,8 +75,9 @@
   --muted: 90 72 50; /* #5a4832 */
   --faint: 122 106 82; /* #7a6a52 */
   /*
-   * Gold is a superb accent and a poor text colour: #e8a020 on white is about
-   * 2:1. Links get a burnt shade of it instead.
+   * The accent is a superb button and a poor text colour — true of the gold
+   * that used to live here at about 2:1 on white, and still true of the brand
+   * orange at 3.35:1. Links get a burnt shade of it instead.
    *
    * The mockup's own link colour (#c97b18) measures 3.1:1 on a white card and
    * the darker #b8720a still only 3.9:1 — both fail AA for body-sized text.
@@ -105,11 +106,18 @@
    */
   --sea-dark: 13 27 42;
   /*
-   * The wordmark. Two tokens rather than one so the mark's single spark of
-   * colour inverts with the theme while the lettering follows the ink.
+   * The logo. Two tokens rather than one because only one half of the mark
+   * moves with the theme: the word follows the ink, and the pin does not
+   * follow anything — it is a solid orange shape that carries its own contrast
+   * on cream and on navy alike.
+   *
+   * `--logo-accent` is kept separate from `--amber` even though both are now
+   * the same orange. They answer to different owners: `--amber` is a UI
+   * decision anyone may retune for contrast, and this one is the logo, which
+   * changes only when the logo does.
    */
   --logo-ink: 13 27 42;
-  --logo-accent: 232 160 32;
+  --logo-accent: 232 100 27; /* #e8641b */
 }
 
 /*
@@ -158,13 +166,12 @@
   --success: 52 211 153;
   --sea-dark: 13 27 42;
   /*
-   * The lettering goes cream and the stop stays amber — the same way round as
-   * on a light ground. These were inverted for a day, which put an amber word
-   * with a cream stop on every dark screen; that is not one of the colourways
-   * in the logo pack.
+   * The lettering goes cream and the pin stays orange — the same way round as
+   * on a light ground, and the one rule the logo pack is strict about. An
+   * inverted pin is not a colourway; it is a different mark.
    */
   --logo-ink: 245 238 221;
-  --logo-accent: 232 160 32;
+  --logo-accent: 232 100 27; /* #e8641b — does not flip */
 }
 
 html {

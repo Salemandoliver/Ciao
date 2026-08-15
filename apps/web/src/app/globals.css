@@ -95,21 +95,32 @@
  * nothing in the photograph itself.
  */
 /**
- * The brand word set in gold, directly on a photograph.
+ * The brand word set in the accent, directly on a photograph.
  *
- * `--amber` is #e8a020, and measured against the brightest frame of the hero
- * rotation it lands at 2.8:1 — under the 3:1 a large word needs, and the one
- * word on the page that has to be unmistakable. Gold is a mid-luminance
- * colour, so unlike white it cannot be rescued by darkening the background
- * without darkening the photograph far more than the picture can afford.
+ * The accent itself cannot do this job. Measured against the brightest frame
+ * of the hero rotation the old gold landed at 2.8:1 — under the 3:1 a large
+ * word needs, and this is the one word on the page that has to be
+ * unmistakable. It is a mid-luminance colour, so unlike white it cannot be
+ * rescued by darkening the background without darkening the photograph far
+ * more than the picture can afford. The brand orange is darker still
+ * (luminance 0.26 against the gold's 0.63), so it is worse, not better.
  *
- * A lighter tint of the same hue solves it at no cost to the photograph: same
- * gold, same brand, ~3.6:1. It applies only on photography, exactly as
- * `.chip-on-photo` and `.tab-on-photo` already depart from the tokens for the
- * same reason — a photograph is not a themed surface.
+ * A lighter tint of the accent solves it at no cost to the photograph, and the
+ * tint is chosen by *luminance* rather than by eye: #fcc7a5 sits at 0.643,
+ * just above the 0.625 the outgoing gold held. Matching the luminance is what
+ * makes this safe without re-shooting the measurement — contrast against any
+ * given photograph is a function of luminance, so a tint at or above the old
+ * one cannot read worse on any frame than what it replaced.
+ *
+ * Re-run `tools/photo-contrast.mjs` if the hero photographs ever change; a
+ * white sky is the frame that breaks this, not a sunset.
+ *
+ * It applies only on photography, exactly as `.chip-on-photo` and
+ * `.tab-on-photo` already depart from the tokens for the same reason — a
+ * photograph is not a themed surface.
  */
 .brand-on-photo {
-  color: #f5c978;
+  color: #fcc7a5;
 }
 
 .type-on-photo {
