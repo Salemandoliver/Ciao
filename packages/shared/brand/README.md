@@ -1,38 +1,56 @@
 # Brand assets
 
-`ciao-wordmark.svg` is the mark the apps render, traced from the
-founder-supplied `ciao_logo1.eps` (4 August 2026). The React component in each
-app (`src/components/logo.tsx`) carries the same two paths inline so the logo
-never depends on a network fetch — a header whose logo arrives late is a header
-that jumps.
+The mark is **design v7, August 2026**: an orange teardrop pin with a white
+checkmark, and CIAO in capitals beside it. It replaced the drawn lowercase
+`ciao` wordmark outright — there is one logo in this product and this is it.
 
-## The source is a bitmap, not vector
+`ciao-pin.svg` is the symbol on its own. The React component in each app
+(`src/components/logo.tsx`) carries the same two paths inline so the logo never
+depends on a network fetch — a header whose logo arrives late is a header that
+jumps. `scripts/build-icons.py` reads those same constants to generate all nine
+app icons, so the symbol exists once and is derived everywhere else.
 
-The supplied EPS was produced by ImageMagick from a PNG intermediate. Inside a
-2000×977 pt canvas the artwork occupies roughly 317×172 px, and the wordmark
-itself is **241×108 px**. That is the whole of the resolution that exists.
+## The pin is exact. The word is not.
 
-The paths here were recovered by estimating each pixel's coverage of navy and
-amber against the cream ground, supersampling 8×, smoothing, and tracing. At
-the sizes the apps actually draw the mark (34 px tall, so ~100 px on a 3×
-phone) the result is indistinguishable from the original. Enlarged past a few
-hundred pixels the contours show a faint organic wobble that is not in the
-designer's original — it is the pixel grid, amplified.
+The pin is **geometry, not a trace**: a circle of radius 36 centred at (36, 36)
+with its tip at (36, 88), closed by the two lines that are genuinely tangent to
+that circle. It is correct at any size and there is nothing to re-trace.
 
-So: **for anything large — signage, print, a hero, an OG image, a vehicle —
-get the real vector from whoever drew it** (`.ai`, `.svg`, `.pdf`, or an EPS
-with actual paths rather than an embedded raster). Drop it in here and retrace
-is unnecessary; the paths can be lifted straight out.
+The word is a different matter and the honesty matters more than the
+convenience:
+
+> **CIAO is currently set in Inter at weight 800. It is not the designer's
+> type.** It was matched by eye from a PNG, because a PNG is what existed.
+
+This repository has been here before. The v5 mark was rebuilt by setting `ciao`
+in a font that passed in a screenshot and was wrong in every detail that
+mattered, and the note in `logo.tsx` still carries that warning. The difference
+now is that the approximation is declared rather than mistaken for artwork.
+
+**To fix it properly:** drop the real vector in here as `ciao-logo-v7.svg`
+(`.ai`, `.svg`, or a PDF/EPS with actual paths rather than an embedded raster),
+and replace the `<span>CIAO</span>` in `logo.tsx` with its paths. Nothing else
+has to change — not the icons, which contain no type at all, and not the
+tokens.
 
 ## Colours
 
 | Role | Value | Notes |
 |---|---|---|
-| Wordmark ink | `#0D1B2A` | `--logo-ink`; flips to `#F3F2EC` in dark |
-| Leading dot | `#E8A020` | `--logo-dot`; never flips |
-| Ground | `#F3F2EC` | the cream the artwork was supplied on |
+| Pin | `#E8641B` | `--logo-accent`; **never flips** — it is a solid shape and carries its own contrast |
+| Check | `#FFFFFF` | except on the business console, where the ground is the orange and the check is cut back to it |
+| Wordmark ink | `#0D1B2A` | `--logo-ink`; goes `#F5EEDD` in dark |
 
-The wordmark navy is considerably darker than the app's `sea` (`#1B4F72`).
-That gap is the artwork's and is kept deliberately — see the note in
-`logo.tsx`. Whether the palette should follow the logo is a brand decision to
-take once, everywhere.
+`--logo-accent` is deliberately a separate token from `--amber`, even though
+both are the same orange today. They answer to different owners: `--amber` is a
+UI decision anyone may retune for contrast, and this one is the logo, which
+changes only when the logo does.
+
+## Rules
+
+- The pin leads in both languages. The component forces `ltr`; a logo is a
+  picture, not a sentence, and mirroring it would make the app look like two
+  companies to anyone using the language toggle.
+- One size. `logo.tsx` has no `size` prop on purpose — a call site that wants
+  it bigger fails to compile rather than drifting quietly.
+- Never re-draw the mark to match a screenshot. Ask for the vector.

@@ -200,7 +200,25 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <Greeting />
 
       {/* Hero — the «قول تشاو» device (§3.2) over the Tripoli sunset */}
-      <section className="card relative overflow-hidden text-white">
+      {/*
+        The hero is sized, not left to its contents.
+
+        It used to take whatever height the headline and the search pill
+        happened to need — about 250px on a 390×844 phone, roughly 30% of the
+        screen, on a page whose entire argument is the photograph. The brand
+        guidelines ask for 60%, and this is a marketplace that sells the coast.
+
+        `svh` rather than `vh` deliberately: `vh` on mobile Safari and Chrome
+        means the viewport with the address bar *collapsed*, so a 60vh hero is
+        taller than the visible area on first paint and pushes the search pill —
+        the one thing a guest came here to use — below the fold until they
+        scroll. `svh` is the smallest state, so the pill is reachable at rest.
+
+        `justify-end` puts the type along the bottom edge, which is where the
+        scrim work in `.type-on-photo` assumes it is, and leaves the top of the
+        frame — where the sky and the horizon are — uncovered.
+      */}
+      <section className="card relative overflow-hidden text-white min-h-[60svh] flex flex-col justify-end">
         <HeroRotator images={hero.images} intervalMs={hero.intervalMs} />
         {/*
           No scrim. Founder direction, August 2026: the photograph shows

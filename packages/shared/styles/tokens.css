@@ -28,14 +28,36 @@
    * theme remains a re-point rather than a rewrite — which is also why both
    * apps get the new brand from this one edit.
    *
+   * ## The accent moved again, August 2026: gold → orange
+   *
+   * `#e8a020` was the gold this file describes above; the brand is `#E8641B`,
+   * and the two had drifted apart — the design file said orange, the code said
+   * gold, and the code was what shipped. Founder decision: the design file is
+   * right. Re-pointed here rather than anywhere else, so all three apps move
+   * together, which is the whole reason this file exists.
+   *
+   * Measured before it was changed, because this file's own history says a
+   * badge once shipped at 4.41:1:
+   *
+   *   navy ink ON the accent      7.85 → 5.19   still AA
+   *   accent as a surface on sand 2.08 → 3.14   now clears 3:1; the gold never did
+   *   accent as a surface on white 2.22 → 3.35  same
+   *
+   * The button is the accent's real job and it got safer: the gold could not
+   * clear 3:1 against either light ground, so its own edge was invisible.
+   *
+   * `--amber-dark` moves with it, and that is a fix rather than a side effect —
+   * `#c97b18` was 3.11:1 as text on sand, which is a fail nobody had measured.
+   * `#B84A10` is 4.89:1 on sand and 5.22:1 on white.
+   *
    * Brand tokens as RGB triples so Tailwind can consume them with alpha
    * modifiers (text-sea/70 still works).
    */
   --sea: 13 27 42; /* #0d1b2a — the primary ink */
   --sea-light: 30 53 80; /* #1e3550 */
   --sand: 253 247 236; /* #fdf7ec — the page ground */
-  --amber: 232 160 32; /* #e8a020 — and now the primary button */
-  --amber-dark: 201 123 24; /* #c97b18 */
+  --amber: 232 100 27; /* #e8641b — the brand accent, and the primary button */
+  --amber-dark: 184 74 16; /* #b84a10 — AA as text on sand and on white */
   --surface: 255 255 255;
   --ink: 13 27 42;
   /*
@@ -53,8 +75,9 @@
   --muted: 90 72 50; /* #5a4832 */
   --faint: 122 106 82; /* #7a6a52 */
   /*
-   * Gold is a superb accent and a poor text colour: #e8a020 on white is about
-   * 2:1. Links get a burnt shade of it instead.
+   * The accent is a superb button and a poor text colour — true of the gold
+   * that used to live here at about 2:1 on white, and still true of the brand
+   * orange at 3.35:1. Links get a burnt shade of it instead.
    *
    * The mockup's own link colour (#c97b18) measures 3.1:1 on a white card and
    * the darker #b8720a still only 3.9:1 — both fail AA for body-sized text.
@@ -83,11 +106,18 @@
    */
   --sea-dark: 13 27 42;
   /*
-   * The wordmark. Two tokens rather than one so the mark's single spark of
-   * colour inverts with the theme while the lettering follows the ink.
+   * The logo. Two tokens rather than one because only one half of the mark
+   * moves with the theme: the word follows the ink, and the pin does not
+   * follow anything — it is a solid orange shape that carries its own contrast
+   * on cream and on navy alike.
+   *
+   * `--logo-accent` is kept separate from `--amber` even though both are now
+   * the same orange. They answer to different owners: `--amber` is a UI
+   * decision anyone may retune for contrast, and this one is the logo, which
+   * changes only when the logo does.
    */
   --logo-ink: 13 27 42;
-  --logo-accent: 232 160 32;
+  --logo-accent: 232 100 27; /* #e8641b */
 }
 
 /*
@@ -112,25 +142,36 @@
   --sea: 245 238 221; /* #f5eedd — cream ink */
   --sea-light: 196 169 122;
   --sand: 13 27 42; /* #0d1b2a — the page ground */
-  --amber: 232 160 32; /* the accent does not change; it is the brand */
-  --amber-dark: 201 123 24;
+  --amber: 232 100 27; /* the accent does not change; it is the brand */
+  --amber-dark: 184 74 16;
   --surface: 26 47 69; /* #1a2f45 — cards lift off the ground */
   --ink: 245 238 221;
   --muted: 196 169 122; /* #c4a97a — the warm tan that carries the palette */
   --faint: 171 152 122; /* nudged up from the mockup's #806f61, which measures 2.6:1 on a card */
-  /* On a dark ground gold is already legible, so links go back to the brand. */
-  --link: 232 160 32;
+  /*
+   * Links are the one place the accent may not simply follow the brand.
+   *
+   * This used to be the gold, on the reasoning that gold is legible on a dark
+   * ground — true, and it measured 7.85:1. The brand orange does not inherit
+   * that: it is 5.19:1 on the page ground but only 4.08:1 on a card, and a link
+   * is body-sized text that lands on cards constantly, so orange would have
+   * shipped a fail.
+   *
+   * `#dca55a` is the warm tan the design file specifies for exactly this — 7.93:1
+   * on the ground, 6.23:1 on a card. The brand stays orange; the link is the
+   * lighter relative of it that survives being small.
+   */
+  --link: 220 165 90; /* #dca55a */
   --danger: 252 140 140;
   --success: 52 211 153;
   --sea-dark: 13 27 42;
   /*
-   * The lettering goes cream and the stop stays amber — the same way round as
-   * on a light ground. These were inverted for a day, which put an amber word
-   * with a cream stop on every dark screen; that is not one of the colourways
-   * in the logo pack.
+   * The lettering goes cream and the pin stays orange — the same way round as
+   * on a light ground, and the one rule the logo pack is strict about. An
+   * inverted pin is not a colourway; it is a different mark.
    */
   --logo-ink: 245 238 221;
-  --logo-accent: 232 160 32;
+  --logo-accent: 232 100 27; /* #e8641b — does not flip */
 }
 
 html {

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 88" width="72" height="88">
+  <!-- Ciao pin, design v7. Geometry, not a trace: circle r=36 at (36,36) with a
+       tip at (36,88), joined by the two lines tangent to that circle. Keep in
+       step with PIN / CHECK in apps/web/src/components/logo.tsx. -->
+  <path d="M36 88L61.98 60.92A36 36 0 1 0 10.02 60.92Z" fill="#e8641b"/>
+  <path d="M17 35L30 48L57 20" fill="none" stroke="#ffffff" stroke-width="11"
+        stroke-linecap="butt" stroke-linejoin="miter"/>
+</svg>

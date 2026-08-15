@@ -211,12 +211,48 @@ export function pinLabel(item: PublicListing, locale: Locale): string {
 /**
  * Pin colours are hex on purpose.
  *
- * Everything else in the app resolves through a theme token, but a pin sits on
- * map tiles that are the same photograph of the world at noon and at midnight.
- * Following the theme would put pale blue ink on a pale blue road at 1am.
+ * Everything else in the app resolves through a theme token, and these
+ * deliberately do not: `globals.css` sets out the rule for anything sitting on
+ * a photograph — a verified badge, a price pin — and a pin on map tiles is the
+ * same case. A token would invert underneath it and put pale ink on a pale road.
+ *
+ * ## Why the pill is the deeper orange and not the brand orange
+ *
+ * The design file asks for white price text on an orange pill. White on the
+ * brand orange `#e8641b` measures 3.35:1, and a price is the whole reason the
+ * pin exists — it is content, at 12px, and 3.35 is not readable enough to ship.
+ * The deeper `#b84a10` — already in the palette as `--amber-dark` — carries
+ * white at 5.22:1 and still reads as the same orange from a metre away.
+ *
+ * The selected pin then goes the other way: the brand orange with navy ink
+ * (5.19:1), which is both brighter and more saturated than the resting state,
+ * so selection reads as the pin lighting up rather than merely changing hue.
  */
 export const PIN_INK = "#0d1b2a";
 export const PIN_PAPER = "#ffffff";
+/** The resting pill. */
+export const PIN_BRAND = "#b84a10";
+/** The selected pill — the brand orange proper. */
+export const PIN_BRAND_ACTIVE = "#e8641b";
+
+/**
+ * One place decides what a pin looks like, so a listing cannot be a different
+ * colour on Mapbox than it is on the OSM fallback.
+ *
+ * `dark` only adds the glow the design file asks for on a dark map; the pill
+ * itself is identical in both, because the tiles under it are the one thing on
+ * screen that the theme does change.
+ */
+export function pinColours(active: boolean, dark = false) {
+  return {
+    bg: active ? PIN_BRAND_ACTIVE : PIN_BRAND,
+    fg: active ? PIN_INK : PIN_PAPER,
+    border: PIN_INK,
+    shadow: dark
+      ? `0 0 0 1px rgba(232,100,27,.45), 0 2px 10px rgba(232,100,27,.55)`
+      : `0 1px 5px rgba(0,0,0,.28)`,
+  };
+}
 
 export function pinFont(locale: Locale): string {
   return locale === "en" ? "Inter,Almarai,Tahoma,sans-serif" : "Almarai,Tahoma,sans-serif";
