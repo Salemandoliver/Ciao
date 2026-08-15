@@ -40,6 +40,8 @@ const copy = {
     signin: "تسجيل الدخول",
     hosts: "لديك مكان؟",
     hostsCta: "اعرض مكانك على تشاو",
+    follow: "تابعنا",
+    soon: "قريبًا",
     place: "تشاو — ciao.ly · صُنع بحب في ليبيا",
     prices: "الأسعار كلها بالدينار الليبي. العربون فقط أونلاين والباقي عند الوصول.",
   },
@@ -58,6 +60,8 @@ const copy = {
     signin: "Sign in",
     hosts: "Have a place?",
     hostsCta: "List it on Ciao",
+    follow: "Follow us",
+    soon: "Coming soon",
     place: "Ciao — ciao.ly · Made with Love in Libya",
     prices:
       "All prices in Libyan dinars. Only the deposit is paid online; the rest on arrival.",
@@ -76,6 +80,62 @@ function Column({ title, children }: { title: string; children: React.ReactNode 
         {title}
       </h3>
       <ul className="space-y-1.5 text-sm">{children}</ul>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------- social
+ * Marks only, drawn rather than fetched: three inline paths cost nothing and an
+ * icon font or an SVG sprite would be a network request for nine glyphs.
+ *
+ * They are NOT links. The pages do not exist yet, and an anchor pointing at
+ * nothing — or worse at a stranger's account on the same handle — is a broken
+ * promise on every page of the site. So these are inert until there is
+ * somewhere to send people, and they say so: `aria-disabled`, a "coming soon"
+ * title, and no `href` for a keyboard to land on.
+ */
+const SOCIAL = [
+  {
+    key: "facebook",
+    label: "Facebook",
+    path: "M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2C11.54 2 9.68 3.66 9.68 6.7v2.62H6.61v3.56h3.07V22h3.68v-9.12h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73Z",
+  },
+  {
+    key: "instagram",
+    label: "Instagram",
+    path: "M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85C2.38 3.92 3.89 2.38 7.15 2.23 8.42 2.17 8.8 2.16 12 2.16Zm0 5.17a4.67 4.67 0 1 0 0 9.34 4.67 4.67 0 0 0 0-9.34Zm0 7.7a3.03 3.03 0 1 1 0-6.07 3.03 3.03 0 0 1 0 6.07Zm4.85-8.99a1.09 1.09 0 1 0 0 2.18 1.09 1.09 0 0 0 0-2.18Z",
+  },
+  {
+    key: "tiktok",
+    label: "TikTok",
+    path: "M16.6 5.82A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5 2.59 2.59 0 0 1 0-5.18c.27 0 .52.04.76.12v-3.2a5.79 5.79 0 0 0-.76-.05 5.71 5.71 0 1 0 5.71 5.71V9.01a7.35 7.35 0 0 0 4.29 1.37V7.3a4.29 4.29 0 0 1-3.26-1.48Z",
+  },
+] as const;
+
+function Social({ label, soon }: { label: string; soon: string }) {
+  return (
+    <div>
+      <h3 className="font-bold text-sm mb-2" style={{ color: INK }}>
+        {label}
+      </h3>
+      <ul className="flex items-center gap-2" dir="ltr">
+        {SOCIAL.map((s) => (
+          <li key={s.key}>
+            <span
+              role="img"
+              aria-label={`${s.label} — ${soon}`}
+              aria-disabled="true"
+              title={`${s.label} — ${soon}`}
+              className="grid h-9 w-9 place-items-center rounded-full"
+              style={{ background: "rgb(245 238 221 / 0.08)", color: MUTED }}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d={s.path} />
+              </svg>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -128,9 +188,18 @@ export function SiteFooter() {
             <Item href="/account" label={c.signin} />
           </Column>
 
-          <Column title={c.hosts}>
-            <Item href="/hosts" label={c.hostsCta} />
-          </Column>
+          {/*
+            The hosts column carries one link, which left a hole under it on a
+            wide screen. The social marks fill it and belong beside it: both are
+            the "and one more thing" end of the band rather than navigation
+            through the catalogue.
+          */}
+          <div className="space-y-6">
+            <Column title={c.hosts}>
+              <Item href="/hosts" label={c.hostsCta} />
+            </Column>
+            <Social label={c.follow} soon={c.soon} />
+          </div>
         </div>
 
         {/*
