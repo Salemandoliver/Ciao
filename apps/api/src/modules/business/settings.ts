@@ -32,16 +32,21 @@ export const SETTING_DEFAULTS = {
    * their parents' house — and they cost $7 per 1,000 map loads above a free
    * 10,000 a month. OpenStreetMap is free and thinner on Libyan detail.
    *
-   * Setting `google` without a key configured falls back to OSM rather than
-   * rendering a broken map, so this can be switched on the day the key exists
-   * and the domain it is locked to.
+   * Mapbox is the default and sits between the two: Arabic labels on the tiles
+   * themselves rather than transliterated, and a free tier in the tens of
+   * thousands of loads, which covers a good month here with room to spare.
+   *
+   * Setting any provider without its token configured falls back rather than
+   * rendering a broken map — Mapbox to Google if that key exists and to OSM
+   * otherwise, Google to OSM. So each of these can be switched on the day the
+   * credential exists and the domain it is locked to.
    *
    * Note what is NOT here: any Places API usage. "What's nearby" is recorded
    * by our own agents on the verification visit (see listings/neighbours.ts) —
    * $32 per 1,000 calls, uncacheable under Google's terms, for data that
    * cannot tell a family whether a café will seat them.
    */
-  "maps.provider": "osm" as "osm" | "google",
+  "maps.provider": "mapbox" as "osm" | "google" | "mapbox",
   /** Where a map opens when there is nothing better to centre on. */
   "maps.defaultCentre": { lat: 32.8872, lng: 13.1913, zoom: 11 },
   /** Let guests search by drawing an area rather than picking a city. */
@@ -468,6 +473,15 @@ export function validateSetting(key: string, value: unknown): string | null {
       return Array.isArray(value) && value.length > 0
         ? null
         : "يجب تفعيل وسيلة دفع واحدة على الأقل";
+    case "maps.provider":
+      /*
+       * The web app picks a code path off this string. A typo saved here would
+       * not draw a wrong map, it would draw no map — so it is refused at the
+       * console rather than discovered by a guest.
+       */
+      return value === "osm" || value === "google" || value === "mapbox"
+        ? null
+        : "مزود الخرائط يجب أن يكون osm أو google أو mapbox";
     default:
       return null;
   }

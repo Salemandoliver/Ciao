@@ -24,15 +24,18 @@ export interface MapLatLng {
   lng: number;
 }
 
+/** The maps we know how to draw. */
+export type MapProvider = "osm" | "google" | "mapbox";
+
 /** What `/v1/settings/public` says about maps. */
 export interface MapsSettings {
-  provider: "osm" | "google";
+  provider: MapProvider;
   defaultCentre: { lat: number; lng: number; zoom: number };
   drawSearch: boolean;
 }
 
 export const DEFAULT_MAPS: MapsSettings = {
-  provider: "osm",
+  provider: "mapbox",
   // Tripoli. The same fallback the API ships, repeated here so a map still
   // opens somewhere sensible when the control plane is unreachable.
   defaultCentre: { lat: 32.8872, lng: 13.1913, zoom: 11 },
@@ -42,18 +45,36 @@ export const DEFAULT_MAPS: MapsSettings = {
 /**
  * Which map actually renders.
  *
- * The operator picks the provider in the console, but the key is a build-time
- * secret Salem has not bought yet — so "google without a key" quietly means
- * OSM. Silently, on purpose: a missing key is our procurement problem, not
- * something to put in front of a guest looking for a beach house.
+ * Three providers, one rule: the operator's choice only counts if the credential
+ * that choice needs is in the build. Mapbox is the default because it is the
+ * only one of the three that is both legible in Libya — Arabic labels, the coast
+ * road named the way people name it — and priced for a market where a good month
+ * is a few thousand searches.
+ *
+ * The fallbacks are silent, on purpose and unchanged in spirit from when there
+ * were two: a token nobody has bought yet is our procurement problem, not
+ * something to put in front of a guest looking for a beach house. Mapbox
+ * without a token drops to Google if that key exists, and to OSM otherwise —
+ * OSM being the one that always works because it needs nothing.
+ *
+ * An operator who explicitly picks OSM gets OSM. Explicitly picking Google with
+ * no key still means OSM, exactly as before.
  */
-export function resolveProvider(maps: MapsSettings | undefined): "osm" | "google" {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
-  return maps?.provider === "google" && key ? "google" : "osm";
+export function resolveProvider(maps: MapsSettings | undefined): MapProvider {
+  const wanted = maps?.provider ?? DEFAULT_MAPS.provider;
+  if (wanted === "mapbox" && mapboxToken()) return "mapbox";
+  if (wanted === "google" && googleMapsKey()) return "google";
+  // Asked for Mapbox, no token: Google is the better map if we have bought it.
+  if (wanted === "mapbox" && googleMapsKey()) return "google";
+  return "osm";
 }
 
 export function googleMapsKey(): string | null {
   return process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || null;
+}
+
+export function mapboxToken(): string | null {
+  return process.env.NEXT_PUBLIC_MAPBOX_TOKEN || null;
 }
 
 /**
