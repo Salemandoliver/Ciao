@@ -193,8 +193,10 @@ export default function MapboxMap({
      * file's layers have to be put back.
      */
     map.on("style.load", () => {
-      const isDark = map.getStyle()?.name?.toLowerCase().includes("dark") ?? false;
-      applyBrandPalette(map, isDark);
+      // `builtDark` rather than sniffing the loaded style's name: the name is
+      // Mapbox's to change, and this ref is already the thing that decided
+      // which style to ask for.
+      applyBrandPalette(map, builtDark.current);
       localiseLabels(map, locale);
       installLayers(map);
       setReady((n) => n + 1);
