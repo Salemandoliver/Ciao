@@ -11,6 +11,7 @@ import { PartnerInvite } from "@/components/partner-invite";
 import { BrandSlot } from "@/components/brand-slot";
 import { ServiceTiles } from "@/components/service-tiles";
 import { CategoryTiles } from "@/components/category-tiles";
+import { SiteFooter } from "@/components/site-footer";
 import { LanguageToggle } from "@/components/language-toggle";
 import { API_URL } from "@/lib/api";
 import { asLocale, type Locale } from "@/lib/i18n";
@@ -66,10 +67,6 @@ const copy = {
     coast: "شاليهات واستراحات",
     halls: "قاعات الأفراح",
     seeAll: "عرض الكل ←",
-    footerAbout: "من نحن وكيف نعتمد الأماكن",
-    footerRewards: "نقاط المكافآت",
-    footerPlace: "تشاو — ciao.ly · صُنع بحب في ليبيا",
-    footerPrices: "الأسعار كلها بالدينار الليبي. العربون فقط أونلاين والباقي عند الوصول.",
   },
   en: {
     wishlist: "Saved",
@@ -97,11 +94,6 @@ const copy = {
     coast: "Chalets & estirahas",
     halls: "Wedding halls",
     seeAll: "See all →",
-    footerAbout: "Who we are and how we verify places",
-    footerRewards: "Reward points",
-    footerPlace: "Ciao — ciao.ly · Made with Love in Libya",
-    footerPrices:
-      "All prices are in Libyan dinars. Only the deposit is paid online; the rest is paid on arrival.",
   },
 } satisfies Record<Locale, unknown>;
 
@@ -196,7 +188,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const featuredTitle = featured ? listingTitle(locale, featured) : null;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-16">
+    <>
+      {/*
+        `max-w-7xl`, matching the search page. At 5xl the home page used barely
+        two thirds of a 1440px screen and the three-column rows below rendered
+        as three narrow cards in a wide margin, which is the mobile layout
+        widened rather than a desktop layout.
+      */}
+      <main className="mx-auto max-w-7xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
         <Logo />
         <nav className="flex items-center gap-3 text-sm font-bold text-sea">
@@ -356,20 +355,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       */}
       <PartnerInvite surface="home" />
 
-      <footer className="mt-12 text-center text-sm text-faint space-y-1">
-        <p>
-          <Link href="/about" className="font-bold text-sea/80 hover:text-sea">
-            {c.footerAbout}
-          </Link>
-          {" · "}
-          <Link href="/rewards" className="font-bold text-sea/80 hover:text-sea">
-            {c.footerRewards}
-          </Link>
-        </p>
-        <p>{c.footerPlace}</p>
-        <p>{c.footerPrices}</p>
-      </footer>
-    </main>
+      </main>
+      {/*
+        Outside the container, so the band reaches both edges of the viewport.
+        A footer that stops at the content width is a rectangle floating in the
+        middle of a wide screen rather than the end of a page.
+      */}
+      <SiteFooter />
+    </>
   );
 }
 
