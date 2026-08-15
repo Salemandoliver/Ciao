@@ -228,12 +228,30 @@ export default function MapboxMap({
       center: [centre.lng, centre.lat], // Mapbox takes lng first
       zoom: centre.zoom,
       attributionControl: true, // required by Mapbox's terms; never turn off
-      dragRotate: false, // a rotated map makes a drawn shape hard to reason about
-      pitchWithRotate: false,
+      /*
+       * Tilted, and rotatable. A flat overhead map cannot show relief no matter
+       * how good the terrain data is — the elevation is all in the axis you are
+       * looking down. 42° is enough to read the escarpment behind the coast
+       * without turning the far half of the map into a smear.
+       *
+       * `dragRotate` is on now where it used to be off. The old reason was that
+       * a rotated map makes a drawn area hard to reason about, which is true —
+       * so the draw tool flattens the map instead of the map staying flat for
+       * the draw tool. See the freehand effect.
+       */
+      pitch: 42,
+      dragRotate: true,
+      pitchWithRotate: true,
     });
-    map.touchPitch.disable();
+    /*
+     * The compass is back, because rotation is. It was hidden while the map was
+     * locked north-up, where it would have been a decoration; now that a guest
+     * can turn and tilt the map it is the way back — one press returns north
+     * and level, which is the control you want the moment you have spun the
+     * coast ninety degrees and lost which way Tripoli is.
+     */
     map.addControl(
-      new mapboxgl.NavigationControl({ showCompass: false }),
+      new mapboxgl.NavigationControl({ showCompass: true, visualizePitch: true }),
       dirOf(locale) === "rtl" ? "top-left" : "top-right",
     );
 
@@ -248,6 +266,7 @@ export default function MapboxMap({
       // which style to ask for.
       applyBrandPalette(map, builtDark.current);
       localiseLabels(map, locale);
+      installTerrain(map, builtDark.current);
       installLayers(map);
       setReady((n) => n + 1);
     });
@@ -371,8 +390,29 @@ export default function MapboxMap({
     const container = ref.current;
     if (!map || !container || !ready || !drawing) return;
 
-    const gestures = [map.dragPan, map.scrollZoom, map.doubleClickZoom, map.touchZoomRotate];
+    const gestures = [
+      map.dragPan,
+      map.scrollZoom,
+      map.doubleClickZoom,
+      map.touchZoomRotate,
+      map.dragRotate,
+    ];
     for (const g of gestures) g.disable();
+    /*
+     * Flatten the map for the duration of the draw, and put it back after.
+     *
+     * The map is tilted and rotatable now, and a shape drawn across a pitched
+     * view is a shape whose far edge covers several times the ground its near
+     * edge does. `unproject` returns the right coordinates either way — it
+     * raycasts to the surface — so the polygon would be correct and would not
+     * look like what the finger drew, which is worse than being wrong.
+     *
+     * Flat, north-up, for the one interaction where the picture has to equal
+     * the geometry.
+     */
+    const priorPitch = map.getPitch();
+    const priorBearing = map.getBearing();
+    map.easeTo({ pitch: 0, bearing: 0, duration: 200 });
     const priorCursor = container.style.cursor;
     const priorTouch = container.style.touchAction;
     container.style.cursor = "crosshair";
@@ -455,6 +495,7 @@ export default function MapboxMap({
       stroke?.setData(EMPTY);
       container.style.cursor = priorCursor;
       container.style.touchAction = priorTouch;
+      map.easeTo({ pitch: priorPitch, bearing: priorBearing, duration: 200 });
       for (const g of gestures) g.enable();
     };
   }, [drawing, ready]);
@@ -495,6 +536,98 @@ function source(map: mapboxgl.Map, id: string): mapboxgl.GeoJSONSource | null {
   // `getSource` is undefined until the style has loaded, and during teardown.
   const src = map.getSource(id);
   return src && src.type === "geojson" ? (src as mapboxgl.GeoJSONSource) : null;
+}
+
+/* ---------------------------------------------------------------------- 3D
+ * Relief, a sky, and buildings with height.
+ *
+ * The coast is what this marketplace sells and a flat coloured outline is not
+ * what it looks like. Terrain puts the Jebel back behind Tripoli and gives the
+ * shoreline somewhere to meet, the sky gives the horizon an edge to end at, and
+ * the extrusions give the city blocks their bulk once you are close enough to
+ * a venue for that to mean anything.
+ *
+ * ## What this costs, because it is not free
+ *
+ * Terrain is a second tile pyramid — elevation tiles alongside the vector ones
+ * — and §12.3 is a real budget on the connections this app is used over. Two
+ * things keep it honest: the DEM is requested at 512px tiles, which is a
+ * quarter the requests of 256, and the extrusions only exist above zoom 15,
+ * which is closer than a search result set ever opens at. Someone who never
+ * zooms into a single venue never downloads a building.
+ *
+ * If it proves too heavy on a real Libyan connection, `setTerrain(null)` and
+ * dropping this call is the whole rollback.
+ */
+const DEM_SRC = "mapbox-dem";
+
+function installTerrain(map: mapboxgl.Map, dark: boolean): void {
+  try {
+    if (!map.getSource(DEM_SRC)) {
+      map.addSource(DEM_SRC, {
+        type: "raster-dem",
+        url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+        tileSize: 512,
+        maxzoom: 14,
+      });
+    }
+    /*
+     * Exaggerated, and deliberately not by much. Libya's coastal plain is flat
+     * and the escarpment behind it is real but modest; at 1.5 the country looks
+     * like somewhere else, and a map that flatters the terrain is lying about
+     * how far a chalet is from a hill.
+     */
+    map.setTerrain({ source: DEM_SRC, exaggeration: 1.15 });
+
+    if (!map.getLayer("ciao-sky")) {
+      map.addLayer({
+        id: "ciao-sky",
+        type: "sky",
+        paint: {
+          "sky-type": "atmosphere",
+          // Low sun, warm on the day map and cold at night — the horizon is the
+          // one part of a pitched map that says which time of day it is.
+          "sky-atmosphere-sun": [0, 3],
+          "sky-atmosphere-sun-intensity": dark ? 3 : 9,
+          "sky-atmosphere-color": dark ? "#0b1220" : "#cfe3ee",
+          "sky-atmosphere-halo-color": dark ? "#2a3344" : "#f5edd8",
+        },
+      });
+    }
+
+    /*
+     * Buildings, above zoom 15 only. Below that they are noise the size of a
+     * pixel, and the height data is the heaviest thing in the vector tile.
+     */
+    if (!map.getLayer("ciao-buildings") && map.getSource("composite")) {
+      map.addLayer({
+        id: "ciao-buildings",
+        type: "fill-extrusion",
+        source: "composite",
+        "source-layer": "building",
+        filter: ["==", ["get", "extrude"], "true"],
+        minzoom: 15,
+        paint: {
+          "fill-extrusion-color": dark ? "#39445a" : "#e6d9bd",
+          // Grow them in as you arrive rather than having them appear at once.
+          "fill-extrusion-height": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            15,
+            0,
+            16.5,
+            ["get", "height"],
+          ],
+          "fill-extrusion-base": ["get", "min_height"],
+          "fill-extrusion-opacity": 0.8,
+        },
+      });
+    }
+  } catch {
+    /* an older style with no composite source, or a device that cannot do it:
+     * the map is a map without any of this. */
+  }
 }
 
 /** This file's own sources and layers, put back after every style load. */
