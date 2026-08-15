@@ -187,7 +187,7 @@ export function ListingCard({ l }: { l: PublicListing }) {
           />
         </div>
       </div>
-      <div className="p-3 space-y-1.5">
+      <div className="p-3 sm:p-4 space-y-1.5">
         {/* `lang`/`dir` so an untranslated Arabic title still reads correctly
             inside an English page — and is spoken, not spelled, by a reader. */}
         <h3 className="font-bold text-base leading-snug" {...textProps(title)}>
@@ -216,7 +216,8 @@ export function ListingCard({ l }: { l: PublicListing }) {
             <span className="chip">{term(SERVICE_CATEGORY_LABELS, locale, l.serviceCategory)}</span>
           ) : null}
         </div>
-        <p className="pt-1 font-bold text-sea text-lg">
+        {/* The one coloured thing in the card body — see `.price-accent`. */}
+        <p className="pt-1 font-bold price-accent text-lg">
           {l.type === "service"
             ? c.quoteOnRequest
             : l.type === "hall" && l.packages?.length

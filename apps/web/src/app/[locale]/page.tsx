@@ -1,6 +1,7 @@
 import { Link } from "@/lib/locale";
-import { Logo } from "@/components/logo";
-import { ListingCard } from "@/components/listing-card";
+import { ListingCard, RatingPill, VerifiedBadge } from "@/components/listing-card";
+import { listingTitle, textProps } from "@/lib/content";
+import { placeLabel } from "@/lib/vocab";
 import { HeroSearch } from "@/components/hero-search";
 import { HeroRotator, type HeroImage } from "@/components/hero-rotator";
 import { Greeting } from "@/components/greeting";
@@ -8,7 +9,9 @@ import { RecsStrip } from "@/components/recs";
 import { PartnerInvite } from "@/components/partner-invite";
 import { BrandSlot } from "@/components/brand-slot";
 import { ServiceTiles } from "@/components/service-tiles";
-import { LanguageToggle } from "@/components/language-toggle";
+import { CategoryTiles } from "@/components/category-tiles";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import { API_URL } from "@/lib/api";
 import { asLocale, type Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
@@ -41,9 +44,6 @@ const FALLBACK_HERO: { intervalMs: number; images: HeroImage[] } = {
  */
 const copy = {
   ar: {
-    wishlist: "المفضلة",
-    about: "من نحن",
-    account: "حسابي",
     heroLead: "قول",
     heroBrand: "تشاو",
     heroTail: "للحجز أونلاين",
@@ -63,15 +63,8 @@ const copy = {
     coast: "شاليهات واستراحات",
     halls: "قاعات الأفراح",
     seeAll: "عرض الكل ←",
-    footerAbout: "من نحن وكيف نعتمد الأماكن",
-    footerRewards: "نقاط المكافآت",
-    footerPlace: "تشاو — ciao.ly · صُنع بحب في ليبيا",
-    footerPrices: "الأسعار كلها بالدينار الليبي. العربون فقط أونلاين والباقي عند الوصول.",
   },
   en: {
-    wishlist: "Saved",
-    about: "About",
-    account: "Account",
     heroLead: "Say",
     heroBrand: "ciao",
     heroTail: "to booking online.",
@@ -94,11 +87,6 @@ const copy = {
     coast: "Chalets & estirahas",
     halls: "Wedding halls",
     seeAll: "See all →",
-    footerAbout: "Who we are and how we verify places",
-    footerRewards: "Reward points",
-    footerPlace: "Ciao — ciao.ly · Made with Love in Libya",
-    footerPrices:
-      "All prices are in Libyan dinars. Only the deposit is paid online; the rest is paid on arrival.",
   },
 } satisfies Record<Locale, unknown>;
 
@@ -174,24 +162,41 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     getBrandMessage(locale),
   ]);
 
+  /*
+   * The hero is a venue now, not a slogan.
+   *
+   * The design opens the home page on one property — its photograph, its
+   * badges, its name — which is the argument a marketplace actually has. The
+   * `«قول تشاو»` device it replaces was §3.2 and is now nowhere on this page;
+   * that is a real loss and it is named here rather than quietly dropped.
+   *
+   * The first featured venue that has a photograph, and the photograph has to
+   * be its own: a skyline captioned with a chalet's name is worse than no
+   * feature at all. When nothing qualifies — an empty catalogue, the origin
+   * down, a listing set with no imagery — the rotation and the slogan are
+   * still there underneath, so the page never opens on a blank frame.
+   */
+  const featured = coast.find((l) => l.media.some((m) => m.kind === "photo")) ?? null;
+  const featuredPhoto = featured?.media.find((m) => m.kind === "photo")?.url ?? null;
+  const featuredTitle = featured ? listingTitle(locale, featured) : null;
+
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-16">
-      <header className="flex items-center justify-between py-4">
-        <Logo />
-        <nav className="flex items-center gap-3 text-sm font-bold text-sea">
-          <Link href="/wishlist" aria-label={c.wishlist}>🤍</Link>
-          <Link href="/about">{c.about}</Link>
-          {/*
-            "للمضيفين" used to sit here, pointing at a section of the About
-            page. Partners have their own product on their own origin now, and
-            the panel further down this page is where a prospective one puts
-            their hand up — so the nav item was sending people to read about
-            hosting on a page that then had to send them somewhere else again.
-          */}
-          <Link href="/account">{c.account}</Link>
-          <LanguageToggle />
-        </nav>
-      </header>
+    <>
+      {/*
+        `max-w-7xl`, matching the search page. At 5xl the home page used barely
+        two thirds of a 1440px screen and the three-column rows below rendered
+        as three narrow cards in a wide margin, which is the mobile layout
+        widened rather than a desktop layout.
+      */}
+      <main className="mx-auto max-w-7xl px-4 pb-16">
+      {/*
+        The same bar the search and listing pages now carry. "للمضيفين" is still
+        not in it: partners have their own product on their own origin, and the
+        panel further down this page is where a prospective one puts their hand
+        up — a nav item there sent people to read about hosting on a page that
+        then had to send them somewhere else again.
+      */}
+      <SiteHeader />
 
       {/* Signed-in members only, and client-side — the page itself is cached
           for everyone (§12.3), so it cannot know a name. Renders nothing at
@@ -219,10 +224,24 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         frame — where the sky and the horizon are — uncovered.
       */}
       <section className="card relative overflow-hidden text-white min-h-[60svh] flex flex-col justify-end">
-        <HeroRotator images={hero.images} intervalMs={hero.intervalMs} />
+        {featured && featuredPhoto && featuredTitle ? (
+          /*
+            The venue's own photograph, loaded eagerly: it is the largest thing
+            on the page and the one the layout is sized around, so lazying it
+            would hold the hero open at 60svh of empty card while it arrives.
+          */
+          <img
+            src={featuredPhoto}
+            alt=""
+            fetchPriority="high"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <HeroRotator images={hero.images} intervalMs={hero.intervalMs} />
+        )}
         {/*
-          No scrim. Founder direction, August 2026: the photograph shows
-          through exactly as it was taken.
+          No scrim, in either branch. Founder direction, August 2026: the
+          photograph shows through exactly as it was taken.
 
           Nothing was simply deleted — the legibility the wash was buying had
           to go somewhere, so it moved into the letters. `.type-on-photo` now
@@ -231,13 +250,36 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           against the brightest frame of the rotation with
           `tools/photo-contrast.mjs`, which is the check to re-run before
           anyone adds a fourth hero photograph: a white sky is the frame that
-          breaks this, not a sunset.
+          breaks this, not a sunset. A venue photograph is now in scope for
+          that check too, and it is supplier imagery rather than ours.
         */}
         <div className="relative p-6 sm:p-10 pb-4 sm:pb-6" data-on-photo>
-          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
-            {c.heroLead} <span className="brand-on-photo">{c.heroBrand}</span> {c.heroTail}
-          </h1>
-          <p className="mt-3 text-white text-lg max-w-xl type-on-photo">{c.heroBody}</p>
+          {featured && featuredTitle ? (
+            <>
+              {/* The two badges the card carries, in the order the card has
+                  them, so a venue reads the same on the home page and in a
+                  result set. */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {featured.verified ? <VerifiedBadge /> : null}
+                <RatingPill rating={featured.rating} count={featured.reviewCount} />
+              </div>
+              <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
+                <Link href={`/l/${featured.slug}`} {...textProps(featuredTitle)}>
+                  {featuredTitle.text}
+                </Link>
+              </h1>
+              <p className="mt-2 text-white text-lg type-on-photo">
+                📍 {placeLabel(locale, featured.city, featured.area)}
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
+                {c.heroLead} <span className="brand-on-photo">{c.heroBrand}</span> {c.heroTail}
+              </h1>
+              <p className="mt-3 text-white text-lg max-w-xl type-on-photo">{c.heroBody}</p>
+            </>
+          )}
         </div>
         {/* On the photo: contrast here comes from `.hero-pill` / `.tab-on-photo`,
             which are deliberately fixed rather than themed. */}
@@ -245,6 +287,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <HeroSearch />
         </div>
       </section>
+
+      {/*
+        Three photographs, straight after the hero — the design's first move
+        once the search box has been offered, and the page's first answer to
+        "what is here?". It sits above the trust strip on purpose: the trust
+        strip argues that the inventory is real, which is a question nobody asks
+        until they have seen some of it.
+      */}
+      <CategoryTiles />
 
       {/* Trust strip (§11.2 — the badge defines the category) */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 text-center">
@@ -289,20 +340,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       */}
       <PartnerInvite surface="home" />
 
-      <footer className="mt-12 text-center text-sm text-faint space-y-1">
-        <p>
-          <Link href="/about" className="font-bold text-sea/80 hover:text-sea">
-            {c.footerAbout}
-          </Link>
-          {" · "}
-          <Link href="/rewards" className="font-bold text-sea/80 hover:text-sea">
-            {c.footerRewards}
-          </Link>
-        </p>
-        <p>{c.footerPlace}</p>
-        <p>{c.footerPrices}</p>
-      </footer>
-    </main>
+      </main>
+      {/*
+        Outside the container, so the band reaches both edges of the viewport.
+        A footer that stops at the content width is a rectangle floating in the
+        middle of a wide screen rather than the end of a page.
+      */}
+      <SiteFooter />
+    </>
   );
 }
 

@@ -47,6 +47,37 @@
 }
 
 /**
+ * The price, in the accent, on a card.
+ *
+ * The design sets every price in orange and it is the right call — the price is
+ * what a guest compares between two venues, and it should be the one coloured
+ * thing in a card body. `--amber` cannot do it, in either theme:
+ *
+ *   #e8641b on a white card   3.35:1
+ *   #e8641b on a dark card    4.08:1
+ *
+ * A price is set at `text-lg` bold — 18px, three quarters of a pixel under the
+ * 18.66px where the 3:1 large-text threshold would start applying — so it needs
+ * the full 4.5:1 and neither figure is close enough to round.
+ *
+ * Unlike almost everything else in this file, this one has to move with the
+ * theme: a card is a surface, not a photograph, and it inverts underneath.
+ * Hence two values rather than a fixed hex.
+ *
+ *   light  #b84a10 on white    5.22:1
+ *   dark   #f0803a on #1a2f45  5.11:1
+ *
+ * Both read as the brand orange at a glance; they are the same hue at the two
+ * lightnesses the two grounds will carry.
+ */
+.price-accent {
+  color: #b84a10;
+}
+.dark .price-accent {
+  color: #f0803a;
+}
+
+/**
  * The scrim over hero photography.
  *
  * Fixed sea-blue in both themes, never `sea`, which inverts: written as

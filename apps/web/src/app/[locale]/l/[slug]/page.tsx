@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Link } from "@/lib/locale";
-import { Logo } from "@/components/logo";
-import { LanguageToggle } from "@/components/language-toggle";
 import { Stars, VerifiedBadge } from "@/components/listing-card";
 import { API_URL, fmtLyd } from "@/lib/api";
 import type { PublicListing } from "@/lib/types";
@@ -10,6 +8,8 @@ import { BookingWidget } from "./booking-widget";
 import { Nearby } from "./nearby";
 import { TrackEvent } from "@/components/track";
 import { Heart } from "@/components/heart";
+import { PhotoLightbox } from "@/components/photo-lightbox";
+import { SiteHeader } from "@/components/site-header";
 import { TrustButton, TrustStars } from "@/components/trust-dialog";
 import { listingDescription, listingTitle, textProps } from "@/lib/content";
 import { AMENITIES, AREAS, CITIES, REVIEW_DIMENSIONS, fmtDate, term } from "@/lib/vocab";
@@ -32,7 +32,6 @@ const copy = {
     browseSimilar: "تصفّح أماكن مشابهة",
     backToSearch: "→ رجوع للبحث",
     photoAlt: (title: string, n: number) => `${title} — صورة ${n}`,
-    photoCount: (n: number) => `📷 ${n} صور · تصويرنا — اسحب للمزيد`,
 
     verifiedHeading: "✓ ماذا يعني «موثّق من تشاو»؟",
     verifiedService:
@@ -94,7 +93,6 @@ const copy = {
     browseSimilar: "Browse similar places",
     backToSearch: "← Back to search",
     photoAlt: (title: string, n: number) => `${title} — photo ${n}`,
-    photoCount: (n: number) => `📷 ${n} photos · shot by us — swipe for more`,
 
     verifiedHeading: "✓ What does «Ciao verified» mean?",
     verifiedService:
@@ -229,7 +227,10 @@ export default async function ListingPage({
   const tier = c.tiers[l.cancellationTier];
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-24">
+    /* `max-w-7xl` like the home and search pages: the split below is already
+       two thirds and one third, and at 5xl that made the booking panel a
+       320px column of numbers on a 1440px screen. */
+    <main className="mx-auto max-w-7xl px-4 pb-24">
       <TrackEvent
         name="listing.viewed"
         props={{
@@ -240,15 +241,13 @@ export default async function ListingPage({
           priceNightly: l.baseNightly,
         }}
       />
-      <header className="flex items-center justify-between py-4">
-        <Link href="/">
-          <Logo />
-        </Link>
-        <nav className="flex items-center gap-3 text-sm font-bold text-sea">
-          <Link href="/search">{c.backToSearch}</Link>
-          <LanguageToggle />
-        </nav>
-      </header>
+      <SiteHeader
+        centre={
+          <Link href="/search" className="text-sm font-bold text-sea">
+            {c.backToSearch}
+          </Link>
+        }
+      />
 
       {/* Photo carousel — our shots (§8.5); horizontal snap-scroll, lazy after first */}
       {(() => {
@@ -283,8 +282,15 @@ export default async function ListingPage({
                 meta={{ vertical: l.type, city: l.city, area: l.area, priceNightly: l.baseNightly }}
               />
             </div>
+            {/*
+              The count was a label; it is the way into the full-screen viewer
+              now. Same chip, same corner — the only difference is that it does
+              something, which is what the frames have it doing.
+            */}
             {photos.length > 0 ? (
-              <div className="absolute top-3 end-3 chip-on-photo">{c.photoCount(photos.length)}</div>
+              <div className="absolute top-3 end-3">
+                <PhotoLightbox photos={photos} title={title.text} />
+              </div>
             ) : null}
           </div>
         );
@@ -558,8 +564,20 @@ export default async function ListingPage({
         </div>
 
         {/* Booking widget */}
+        {/*
+          The booking panel follows the reader down the page.
+
+          The frames give listing detail a sticky Book Now, and on this page in
+          particular it is not decoration: the specs, the amenities, the
+          neighbours and the house rules run for several screens, and the
+          decision the whole page exists to support was scrolling off the top of
+          it. Desktop only — on a phone the panel IS the page at that point, and
+          a sticky element on a 390px screen is a lid.
+        */}
         <div className="lg:col-span-1">
-          <BookingWidget listing={l} catalogue={l.catalogue ?? null} />
+          <div className="lg:sticky lg:top-4">
+            <BookingWidget listing={l} catalogue={l.catalogue ?? null} />
+          </div>
         </div>
       </div>
     </main>
