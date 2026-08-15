@@ -79,7 +79,7 @@ function Column({ title, children }: { title: string; children: React.ReactNode 
       <h3 className="font-bold text-sm mb-2" style={{ color: INK }}>
         {title}
       </h3>
-      <ul className="space-y-1.5 text-sm">{children}</ul>
+      <ul className="space-y-1 text-sm">{children}</ul>
     </div>
   );
 }
@@ -114,8 +114,13 @@ const SOCIAL = [
 
 function Social({ label, soon }: { label: string; soon: string }) {
   return (
-    <div>
-      <h3 className="font-bold text-sm mb-2" style={{ color: INK }}>
+    /*
+     * Label and marks on one line rather than stacked. Three 36px circles under
+     * a heading is two rows for one small thing, and the band is a footer — the
+     * least of the page's claims on the screen.
+     */
+    <div className="flex items-center gap-3">
+      <h3 className="font-bold text-sm shrink-0" style={{ color: INK }}>
         {label}
       </h3>
       <ul className="flex items-center gap-2" dir="ltr">
@@ -126,10 +131,10 @@ function Social({ label, soon }: { label: string; soon: string }) {
               aria-label={`${s.label} — ${soon}`}
               aria-disabled="true"
               title={`${s.label} — ${soon}`}
-              className="grid h-9 w-9 place-items-center rounded-full"
+              className="grid h-8 w-8 place-items-center rounded-full"
               style={{ background: "rgb(245 238 221 / 0.08)", color: MUTED }}
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <path d={s.path} />
               </svg>
             </span>
@@ -159,8 +164,8 @@ export function SiteFooter() {
   const c = copy[locale];
   return (
     <footer className="mt-16" style={{ background: "#0d1b2a" }}>
-      <div className="mx-auto max-w-7xl px-4 py-10">
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-8">
+      <div className="mx-auto max-w-7xl px-4 py-8">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-x-8 gap-y-7">
           {/* The mark leads the band, and takes its own column on a wide
               screen so the four link columns keep an even rhythm. */}
           <div className="col-span-2 lg:col-span-1">
@@ -194,7 +199,7 @@ export function SiteFooter() {
             the "and one more thing" end of the band rather than navigation
             through the catalogue.
           */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <Column title={c.hosts}>
               <Item href="/hosts" label={c.hostsCta} />
             </Column>
@@ -209,7 +214,7 @@ export function SiteFooter() {
           page rather than only in the terms.
         */}
         <p
-          className="mt-8 pt-6 text-sm border-t"
+          className="mt-7 pt-5 text-sm border-t"
           style={{ color: MUTED, borderColor: "rgb(245 238 221 / 0.15)" }}
         >
           {c.prices}

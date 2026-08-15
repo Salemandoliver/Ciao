@@ -722,6 +722,72 @@ function circleFeature(centre: MapLatLng, radiusM: number, steps = 64) {
  * repo, at the cost of the classification below being by layer id — which is
  * why every write is individually guarded rather than assumed to apply.
  */
+/**
+ * Multiply the numbers a Mapbox expression produces, without moving `zoom`.
+ *
+ * `["interpolate", curve, ["zoom"], 8, 1, 16, 4]` becomes
+ * `["interpolate", curve, ["zoom"], 8, 2.6, 16, 10.4]` — the same curve, the
+ * same branches, every output larger. Recurses, because a stop's value is often
+ * itself a `step` on `symbolrank` or a `match` on road class, which is exactly
+ * the hierarchy worth keeping.
+ *
+ * Returns null for anything it does not recognise, and for any sub-expression
+ * that mentions `zoom` where a multiply would bury it. Null means "leave this
+ * layer alone" — a slightly thin road is better than a rejected write, and far
+ * better than a broken one.
+ */
+function scaleExpr(value: unknown, factor: number): unknown {
+  if (typeof value === "number") return value * factor;
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const op = value[0];
+
+  // ["interpolate", interpolation, input, stop, out, stop, out, …]
+  if (op === "interpolate" || op === "interpolate-hcl" || op === "interpolate-lab") {
+    const out: unknown[] = [value[0], value[1], value[2]];
+    for (let i = 3; i < value.length; i += 2) {
+      const scaled = scaleExpr(value[i + 1], factor);
+      if (scaled === null) return null;
+      out.push(value[i], scaled);
+    }
+    return out;
+  }
+
+  // ["step", input, default, stop, out, stop, out, …]
+  if (op === "step") {
+    const fallback = scaleExpr(value[2], factor);
+    if (fallback === null) return null;
+    const out: unknown[] = [value[0], value[1], fallback];
+    for (let i = 3; i < value.length; i += 2) {
+      const scaled = scaleExpr(value[i + 1], factor);
+      if (scaled === null) return null;
+      out.push(value[i], scaled);
+    }
+    return out;
+  }
+
+  // ["match", input, label, out, …, default]
+  if (op === "match") {
+    const out: unknown[] = [value[0], value[1]];
+    for (let i = 2; i < value.length - 1; i += 2) {
+      const scaled = scaleExpr(value[i + 1], factor);
+      if (scaled === null) return null;
+      out.push(value[i], scaled);
+    }
+    const fallback = scaleExpr(value[value.length - 1], factor);
+    if (fallback === null) return null;
+    out.push(fallback);
+    return out;
+  }
+
+  /*
+   * Anything else — `case`, `get`, a literal. Safe to multiply directly as long
+   * as `zoom` is not hiding inside it, which is the one thing that cannot be
+   * nested under an operator.
+   */
+  if (JSON.stringify(value).includes('"zoom"')) return null;
+  return ["*", value, factor];
+}
+
 function applyBrandPalette(map: mapboxgl.Map, dark: boolean): void {
   const p = dark ? PALETTE.dark : PALETTE.light;
   /*
@@ -757,23 +823,29 @@ function applyBrandPalette(map: mapboxgl.Map, dark: boolean): void {
   };
 
   /**
-   * Multiply whatever the style already says, instead of replacing it.
+   * Scale whatever the style already says, instead of replacing it.
    *
-   * This is the fix for "the lines are too thin and I have to zoom in", and the
-   * multiplication is the whole point. A road's width in a Mapbox style is a
-   * zoom expression carrying the map's entire hierarchy — a motorway wider than
-   * a trunk road wider than a residential street, all of them growing as you
-   * come in. Replacing that with one flat number makes everything legible and
-   * makes a footpath look like a motorway, which is not a clearer map, only a
-   * louder one.
+   * This is the fix for "the lines are too thin and I have to zoom in", and
+   * keeping the style's own numbers is the whole point. A road's width in a
+   * Mapbox style is an expression carrying the map's entire hierarchy — a
+   * motorway wider than a trunk wider than a residential street, all growing as
+   * you come in, and in `road-simple` also branching on the road's class.
+   * Replacing that with one flat number would make everything visible and make
+   * a footpath look like a motorway: not a clearer map, a louder one.
    *
-   * Scaling keeps the hierarchy and moves all of it up together. `["*", expr, n]`
-   * is a Mapbox expression, so the arithmetic happens in the renderer at every
-   * zoom rather than being baked once here.
+   * ## Why this is not simply `["*", expr, n]`
    *
-   * The guard matters: a value that is a legacy `{stops: […]}` function object
-   * rather than a number or an expression cannot be multiplied, and feeding one
-   * to `*` throws. Those layers keep the width they had.
+   * It was, and it silently did nothing. Mapbox requires `["zoom"]` to appear
+   * as the OUTERMOST expression of a property — a zoom expression nested inside
+   * another operator is invalid, so wrapping an `["interpolate", …, ["zoom"], …]`
+   * in a multiply produced a value the renderer rejected. `setPaintProperty`
+   * validates, refuses it and carries on with the old value, so every one of
+   * those writes was thrown away and the widths never moved.
+   *
+   * `scaleExpr` walks the expression instead and multiplies the OUTPUT values
+   * at the leaves, leaving `zoom` exactly where the style put it. The result is
+   * a valid expression that keeps every branch of the hierarchy and lifts all
+   * of it together.
    */
   const scale = (
     id: string,
@@ -784,14 +856,9 @@ function applyBrandPalette(map: mapboxgl.Map, dark: boolean): void {
   ) => {
     try {
       const current = kind === "paint" ? getPaint(id, prop) : getLayout(id, prop);
-      const base =
-        current === undefined || current === null
-          ? fallback
-          : typeof current === "number" || Array.isArray(current)
-            ? current
-            : null;
-      if (base === null) return; // legacy stops object — leave it alone
-      const next = ["*", base, factor];
+      const base = current === undefined || current === null ? fallback : current;
+      const next = scaleExpr(base, factor);
+      if (next === null) return; // shape we do not understand — leave it alone
       if (kind === "paint") setPaint(id, prop, next);
       else setLayout(id, prop, next);
     } catch {
@@ -858,6 +925,21 @@ function applyBrandPalette(map: mapboxgl.Map, dark: boolean): void {
     if (layer.type === "symbol") {
       set(id, "text-color", p.label);
       set(id, "text-halo-color", p.halo);
+      /*
+       * Keep the labels when the map is tilted over terrain.
+       *
+       * This is why the dark map lost its text the moment 3D went on. With
+       * terrain enabled, Mapbox depth-tests every symbol against the ground and
+       * fades whatever it judges to be behind a rise — and the default for that
+       * fade is 0, which is not a fade at all but a deletion. On a 42° pitch
+       * over a coastal plain that quietly took the place names with it.
+       *
+       * 1 means "draw it anyway". A town name is not a physical object standing
+       * on the terrain that a hill can legitimately hide; it is a label about
+       * the map, and it should behave like one.
+       */
+      set(id, "text-occlusion-opacity", 1);
+      set(id, "icon-occlusion-opacity", 1);
       /*
        * Bigger names, and a heavier halo behind them.
        *
