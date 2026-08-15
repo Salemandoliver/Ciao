@@ -27,9 +27,9 @@ import { dirOf, type Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
 import {
   PIN_INK,
-  PIN_PAPER,
   isUsablePolygon,
   mapboxToken,
+  pinColours,
   pinFont,
   pinLabel,
   type MapImplProps,
@@ -37,22 +37,50 @@ import {
 } from "./map-geo";
 
 /*
- * The light style, at noon and at midnight.
+ * Two styles, because this map does follow the theme — and it is the only part
+ * of the map that does.
  *
- * Deliberately not switched with the app's theme: `map-geo.ts` explains why the
- * pin colours are raw hex rather than theme tokens — tiles are a photograph of
- * the world, and a pin that follows the theme ends up as pale ink on a pale
- * road at 1am. Swapping the tiles for `dark-v11` at night would put that
- * decision back on the table for one provider out of three and make the same
- * listing a different colour on two maps. If the dark map is wanted it is a
- * change to all three, made on purpose.
+ * The pins deliberately do not (see `pinColours`): they sit on tiles the way a
+ * badge sits on a photograph. The tiles themselves are the opposite case. This
+ * app is opened at a chalet gate at night on a phone at 8%, which is the reason
+ * dark mode exists here at all, and a white map is the brightest thing that
+ * could possibly be on that screen.
  */
-const STYLE = "mapbox://styles/mapbox/light-v11";
+const STYLE_LIGHT = "mapbox://styles/mapbox/light-v11";
+const STYLE_DARK = "mapbox://styles/mapbox/dark-v11";
+
+/**
+ * The warm overrides from the brand guidelines.
+ *
+ * Mapbox's own light style is a cool grey that looks like nothing else in Ciao;
+ * these re-point it onto the same cream-and-sand ground the rest of the app
+ * stands on. Dark goes the other way — near-black land with the roads picked
+ * out in brand orange, which is the one thing on a night map that has to stay
+ * findable.
+ */
+const PALETTE = {
+  light: {
+    land: "#f5edd8",
+    water: "#c4b9a0",
+    road: "#d4c9b5",
+    label: "#0d1b2a",
+    halo: "#f5edd8",
+    roadGlow: null as string | null,
+  },
+  dark: {
+    land: "#121218",
+    water: "#0a0e1a",
+    road: "#2c2c34",
+    label: "#f5f2eb",
+    halo: "#121218",
+    roadGlow: "#e8641b",
+  },
+};
 
 /*
  * Arabic on a vector map needs a shaping plugin; without it labels arrive as
  * disconnected letters in the wrong order, which is worse than English ones.
- * `deferred` keeps the ~200KB off the wire until a label actually needs it, and
+ * `deferred` keeps the ~150KB off the wire until a label actually needs it, and
  * the module-level guard is because Mapbox throws if it is set twice — two maps
  * on one screen (desktop split view, mobile sheet) would otherwise do exactly
  * that.
@@ -71,13 +99,34 @@ function ensureRtlText(): void {
   }
 }
 
-/* Source and layer ids. Added once on load, then fed with `setData` — cheaper
- * and far less fragile than adding and removing layers as results change. */
+/* Source and layer ids. Re-installed on every style load — a `setStyle` throws
+ * away everything that is not part of the style, this file's layers included. */
 const FUZZ_SRC = "ciao-fuzz";
 const SHAPE_SRC = "ciao-shape";
 const STROKE_SRC = "ciao-stroke";
 
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
+
+/**
+ * Whether the app is in dark mode right now, and afterwards.
+ *
+ * `theme-boot.tsx` owns the decision and expresses it as a class on `<html>`,
+ * set before first paint and re-asserted on navigation and at sunset. Watching
+ * the class rather than the media query is what makes this agree with the rest
+ * of the app for someone who has explicitly chosen light on a dark phone.
+ */
+function useDarkTheme(): boolean {
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    const root = document.documentElement;
+    const read = () => setDark(root.classList.contains("dark"));
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+  return dark;
+}
 
 export default function MapboxMap({
   items,
@@ -92,13 +141,15 @@ export default function MapboxMap({
   onDrawCancelled,
 }: MapImplProps) {
   const locale = useLocale();
+  const dark = useDarkTheme();
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<Record<string, { marker: mapboxgl.Marker; el: HTMLDivElement }>>({});
   /*
-   * Bumped when the style finishes loading. Every effect below depends on it,
-   * which is how they re-run against sources that did not exist on first
-   * render — the same trick `map-google.tsx` uses for its script.
+   * Bumped on every style load — the first one, and again after each theme
+   * switch, because `setStyle` takes this file's sources and layers with it.
+   * Every effect below depends on it, which is how they re-install themselves
+   * against a style that did not exist when they last ran.
    */
   const [ready, setReady] = useState(0);
   const onSelectRef = useRef(onSelect);
@@ -107,6 +158,9 @@ export default function MapboxMap({
   onDrawnRef.current = onDrawn;
   const onCancelRef = useRef(onDrawCancelled);
   onCancelRef.current = onDrawCancelled;
+  /* The theme the map was BUILT with, so the swap effect below can tell a real
+   * change from its own first render. */
+  const builtDark = useRef(dark);
 
   // ---------------------------------------------------------------- the map
   // Built once and kept, so a drawn shape and the guest's own panning survive
@@ -120,13 +174,12 @@ export default function MapboxMap({
 
     const map = new mapboxgl.Map({
       container: ref.current,
-      style: STYLE,
+      style: builtDark.current ? STYLE_DARK : STYLE_LIGHT,
       center: [centre.lng, centre.lat], // Mapbox takes lng first
       zoom: centre.zoom,
       attributionControl: true, // required by Mapbox's terms; never turn off
       dragRotate: false, // a rotated map makes a drawn shape hard to reason about
       pitchWithRotate: false,
-      cooperativeGestures: false,
     });
     map.touchPitch.disable();
     map.addControl(
@@ -134,50 +187,16 @@ export default function MapboxMap({
       dirOf(locale) === "rtl" ? "top-left" : "top-right",
     );
 
-    map.on("load", () => {
+    /*
+     * `style.load` rather than `load`: it fires for the first style AND after
+     * every `setStyle`, which is exactly the set of moments at which this
+     * file's layers have to be put back.
+     */
+    map.on("style.load", () => {
+      const isDark = map.getStyle()?.name?.toLowerCase().includes("dark") ?? false;
+      applyBrandPalette(map, isDark);
       localiseLabels(map, locale);
-
-      // The ~500m fuzz circles (§7.1), as real metres on the ground rather
-      // than a pixel radius that would lie at every zoom but one.
-      map.addSource(FUZZ_SRC, { type: "geojson", data: EMPTY });
-      map.addLayer({
-        id: `${FUZZ_SRC}-fill`,
-        type: "fill",
-        source: FUZZ_SRC,
-        paint: { "fill-color": PIN_INK, "fill-opacity": 0.06 },
-      });
-      map.addLayer({
-        id: `${FUZZ_SRC}-line`,
-        type: "line",
-        source: FUZZ_SRC,
-        paint: { "line-color": PIN_INK, "line-width": 1, "line-opacity": 0.5 },
-      });
-
-      // The committed shape, drawn until the guest clears it.
-      map.addSource(SHAPE_SRC, { type: "geojson", data: EMPTY });
-      map.addLayer({
-        id: `${SHAPE_SRC}-fill`,
-        type: "fill",
-        source: SHAPE_SRC,
-        paint: { "fill-color": PIN_INK, "fill-opacity": 0.1 },
-      });
-      map.addLayer({
-        id: `${SHAPE_SRC}-line`,
-        type: "line",
-        source: SHAPE_SRC,
-        paint: { "line-color": PIN_INK, "line-width": 2 },
-      });
-
-      // The stroke under a moving finger.
-      map.addSource(STROKE_SRC, { type: "geojson", data: EMPTY });
-      map.addLayer({
-        id: `${STROKE_SRC}-line`,
-        type: "line",
-        source: STROKE_SRC,
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": PIN_INK, "line-width": 3, "line-dasharray": [2, 1.5] },
-      });
-
+      installLayers(map);
       setReady((n) => n + 1);
     });
 
@@ -191,11 +210,30 @@ export default function MapboxMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ----------------------------------------------------------- theme switch
+  // Someone toggling dark mode from their account settings, or their phone
+  // reaching sunset with the theme on `system`, gets the other map without a
+  // reload. `setStyle` keeps the camera where it is; the markers are DOM and
+  // survive it, and everything else is rebuilt by the `style.load` above.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || builtDark.current === dark) return;
+    builtDark.current = dark;
+    map.setStyle(dark ? STYLE_DARK : STYLE_LIGHT);
+  }, [dark]);
+
+  // -------------------------------------------------------------- analytics
+  // Its own effect, keyed only on what it reports. Folded into the pin effect
+  // it would fire again on every style load, and a guest switching to dark mode
+  // at dusk would look like a second search.
+  useEffect(() => {
+    trackClient("map.opened", { vertical, resultCount: items.length });
+  }, [items, vertical]);
+
   // ------------------------------------------------------------------- pins
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    trackClient("map.opened", { vertical, resultCount: items.length });
 
     for (const { marker } of Object.values(markersRef.current)) marker.remove();
     markersRef.current = {};
@@ -212,7 +250,7 @@ export default function MapboxMap({
       bounds.extend([lng, lat]);
 
       const el = document.createElement("div");
-      paintPin(el, item, item.id === selectedId, locale);
+      paintPin(el, item, item.id === selectedId, locale, dark);
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         onSelectRef.current?.(item.id);
@@ -238,15 +276,15 @@ export default function MapboxMap({
       map.setZoom(13);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, locale, vertical, ready]);
+  }, [items, locale, vertical, ready, dark]);
 
   // Repaint pins when the selection changes (either direction: map ⇄ list).
   useEffect(() => {
     for (const item of items) {
       const entry = markersRef.current[item.id];
-      if (entry) paintPin(entry.el, item, item.id === selectedId, locale);
+      if (entry) paintPin(entry.el, item, item.id === selectedId, locale, dark);
     }
-  }, [selectedId, items, locale, ready]);
+  }, [selectedId, items, locale, ready, dark]);
 
   // -------------------------------------------------------- committed shape
   useEffect(() => {
@@ -385,17 +423,17 @@ function paintPin(
   item: PublicListing,
   active: boolean,
   locale: Locale,
+  dark: boolean,
 ): void {
-  const bg = active ? PIN_INK : PIN_PAPER;
-  const fg = active ? PIN_PAPER : PIN_INK;
+  const c = pinColours(active, dark);
   el.textContent = pinLabel(item, locale);
   // The marker lives outside React and outside the document's `dir`, so it has
   // to state its own direction and face.
   el.dir = dirOf(locale);
   el.style.cssText =
-    `background:${bg};border:1.5px solid ${PIN_INK};color:${fg};font-weight:800;` +
+    `background:${c.bg};border:1.5px solid ${c.border};color:${c.fg};font-weight:800;` +
     `font-family:${pinFont(locale)};font-size:12px;padding:3px 9px;border-radius:999px;` +
-    `box-shadow:0 1px 5px rgba(0,0,0,.28);white-space:nowrap;cursor:pointer;` +
+    `box-shadow:${c.shadow};white-space:nowrap;cursor:pointer;` +
     `transform:scale(${active ? 1.12 : 1});transition:transform .15s`;
 }
 
@@ -405,6 +443,52 @@ function source(map: mapboxgl.Map, id: string): mapboxgl.GeoJSONSource | null {
   // `getSource` is undefined until the style has loaded, and during teardown.
   const src = map.getSource(id);
   return src && src.type === "geojson" ? (src as mapboxgl.GeoJSONSource) : null;
+}
+
+/** This file's own sources and layers, put back after every style load. */
+function installLayers(map: mapboxgl.Map): void {
+  if (map.getSource(FUZZ_SRC)) return; // same style loaded twice; nothing to do
+
+  // The ~500m fuzz circles (§7.1), as real metres on the ground rather than a
+  // pixel radius that would lie at every zoom but one.
+  map.addSource(FUZZ_SRC, { type: "geojson", data: EMPTY });
+  map.addLayer({
+    id: `${FUZZ_SRC}-fill`,
+    type: "fill",
+    source: FUZZ_SRC,
+    paint: { "fill-color": PIN_INK, "fill-opacity": 0.06 },
+  });
+  map.addLayer({
+    id: `${FUZZ_SRC}-line`,
+    type: "line",
+    source: FUZZ_SRC,
+    paint: { "line-color": PIN_INK, "line-width": 1, "line-opacity": 0.5 },
+  });
+
+  // The committed shape, drawn until the guest clears it.
+  map.addSource(SHAPE_SRC, { type: "geojson", data: EMPTY });
+  map.addLayer({
+    id: `${SHAPE_SRC}-fill`,
+    type: "fill",
+    source: SHAPE_SRC,
+    paint: { "fill-color": PIN_INK, "fill-opacity": 0.1 },
+  });
+  map.addLayer({
+    id: `${SHAPE_SRC}-line`,
+    type: "line",
+    source: SHAPE_SRC,
+    paint: { "line-color": PIN_INK, "line-width": 2 },
+  });
+
+  // The stroke under a moving finger.
+  map.addSource(STROKE_SRC, { type: "geojson", data: EMPTY });
+  map.addLayer({
+    id: `${STROKE_SRC}-line`,
+    type: "line",
+    source: STROKE_SRC,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": PIN_INK, "line-width": 3, "line-dasharray": [2, 1.5] },
+  });
 }
 
 function polygonFeature(rings: [number, number][][]) {
@@ -441,6 +525,73 @@ function circleFeature(centre: MapLatLng, radiusM: number, steps = 64) {
     ring.push([centre.lng + dLng * Math.cos(t), centre.lat + dLat * Math.sin(t)]);
   }
   return polygonFeature([ring]);
+}
+
+/* ----------------------------------------------------------------- palette
+ * Mapbox's stock styles onto Ciao's ground.
+ *
+ * Done by walking the style rather than by publishing a custom style in a
+ * Mapbox account: a hosted style is a second place the brand lives, owned by
+ * whoever holds the Mapbox login, and it would drift from `tokens.css` the
+ * moment either changed. Walking the layers keeps one source of truth in the
+ * repo, at the cost of the classification below being by layer id — which is
+ * why every write is individually guarded rather than assumed to apply.
+ */
+function applyBrandPalette(map: mapboxgl.Map, dark: boolean): void {
+  const p = dark ? PALETTE.dark : PALETTE.light;
+  /*
+   * The cast is the honest shape of this function: the paint property is chosen
+   * from the layer's own id at runtime, so the union of every valid property
+   * name cannot be narrowed here. The `try` is what actually makes it safe — a
+   * layer that will not take the property keeps the one it had.
+   */
+  const setPaint = map.setPaintProperty.bind(map) as (
+    layerId: string,
+    property: string,
+    value: unknown,
+  ) => void;
+  const set = (id: string, prop: string, value: unknown) => {
+    try {
+      setPaint(id, prop, value);
+    } catch {
+      /* see above */
+    }
+  };
+
+  for (const layer of map.getStyle()?.layers ?? []) {
+    const id = layer.id;
+    if (layer.type === "background") {
+      set(id, "background-color", p.land);
+      continue;
+    }
+    if (/water|bathymetry/.test(id)) {
+      if (layer.type === "fill") set(id, "fill-color", p.water);
+      if (layer.type === "line") set(id, "line-color", p.water);
+      continue;
+    }
+    if (/^(land|landcover|landuse|national-park|pitch|aeroway)/.test(id)) {
+      if (layer.type === "fill") set(id, "fill-color", p.land);
+      continue;
+    }
+    if (/road|bridge|tunnel|street/.test(id) && layer.type === "line") {
+      set(id, "line-color", p.road);
+      /*
+       * The night map's one flourish, and it earns its place: on a near-black
+       * ground the road network is the only thing that tells you which strip of
+       * coast you are looking at, and grey-on-black loses it entirely.
+       */
+      if (p.roadGlow && /^road/.test(id) && !/label/.test(id)) {
+        set(id, "line-color", p.roadGlow);
+        set(id, "line-opacity", 0.4);
+        set(id, "line-blur", 3);
+      }
+      continue;
+    }
+    if (layer.type === "symbol") {
+      set(id, "text-color", p.label);
+      set(id, "text-halo-color", p.halo);
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ labels

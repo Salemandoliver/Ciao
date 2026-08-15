@@ -23,8 +23,8 @@ import { dirOf, type Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
 import {
   PIN_INK,
-  PIN_PAPER,
   isUsablePolygon,
+  pinColours,
   pinFont,
   pinLabel,
   type MapImplProps,
@@ -247,13 +247,15 @@ export default function LeafletMap({
 }
 
 function priceIcon(item: PublicListing, active: boolean, locale: Locale): L.DivIcon {
-  const bg = active ? PIN_INK : PIN_PAPER;
-  const fg = active ? PIN_PAPER : PIN_INK;
+  // Shared with the other two providers so the same listing is the same colour
+  // whichever map the operator has switched on. No dark variant: this map keeps
+  // OSM's stock tiles, which are light whatever the app's theme is.
+  const c = pinColours(active);
   // The pin is raw HTML handed to Leaflet, outside React and outside the
   // document's `dir`, so it has to state its own direction and face.
   return L.divIcon({
     className: "",
-    html: `<div style="background:${bg};border:1.5px solid ${PIN_INK};color:${fg};font-weight:800;font-family:${pinFont(locale)};font-size:12px;padding:3px 9px;border-radius:999px;box-shadow:0 1px 5px rgba(0,0,0,.28);white-space:nowrap;direction:${dirOf(locale)};transform:scale(${active ? 1.12 : 1});transition:transform .15s">${escapeHtml(pinLabel(item, locale))}</div>`,
+    html: `<div style="background:${c.bg};border:1.5px solid ${c.border};color:${c.fg};font-weight:800;font-family:${pinFont(locale)};font-size:12px;padding:3px 9px;border-radius:999px;box-shadow:${c.shadow};white-space:nowrap;direction:${dirOf(locale)};transform:scale(${active ? 1.12 : 1});transition:transform .15s">${escapeHtml(pinLabel(item, locale))}</div>`,
     iconAnchor: [24, 14],
   });
 }

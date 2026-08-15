@@ -24,11 +24,11 @@ import { dirOf, type Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
 import {
   PIN_INK,
-  PIN_PAPER,
   googleMapsKey,
   inverseMercatorY,
   isUsablePolygon,
   mercatorY,
+  pinColours,
   pinFont,
   pinLabel,
   type MapImplProps,
@@ -374,8 +374,9 @@ function priceIcon(
   locale: Locale,
 ): GIcon {
   const label = pinLabel(item, locale);
-  const bg = active ? PIN_INK : PIN_PAPER;
-  const fg = active ? PIN_PAPER : PIN_INK;
+  // Shared with the other two providers so the same listing is the same colour
+  // whichever map the operator has switched on.
+  const { bg, fg, border } = pinColours(active);
   // Arabic and Latin digits are near enough the same width at this size; the
   // 9px-per-character estimate errs wide, which shows as padding, not clipping.
   const width = Math.max(46, 16 + label.length * 9) * (active ? 1.12 : 1);
@@ -383,7 +384,7 @@ function priceIcon(
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
     `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="${height / 2}" ` +
-    `fill="${bg}" stroke="${PIN_INK}" stroke-width="1.5"/>` +
+    `fill="${bg}" stroke="${border}" stroke-width="1.5"/>` +
     `<text x="${width / 2}" y="${height / 2}" dominant-baseline="central" text-anchor="middle" ` +
     `direction="${dirOf(locale)}" font-family="${pinFont(locale)}" font-size="12" ` +
     `font-weight="800" fill="${fg}">${escapeXml(label)}</text></svg>`;

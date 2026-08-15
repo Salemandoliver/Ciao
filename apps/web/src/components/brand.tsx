@@ -109,7 +109,7 @@ export function PartnerBand({
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <p className="text-xs sm:text-sm font-extrabold text-[#E8A020]">{eyebrow}</p>
+          <p className="text-xs sm:text-sm font-extrabold text-[#E8641B]">{eyebrow}</p>
           <h2 className="font-baloo font-extrabold text-xl sm:text-3xl leading-tight text-[#F3F2EC] mt-2">
             {headline}
           </h2>
@@ -118,7 +118,7 @@ export function PartnerBand({
           href={href}
           onClick={onClick}
           {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-          className="shrink-0 inline-flex items-center gap-2 rounded-full bg-[#E8A020] px-7 py-3 font-extrabold text-[#0D1B2A] hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F3F2EC]"
+          className="shrink-0 inline-flex items-center gap-2 rounded-full bg-[#E8641B] px-7 py-3 font-extrabold text-[#0D1B2A] hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F3F2EC]"
         >
           {cta}
           <span aria-hidden>↗</span>
