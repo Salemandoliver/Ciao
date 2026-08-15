@@ -71,6 +71,9 @@ const PALETTE = {
     roadGlow: null as string | null,
     roadGlowOpacity: 0,
     roadGlowBlur: 0,
+    /* Multipliers on the style's own widths and sizes — see `scale`. */
+    roadWidth: 2.1,
+    labelSize: 1.2,
   },
   dark: {
     /*
@@ -111,8 +114,16 @@ const PALETTE = {
     label: "#f5f2eb",
     halo: "#0b0f18",
     roadGlow: "#e8641b",
-    roadGlowOpacity: 0.62,
-    roadGlowBlur: 1,
+    roadGlowOpacity: 0.85,
+    roadGlowBlur: 0.5,
+    /*
+     * Heavier than the light map. A bright line on a dark ground reads thinner
+     * than the same line dark-on-light — the glow bleeds outward and the eye
+     * takes the bright core as the width — so the night map needs more to look
+     * like the same weight.
+     */
+    roadWidth: 2.6,
+    labelSize: 1.25,
   },
 };
 
@@ -591,11 +602,67 @@ function applyBrandPalette(map: mapboxgl.Map, dark: boolean): void {
     property: string,
     value: unknown,
   ) => void;
+  const getPaint = map.getPaintProperty.bind(map) as (
+    layerId: string,
+    property: string,
+  ) => unknown;
+  const setLayout = map.setLayoutProperty.bind(map) as (
+    layerId: string,
+    property: string,
+    value: unknown,
+  ) => void;
+  const getLayout = map.getLayoutProperty.bind(map) as (
+    layerId: string,
+    property: string,
+  ) => unknown;
   const set = (id: string, prop: string, value: unknown) => {
     try {
       setPaint(id, prop, value);
     } catch {
       /* see above */
+    }
+  };
+
+  /**
+   * Multiply whatever the style already says, instead of replacing it.
+   *
+   * This is the fix for "the lines are too thin and I have to zoom in", and the
+   * multiplication is the whole point. A road's width in a Mapbox style is a
+   * zoom expression carrying the map's entire hierarchy — a motorway wider than
+   * a trunk road wider than a residential street, all of them growing as you
+   * come in. Replacing that with one flat number makes everything legible and
+   * makes a footpath look like a motorway, which is not a clearer map, only a
+   * louder one.
+   *
+   * Scaling keeps the hierarchy and moves all of it up together. `["*", expr, n]`
+   * is a Mapbox expression, so the arithmetic happens in the renderer at every
+   * zoom rather than being baked once here.
+   *
+   * The guard matters: a value that is a legacy `{stops: […]}` function object
+   * rather than a number or an expression cannot be multiplied, and feeding one
+   * to `*` throws. Those layers keep the width they had.
+   */
+  const scale = (
+    id: string,
+    prop: string,
+    factor: number,
+    kind: "paint" | "layout",
+    fallback: number,
+  ) => {
+    try {
+      const current = kind === "paint" ? getPaint(id, prop) : getLayout(id, prop);
+      const base =
+        current === undefined || current === null
+          ? fallback
+          : typeof current === "number" || Array.isArray(current)
+            ? current
+            : null;
+      if (base === null) return; // legacy stops object — leave it alone
+      const next = ["*", base, factor];
+      if (kind === "paint") setPaint(id, prop, next);
+      else setLayout(id, prop, next);
+    } catch {
+      /* a layer that will not take it keeps what it had */
     }
   };
 
@@ -627,6 +694,12 @@ function applyBrandPalette(map: mapboxgl.Map, dark: boolean): void {
     if (/road|bridge|tunnel|street/.test(id) && layer.type === "line") {
       set(id, "line-color", p.road);
       /*
+       * Fatten every road, keeping the hierarchy. Stock widths are drawn for a
+       * map you look at; this one is glanced at on a phone in daylight while
+       * somebody decides which strip of coast a chalet is on.
+       */
+      scale(id, "line-width", p.roadWidth, "paint", 1);
+      /*
        * The night map's one flourish, and it earns its place: on a dark ground
        * the road network is what tells you which strip of coast you are looking
        * at, and grey-on-black loses it entirely.
@@ -642,9 +715,26 @@ function applyBrandPalette(map: mapboxgl.Map, dark: boolean): void {
       }
       continue;
     }
+    /* Administrative edges — the line between Tripoli and the next municipality.
+     * Stock these are hairlines, and they are half of "where am I". */
+    if (/^admin|boundary/.test(id) && layer.type === "line") {
+      scale(id, "line-width", 1.6, "paint", 1);
+      set(id, "line-opacity", 0.6);
+      continue;
+    }
     if (layer.type === "symbol") {
       set(id, "text-color", p.label);
       set(id, "text-halo-color", p.halo);
+      /*
+       * Bigger names, and a heavier halo behind them.
+       *
+       * Place names are how a guest reads an area — «تاجوراء», «جنزور» — and at
+       * the zoom a spread-out result set forces, the stock sizes are around
+       * 10px. The halo matters as much as the size: a label crossing a bright
+       * road or a coastline needs its own ground or it breaks up.
+       */
+      scale(id, "text-size", p.labelSize, "layout", 12);
+      set(id, "text-halo-width", 1.6);
     }
   }
 }
