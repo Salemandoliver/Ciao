@@ -60,12 +60,27 @@ export function CardGallery({
   alt,
   listingId,
   href,
+  full = false,
 }: {
   photos: GalleryPhoto[];
   alt: string;
   listingId: string;
-  /** Where a tap on the photograph goes. A drag goes nowhere. */
-  href: string;
+  /**
+   * Where a tap on the photograph goes. A drag goes nowhere.
+   *
+   * Optional, because the listing page uses this component too and a tap on the
+   * photograph there is already on the page it would navigate to.
+   */
+  href?: string;
+  /**
+   * Send the full-width encoding rather than the thumbnail.
+   *
+   * False on a card, where the strip is never drawn wider than a phone screen
+   * and the narrow file is the one that should travel over 3G. True on the
+   * listing page, where the photograph IS the page and a thumbnail stretched
+   * across half a monitor is the wrong economy.
+   */
+  full?: boolean;
 }) {
   const router = useRouter();
   const locale = useLocale();
@@ -179,7 +194,7 @@ export function CardGallery({
            */
           const start = pressRef.current;
           pressRef.current = null;
-          if (!start) return;
+          if (!start || !href) return;
           const moved =
             Math.abs(e.clientX - start.x) > 8 || Math.abs(e.clientY - start.y) > 8;
           if (moved) return;
@@ -189,7 +204,9 @@ export function CardGallery({
         // `contain` is the belt to that fix's braces: a horizontal scroll that
         // reaches the end of this strip stops there instead of moving the page.
         style={{ touchAction: "pan-x pan-y", overscrollBehaviorX: "contain" }}
-        className="absolute inset-0 flex overflow-x-auto snap-x snap-mandatory no-scrollbar cursor-pointer"
+        className={`absolute inset-0 flex overflow-x-auto snap-x snap-mandatory no-scrollbar ${
+          href ? "cursor-pointer" : ""
+        }`}
         // A photo strip is decoration inside a card that is itself a link; a
         // screen reader gets the title and the count, not six scroll stops.
         aria-roledescription="carousel"
@@ -198,7 +215,7 @@ export function CardGallery({
         {photos.map((p, i) => (
           <img
             key={p.url}
-            src={i === 0 || activated ? thumb(p) : undefined}
+            src={i === 0 || activated ? (full ? p.url : thumb(p)) : undefined}
             alt={i === 0 ? alt : `${alt} — ${c.photoOf(i + 1, count)}`}
             loading={i === 0 ? "lazy" : "eager"}
             decoding="async"

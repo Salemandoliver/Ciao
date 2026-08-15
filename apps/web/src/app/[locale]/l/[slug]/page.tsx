@@ -8,6 +8,7 @@ import { BookingWidget } from "./booking-widget";
 import { Nearby } from "./nearby";
 import { TrackEvent } from "@/components/track";
 import { Heart } from "@/components/heart";
+import { CardGallery } from "@/components/card-gallery";
 import { PhotoLightbox } from "@/components/photo-lightbox";
 import { SiteHeader } from "@/components/site-header";
 import { TrustButton, TrustStars } from "@/components/trust-dialog";
@@ -31,7 +32,6 @@ const copy = {
     notFound: "هذا المكان غير متاح حاليًا.",
     browseSimilar: "تصفّح أماكن مشابهة",
     backToSearch: "→ رجوع للبحث",
-    photoAlt: (title: string, n: number) => `${title} — صورة ${n}`,
 
     verifiedHeading: "✓ ماذا يعني «موثّق من تشاو»؟",
     verifiedService:
@@ -92,7 +92,6 @@ const copy = {
     notFound: "This place is not available right now.",
     browseSimilar: "Browse similar places",
     backToSearch: "← Back to search",
-    photoAlt: (title: string, n: number) => `${title} — photo ${n}`,
 
     verifiedHeading: "✓ What does «Ciao verified» mean?",
     verifiedService:
@@ -249,29 +248,42 @@ export default async function ListingPage({
         }
       />
 
-      {/* Photo carousel — our shots (§8.5); horizontal snap-scroll, lazy after first */}
+      {/* Photo carousel — our shots (§8.5) */}
       {(() => {
         const photos = l.media
           .filter((m) => m.kind === "photo")
           .sort((a, b) => a.order - b.order);
         return (
-          <div className="card relative">
-            <div className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth aspect-[16/9] photo-placeholder">
-              {photos.length > 0 ? (
-                photos.map((m, i) => (
-                  <img
-                    key={m.url}
-                    src={m.url}
-                    alt={c.photoAlt(title.text, i + 1)}
-                    loading={i === 0 ? "eager" : "lazy"}
-                    fetchPriority={i === 0 ? "high" : undefined}
-                    className="h-full w-full flex-shrink-0 snap-center object-cover"
-                  />
-                ))
-              ) : (
-                <div className="h-full w-full" />
-              )}
-            </div>
+          /*
+            Sized, not proportioned.
+
+            This was `aspect-[16/9]`, which in a 7xl container is a 720px-tall
+            photograph — taller than the usable height of most laptop screens
+            once the header is on it. The name of the place, its price and its
+            Book Now button were all below the fold on the page whose entire job
+            is to sell that place, and a guest had to scroll to find out what
+            they were looking at.
+
+            A height rather than a ratio, because the constraint is the screen
+            and not the picture: a little under half the viewport, floored so it
+            does not collapse on a short window and capped so it does not run
+            away on a tall one. `svh` for the same reason the hero uses it — a
+            mobile address bar must not be able to push the title off.
+          */
+          <div className="card relative group h-[45svh] min-h-[220px] max-h-[520px] photo-placeholder">
+            {/*
+              The same carousel the result cards use, which already solves the
+              things this one had not: arrows that say previous and next rather
+              than left and right, dots, swipe, and no visible scrollbar. It was
+              a bare `overflow-x-auto` strip here, so the desktop had a
+              scrollbar under the photograph and no way to advance it without
+              dragging one.
+
+              `full` sends the wide encoding — on a card the thumbnail is the
+              right economy, on the page the photograph IS the argument. No
+              `href`: a tap here is already on the page it would navigate to.
+            */}
+            <CardGallery photos={photos} alt={title.text} listingId={l.id} full />
             <div className="absolute bottom-3 start-3 flex gap-2">
               {l.verified ? <VerifiedBadge verifiedAt={l.verifiedAt} /> : null}
             </div>
