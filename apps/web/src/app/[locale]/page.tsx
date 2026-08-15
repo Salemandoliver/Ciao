@@ -1,6 +1,8 @@
 import { Link } from "@/lib/locale";
 import { Logo } from "@/components/logo";
-import { ListingCard } from "@/components/listing-card";
+import { ListingCard, RatingPill, VerifiedBadge } from "@/components/listing-card";
+import { listingTitle, textProps } from "@/lib/content";
+import { placeLabel } from "@/lib/vocab";
 import { HeroSearch } from "@/components/hero-search";
 import { HeroRotator, type HeroImage } from "@/components/hero-rotator";
 import { Greeting } from "@/components/greeting";
@@ -175,6 +177,24 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     getBrandMessage(locale),
   ]);
 
+  /*
+   * The hero is a venue now, not a slogan.
+   *
+   * The design opens the home page on one property — its photograph, its
+   * badges, its name — which is the argument a marketplace actually has. The
+   * `«قول تشاو»` device it replaces was §3.2 and is now nowhere on this page;
+   * that is a real loss and it is named here rather than quietly dropped.
+   *
+   * The first featured venue that has a photograph, and the photograph has to
+   * be its own: a skyline captioned with a chalet's name is worse than no
+   * feature at all. When nothing qualifies — an empty catalogue, the origin
+   * down, a listing set with no imagery — the rotation and the slogan are
+   * still there underneath, so the page never opens on a blank frame.
+   */
+  const featured = coast.find((l) => l.media.some((m) => m.kind === "photo")) ?? null;
+  const featuredPhoto = featured?.media.find((m) => m.kind === "photo")?.url ?? null;
+  const featuredTitle = featured ? listingTitle(locale, featured) : null;
+
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16">
       <header className="flex items-center justify-between py-4">
@@ -220,10 +240,24 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         frame — where the sky and the horizon are — uncovered.
       */}
       <section className="card relative overflow-hidden text-white min-h-[60svh] flex flex-col justify-end">
-        <HeroRotator images={hero.images} intervalMs={hero.intervalMs} />
+        {featured && featuredPhoto && featuredTitle ? (
+          /*
+            The venue's own photograph, loaded eagerly: it is the largest thing
+            on the page and the one the layout is sized around, so lazying it
+            would hold the hero open at 60svh of empty card while it arrives.
+          */
+          <img
+            src={featuredPhoto}
+            alt=""
+            fetchPriority="high"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <HeroRotator images={hero.images} intervalMs={hero.intervalMs} />
+        )}
         {/*
-          No scrim. Founder direction, August 2026: the photograph shows
-          through exactly as it was taken.
+          No scrim, in either branch. Founder direction, August 2026: the
+          photograph shows through exactly as it was taken.
 
           Nothing was simply deleted — the legibility the wash was buying had
           to go somewhere, so it moved into the letters. `.type-on-photo` now
@@ -232,13 +266,36 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           against the brightest frame of the rotation with
           `tools/photo-contrast.mjs`, which is the check to re-run before
           anyone adds a fourth hero photograph: a white sky is the frame that
-          breaks this, not a sunset.
+          breaks this, not a sunset. A venue photograph is now in scope for
+          that check too, and it is supplier imagery rather than ours.
         */}
         <div className="relative p-6 sm:p-10 pb-4 sm:pb-6" data-on-photo>
-          <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
-            {c.heroLead} <span className="brand-on-photo">{c.heroBrand}</span> {c.heroTail}
-          </h1>
-          <p className="mt-3 text-white text-lg max-w-xl type-on-photo">{c.heroBody}</p>
+          {featured && featuredTitle ? (
+            <>
+              {/* The two badges the card carries, in the order the card has
+                  them, so a venue reads the same on the home page and in a
+                  result set. */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {featured.verified ? <VerifiedBadge /> : null}
+                <RatingPill rating={featured.rating} count={featured.reviewCount} />
+              </div>
+              <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
+                <Link href={`/l/${featured.slug}`} {...textProps(featuredTitle)}>
+                  {featuredTitle.text}
+                </Link>
+              </h1>
+              <p className="mt-2 text-white text-lg type-on-photo">
+                📍 {placeLabel(locale, featured.city, featured.area)}
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="font-baloo font-extrabold text-3xl sm:text-4xl leading-tight type-on-photo">
+                {c.heroLead} <span className="brand-on-photo">{c.heroBrand}</span> {c.heroTail}
+              </h1>
+              <p className="mt-3 text-white text-lg max-w-xl type-on-photo">{c.heroBody}</p>
+            </>
+          )}
         </div>
         {/* On the photo: contrast here comes from `.hero-pill` / `.tab-on-photo`,
             which are deliberately fixed rather than themed. */}
