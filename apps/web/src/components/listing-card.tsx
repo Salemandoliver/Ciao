@@ -5,7 +5,14 @@ import { fmtLyd } from "@/lib/api";
 import { Heart } from "./heart";
 import { CardGallery } from "./card-gallery";
 import { listingTitle, textProps } from "@/lib/content";
-import { AMENITIES, SERVICE_CATEGORY_LABELS, fmtDate, placeLabel, term } from "@/lib/vocab";
+import {
+  AMENITIES,
+  SERVICE_CATEGORY_LABELS,
+  fmtDate,
+  fmtNum,
+  placeLabel,
+  term,
+} from "@/lib/vocab";
 import type { Locale } from "@/lib/i18n";
 
 const copy = {
@@ -75,21 +82,19 @@ export function Stars({
   );
 }
 
+/**
+ * Verification sits back; the rating comes forward.
+ *
+ * This badge was orange for a day, which put it in the same ink as the rating
+ * and made the card shout two things at once. In the design it is dark glass:
+ * verification is a fact a guest checks for, not the number they are shopping
+ * on. See `.badge-on-photo-dark` for the contrast working.
+ */
 export function VerifiedBadge({ verifiedAt }: { verifiedAt?: string }) {
   const locale = useLocale();
   const c = copy[locale];
-  /*
-   * The deeper orange rather than the brand orange, for the same reason the
-   * price pin uses it: white on #e8641b is 3.35:1, and this is 12px bold — a
-   * size that gets no relief from the large-text threshold. `amber-dark` is
-   * #b84a10 and carries white at 5.22:1.
-   *
-   * Putting the badge in the same orange as the pins is the point rather than a
-   * coincidence: a verified venue should read as one thing on the card and on
-   * the map.
-   */
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-dark text-white px-2.5 py-0.5 text-xs font-bold">
+    <span className="badge-on-photo-dark inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
         <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
       </svg>
@@ -99,6 +104,38 @@ export function VerifiedBadge({ verifiedAt }: { verifiedAt?: string }) {
           {c.inspected(fmtDate(locale, verifiedAt, { month: "long", year: "numeric" }))}
         </span>
       ) : null}
+    </span>
+  );
+}
+
+/**
+ * The rating, as it appears on a photograph: one star, the score, the count.
+ *
+ * Deliberately not the `Stars` component. Five glyphs and a source label are
+ * right in a card body where there is room to read them; in a corner of a
+ * photograph they are five small shapes competing with the picture. The number
+ * is what a guest compares between two venues, so the number is what the pill
+ * carries.
+ *
+ * `dir="ltr"` on the figure because a score and a count in brackets are a
+ * number, not a sentence, and Arabic renders them left-to-right too.
+ */
+export function RatingPill({
+  rating,
+  count,
+}: {
+  rating?: number;
+  count?: number;
+}) {
+  const locale = useLocale();
+  if (!rating) return null;
+  return (
+    <span className="badge-on-photo-accent inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold">
+      <span aria-hidden>★</span>
+      <span dir="ltr">
+        {rating.toFixed(1)}
+        {count && count > 0 ? ` (${fmtNum(locale, count)})` : ""}
+      </span>
     </span>
   );
 }
@@ -122,11 +159,28 @@ export function ListingCard({ l }: { l: PublicListing }) {
     <div className="card group relative block hover:shadow-md transition-shadow">
       <div className="relative aspect-[4/3] photo-placeholder card-controls">
         <CardGallery photos={photos} alt={title.text} listingId={l.id} href={`/l/${l.slug}`} />
+        {/*
+          Three things want the corners of one photograph, and the design only
+          accounts for two of them.
+
+          Verified leads at the start corner and the rating answers it at the
+          end corner — that pairing is the design and it survives the flip into
+          Arabic because both use logical properties.
+
+          The wishlist heart is ours, not the mockup's, and it used to hold the
+          end corner the rating now needs. It moves to the bottom of the same
+          corner rather than stacking under the rating: a heart below a price
+          pill reads as attached to it, and a tap meant for one lands on the
+          other on a phone.
+        */}
         <div className="absolute top-2 start-2 flex flex-col gap-1 items-start pointer-events-none">
           {l.verified ? <VerifiedBadge /> : null}
           {l.familyOnly ? <span className="chip-on-photo">{c.familyOnly}</span> : null}
         </div>
-        <div className="absolute top-2 end-2">
+        <div className="absolute top-2 end-2 pointer-events-none">
+          <RatingPill rating={l.rating} count={l.reviewCount} />
+        </div>
+        <div className="absolute bottom-2 end-2">
           <Heart
             listingId={l.id}
             meta={{ vertical: l.type, city: l.city, area: l.area, priceNightly: l.baseNightly }}
@@ -141,7 +195,17 @@ export function ListingCard({ l }: { l: PublicListing }) {
             {title.text}
           </Link>
         </h3>
-        <Stars rating={l.rating} source={l.ratingSource} count={l.reviewCount} />
+        {/*
+          The star row that used to sit here is gone: the rating is now the pill
+          on the photograph, and a card cannot state the same number twice.
+
+          One thing goes with it and is worth naming. `Stars` distinguishes a
+          guest aggregate from a Ciao inspection rating in words (§8.8), and the
+          pill does not — it shows the count, which is present for guest ratings
+          and absent for ours. That is the design's signal and it is weaker than
+          a label. The full form with its source still runs on the listing page,
+          where there is room to read it.
+        */}
         <p className="text-sm text-muted">{placeLabel(locale, l.city, l.area)}</p>
         <div className="flex flex-wrap gap-1.5 text-xs">
           {l.privacy && l.privacy.score >= 80 ? <span className="chip">{c.highPrivacy}</span> : null}

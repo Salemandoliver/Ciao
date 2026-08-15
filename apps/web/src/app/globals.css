@@ -17,6 +17,36 @@
 }
 
 /**
+ * The two badges that sit in the corners of a venue photograph, and the reason
+ * they are different colours.
+ *
+ * The design gives them opposite jobs and opposite weights: verification is a
+ * fact and sits back in dark glass; the rating is the number a guest is
+ * actually shopping on and comes forward in the accent. Putting both in orange
+ * — which shipped for a day — makes the card say two things equally loudly and
+ * neither of them first.
+ *
+ * Fixed colours, like everything else on a photograph: the picture underneath
+ * is the same at noon and at midnight, so a themed token would invert against
+ * an image that never does.
+ *
+ * Measured against the worst case, which is a white sky behind the glass:
+ *   verified  white on the 78% navy over white -> #424d59, 8.3:1
+ *   rating    white on #b84a10                            5.2:1
+ *
+ * The rating pill is `--amber-dark` rather than the brand orange for the reason
+ * the map pin is: white on #e8641b is 3.35:1, and these are 12px.
+ */
+.badge-on-photo-dark {
+  background: rgb(13 27 42 / 0.78);
+  color: #ffffff;
+}
+.badge-on-photo-accent {
+  background: #b84a10;
+  color: #ffffff;
+}
+
+/**
  * The scrim over hero photography.
  *
  * Fixed sea-blue in both themes, never `sea`, which inverts: written as
