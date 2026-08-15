@@ -109,7 +109,14 @@ export function PartnerBand({
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <p className="text-xs sm:text-sm font-extrabold text-[#E8641B]">{eyebrow}</p>
+          {/*
+            The tan rather than the brand orange, and measured rather than
+            chosen: orange on this fixed #16283C panel is 4.47:1, which misses
+            AA by three hundredths at a size that does not qualify for the 3:1
+            threshold. #dca55a is 6.82:1 here — the same relative of the accent
+            that carries dark-mode links for the same reason.
+          */}
+          <p className="text-xs sm:text-sm font-extrabold text-[#DCA55A]">{eyebrow}</p>
           <h2 className="font-baloo font-extrabold text-xl sm:text-3xl leading-tight text-[#F3F2EC] mt-2">
             {headline}
           </h2>

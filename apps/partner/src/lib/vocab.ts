@@ -648,7 +648,7 @@ export const JOB_STATUS: Record<Locale, Vocab> = {
 
 export const JOB_STATUS_TONE: Record<string, string> = {
   enquiry: "bg-sand text-muted",
-  quoted: "bg-amber/25 text-sea-dark dark:text-amber",
+  quoted: "bg-amber/25 text-sea-dark dark:text-link",
   confirmed: "badge-success",
   done: "bg-sea/10 text-muted",
   cancelled: "badge-danger",
@@ -695,7 +695,7 @@ export const QUOTE_STATUS: Record<Locale, Vocab> = {
 
 export const QUOTE_STATUS_TONE: Record<string, string> = {
   draft: "bg-sand text-muted",
-  sent: "bg-amber/25 text-sea-dark dark:text-amber",
+  sent: "bg-amber/25 text-sea-dark dark:text-link",
   accepted: "badge-success",
   declined: "badge-danger",
   expired: "bg-sand text-muted",

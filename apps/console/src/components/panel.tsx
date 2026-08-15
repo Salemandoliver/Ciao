@@ -137,7 +137,7 @@ export function Pill({ children, tone = "sand" }: { children: ReactNode; tone?: 
     sand: "bg-sand text-sea",
     green: "badge-success",
     red: "badge-danger",
-    amber: "bg-amber/25 text-sea-dark dark:text-amber",
+    amber: "bg-amber/25 text-sea-dark dark:text-link",
     slate: "bg-sea/10 text-muted",
   };
   return (
