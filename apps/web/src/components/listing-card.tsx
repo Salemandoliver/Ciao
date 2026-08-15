@@ -187,7 +187,7 @@ export function ListingCard({ l }: { l: PublicListing }) {
           />
         </div>
       </div>
-      <div className="p-3 space-y-1.5">
+      <div className="p-3 sm:p-4 space-y-1.5">
         {/* `lang`/`dir` so an untranslated Arabic title still reads correctly
             inside an English page — and is spoken, not spelled, by a reader. */}
         <h3 className="font-bold text-base leading-snug" {...textProps(title)}>
