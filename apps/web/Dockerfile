@@ -9,9 +9,18 @@ RUN pnpm install --frozen-lockfile --filter @ciao/web...
 COPY packages/shared packages/shared
 COPY apps/web apps/web
 COPY tsconfig.base.json ./
-# NEXT_PUBLIC_API_URL must be present at build time (baked into the client bundle).
+# Every NEXT_PUBLIC_* is baked into the client bundle at build time, so each one
+# has to be declared here as well as set on the service — a Docker build sees no
+# environment it was not handed. A missing ARG does not fail anything: it builds
+# a bundle where the value is `undefined`, which for the map keys means the app
+# silently falls back to OpenStreetMap and looks like nothing was deployed.
+# Changing any of these needs a rebuild, not a restart.
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_MAPBOX_TOKEN
+ENV NEXT_PUBLIC_MAPBOX_TOKEN=$NEXT_PUBLIC_MAPBOX_TOKEN
+ARG NEXT_PUBLIC_GOOGLE_MAPS_KEY
+ENV NEXT_PUBLIC_GOOGLE_MAPS_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_KEY
 RUN pnpm --filter @ciao/web build
 
 FROM node:22-slim
