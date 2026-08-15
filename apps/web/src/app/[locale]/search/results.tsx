@@ -324,11 +324,20 @@ export function SearchResults({
           showMapMobile ? "hidden lg:grid" : ""
         }`}
       >
-        {/* results list */}
-        <div
-          ref={listRef}
-          className="lg:order-2 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:pe-1"
-        >
+        {/*
+          Results list — and it scrolls with the page, not inside itself.
+
+          It used to be a capped, `overflow-y-auto` rail, which put a second
+          scrollbar down the right of the window next to the page's own. Two
+          bars a few pixels apart is a guess about which one you meant, every
+          time you reach for it, and on a trackpad the wrong one is whichever
+          the pointer happens to be over.
+
+          The map is `sticky` and stays put on its own, so nothing is lost by
+          letting this column scroll normally: the map holds, the results move,
+          one scrollbar.
+        */}
+        <div ref={listRef} className="lg:order-2">
           {shown.length === 0 ? (
             <div className="card p-6 space-y-2 mb-4">
               <p className="font-bold text-sea">
