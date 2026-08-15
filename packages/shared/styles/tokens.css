@@ -234,6 +234,24 @@ body {
 .chip {
   @apply inline-flex items-center gap-1 rounded-full bg-sand px-3 py-1 text-sm text-sea;
 }
+/**
+ * A chip that is switched on.
+ *
+ * Navy-on-white is what every selected chip in the platform has used, and it
+ * stays that way in the console and the partner app — those are internal tools
+ * where a chip is a tab and the accent means something else.
+ *
+ * On the guest side a filter chip is a choice the guest made, and the design
+ * puts those in the accent. Navy ink on the orange rather than white: white on
+ * `--amber` is 3.35:1 and a chip is 14px. This is the same pairing `.btn-amber`
+ * already uses, so a switched-on chip and a primary button agree.
+ *
+ * Declared after `.chip` so it wins on equal specificity.
+ */
+.chip-active {
+  background: rgb(var(--amber));
+  color: rgb(var(--sea-dark));
+}
 .input {
   @apply w-full rounded-xl border border-sea/20 bg-surface text-[color:rgb(var(--ink))] px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-sea/40;
 }

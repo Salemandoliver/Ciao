@@ -55,6 +55,7 @@ import { thumb } from "@/lib/types";
 const copy = {
   ar: {
     empty: "لا نتائج بهذه الفلاتر — جرّب توسيع البحث.",
+    found: (n: string) => `${n} مكان مميز`,
     approx: "📍 المواقع تقريبية (~500م) — العنوان الدقيق بعد العربون",
     list: "☰ القائمة",
     map: "🗺 الخريطة",
@@ -78,6 +79,7 @@ const copy = {
   },
   en: {
     empty: "No results with these filters — try widening the search.",
+    found: (n: string) => `${n} premium venues found`,
     approx: "📍 Locations are approximate (~500m) — the exact address follows the deposit",
     list: "☰ List",
     map: "🗺 Map",
@@ -282,6 +284,19 @@ export function SearchResults({
             </>
           ) : null}
         </div>
+      ) : null}
+
+      {/*
+        The count, in the accent, above the results — the design's line.
+
+        `text-link` rather than `--amber` and not by preference: this sits on the
+        page ground rather than on a card, where the brand orange is 3.14:1 and
+        even the deeper `--amber-dark` only reaches 4.43:1 at 14px. `--link` is
+        the token that exists for accent-coloured text and clears 4.5:1 on both
+        grounds in both themes. It reads as the same warm accent at a glance.
+      */}
+      {shown.length > 0 ? (
+        <p className="text-sm font-bold text-link mb-3">{c.found(fmtNum(locale, shown.length))}</p>
       ) : null}
 
       {/* The listings a drawn area could never have matched. Said out loud,

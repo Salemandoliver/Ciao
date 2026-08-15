@@ -195,25 +195,25 @@ export default async function SearchPage({
           <>
             <Link
               href={filterLink({ minPrivacy: sp.minPrivacy ? null : "80" })}
-              className={`chip ${sp.minPrivacy ? "!bg-sea !text-white" : ""}`}
+              className={`chip ${sp.minPrivacy ? "chip-active" : ""}`}
             >
               {c.highPrivacy}
             </Link>
             <Link
               href={filterLink({ generator: sp.generator ? null : "true" })}
-              className={`chip ${sp.generator ? "!bg-sea !text-white" : ""}`}
+              className={`chip ${sp.generator ? "chip-active" : ""}`}
             >
               {c.generator}
             </Link>
             <Link
               href={filterLink({ familyOnly: sp.familyOnly ? null : "true" })}
-              className={`chip ${sp.familyOnly ? "!bg-sea !text-white" : ""}`}
+              className={`chip ${sp.familyOnly ? "chip-active" : ""}`}
             >
               {c.familyOnly}
             </Link>
             <Link
               href={filterLink({ minBedrooms: sp.minBedrooms ? null : "3" })}
-              className={`chip ${sp.minBedrooms ? "!bg-sea !text-white" : ""}`}
+              className={`chip ${sp.minBedrooms ? "chip-active" : ""}`}
             >
               {c.bedrooms}
             </Link>
@@ -224,7 +224,7 @@ export default async function SearchPage({
               <Link
                 key={key}
                 href={filterLink({ serviceCategory: sp.serviceCategory === key ? null : key })}
-                className={`chip ${sp.serviceCategory === key ? "!bg-sea !text-white" : ""}`}
+                className={`chip ${sp.serviceCategory === key ? "chip-active" : ""}`}
               >
                 {emoji} {label}
               </Link>
@@ -234,13 +234,13 @@ export default async function SearchPage({
           <>
             <Link
               href={filterLink({ womensCapacity: sp.womensCapacity ? null : "400" })}
-              className={`chip ${sp.womensCapacity ? "!bg-sea !text-white" : ""}`}
+              className={`chip ${sp.womensCapacity ? "chip-active" : ""}`}
             >
               {c.womenGuests}
             </Link>
             <Link
               href={filterLink({ generator: sp.generator ? null : "true" })}
-              className={`chip ${sp.generator ? "!bg-sea !text-white" : ""}`}
+              className={`chip ${sp.generator ? "chip-active" : ""}`}
             >
               {c.generatorBackup}
             </Link>
