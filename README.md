@@ -35,11 +35,27 @@ payment provider serves an Arabic hosted-checkout page at
 Three services + two plugins in one project:
 
 1. **Postgres** — add the Railway PostgreSQL plugin. Its `DATABASE_URL` goes to the API service.
-2. **ciao-api** — deploy from repo root with `apps/api/Dockerfile`
-   (the root `railway.json` points there). Migrations run automatically on boot.
+2. **ciao-api** — deploy from repo root with `apps/api/Dockerfile` (set the
+   Dockerfile path on the service; there is no `railway.json` in the repo).
+   Migrations run automatically on boot.
    Set env vars from `.env.example`. Healthcheck: `/health`.
 3. **ciao-web** — second service, same repo, `apps/web/Dockerfile`, with build arg
    `NEXT_PUBLIC_API_URL` set to the API service's public URL.
+
+   Every `NEXT_PUBLIC_*` is **build-time**: baked into the client bundle, so a
+   change needs a rebuild rather than a restart, and each one must be declared as
+   an `ARG` in the Dockerfile *and* set on the service. Missing one is silent —
+   the bundle builds with `undefined` and the app falls back.
+
+   | Build arg | Effect if unset |
+   | --- | --- |
+   | `NEXT_PUBLIC_API_URL` | web cannot reach the API |
+   | `NEXT_PUBLIC_MAPBOX_TOKEN` | maps fall back to Google, then OpenStreetMap |
+   | `NEXT_PUBLIC_GOOGLE_MAPS_KEY` | Google unavailable as a provider |
+
+   Which map renders is then the console's call (`maps.provider`), but a
+   provider only renders if its token was in the build — see `resolveProvider`
+   in `apps/web/src/components/map-geo.ts`.
 4. **ciao-worker** *(optional, recommended at scale)* — same image as ciao-api,
    start command `node dist/worker.js`, and set `WORKER_MODE=external` on ciao-api.
    Until then the API runs the durable-timer worker in-process.
