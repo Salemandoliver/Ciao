@@ -8,6 +8,7 @@ import { RecsStrip } from "@/components/recs";
 import { PartnerInvite } from "@/components/partner-invite";
 import { BrandSlot } from "@/components/brand-slot";
 import { ServiceTiles } from "@/components/service-tiles";
+import { CategoryTiles } from "@/components/category-tiles";
 import { LanguageToggle } from "@/components/language-toggle";
 import { API_URL } from "@/lib/api";
 import { asLocale, type Locale } from "@/lib/i18n";
@@ -245,6 +246,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <HeroSearch />
         </div>
       </section>
+
+      {/*
+        Three photographs, straight after the hero — the design's first move
+        once the search box has been offered, and the page's first answer to
+        "what is here?". It sits above the trust strip on purpose: the trust
+        strip argues that the inventory is real, which is a question nobody asks
+        until they have seen some of it.
+      */}
+      <CategoryTiles />
 
       {/* Trust strip (§11.2 — the badge defines the category) */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 text-center">

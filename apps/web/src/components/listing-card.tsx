@@ -216,7 +216,8 @@ export function ListingCard({ l }: { l: PublicListing }) {
             <span className="chip">{term(SERVICE_CATEGORY_LABELS, locale, l.serviceCategory)}</span>
           ) : null}
         </div>
-        <p className="pt-1 font-bold text-sea text-lg">
+        {/* The one coloured thing in the card body — see `.price-accent`. */}
+        <p className="pt-1 font-bold price-accent text-lg">
           {l.type === "service"
             ? c.quoteOnRequest
             : l.type === "hall" && l.packages?.length
