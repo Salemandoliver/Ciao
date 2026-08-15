@@ -78,8 +78,18 @@ export function Stars({
 export function VerifiedBadge({ verifiedAt }: { verifiedAt?: string }) {
   const locale = useLocale();
   const c = copy[locale];
+  /*
+   * The deeper orange rather than the brand orange, for the same reason the
+   * price pin uses it: white on #e8641b is 3.35:1, and this is 12px bold — a
+   * size that gets no relief from the large-text threshold. `amber-dark` is
+   * #b84a10 and carries white at 5.22:1.
+   *
+   * Putting the badge in the same orange as the pins is the point rather than a
+   * coincidence: a verified venue should read as one thing on the card and on
+   * the map.
+   */
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-sea text-white px-2.5 py-0.5 text-xs font-bold">
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-dark text-white px-2.5 py-0.5 text-xs font-bold">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
         <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
       </svg>

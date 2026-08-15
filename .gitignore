@@ -7,3 +7,11 @@ dist/
 coverage/
 .DS_Store
 .turbo/
+
+# Scratch that lives in the working tree and never in the repo.
+# Anchored to the root with a leading slash on purpose: bare `image*.jpg` would
+# also swallow anything similarly named under apps/*/public, which is where the
+# real photography goes.
+/_to_delete/
+/image*.jpg
+/Design guidelines/
