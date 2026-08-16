@@ -14,6 +14,7 @@ import { authenticate } from "../../lib/guards.js";
 import { config } from "../../config.js";
 import { notify } from "../messaging/service.js";
 import { track } from "../intelligence/events.js";
+import { getSetting } from "../business/settings.js";
 
 import { isValidPhoneInput, normalizePhone } from "@ciao/shared";
 
@@ -24,6 +25,46 @@ const phoneSchema = z
 
 export function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
+}
+
+/**
+ * Whether the guest login may hand the code back in its own response.
+ *
+ * There is no live SMS or WhatsApp rail yet — `MESSAGING_PROVIDER` is `console`
+ * until the BSP onboarding lands, which journals the message and delivers
+ * nothing. With the echo off as well, the code exists only in the API's stdout
+ * and NOBODY CAN SIGN IN. That is the state this shipped in, and it is worse
+ * than the risk below for a product with no real users yet.
+ *
+ * So the control plane decides it. `ops.demoMode` is already the operator's
+ * switch for exactly this phase — mock payments, seeded data, a demo banner —
+ * and it lives in the console where turning it off is one click on the day real
+ * guests arrive. `OTP_DEV_ECHO=true` still forces it on; `=false` still forces
+ * it off, and that override is the emergency brake.
+ *
+ * ## Read this before leaving it on
+ *
+ * WHILE THIS IS TRUE, ANYONE WHO KNOWS A PHONE NUMBER CAN SIGN IN AS ITS OWNER.
+ * They ask for a code, the response contains it, they type it back. There is no
+ * second factor to stop them.
+ *
+ * That is acceptable against seeded demo accounts and unacceptable the moment a
+ * real person has a booking and a wallet balance. Turning `ops.demoMode` off is
+ * the whole of the fix, and the login screen labels the code "demo mode" so the
+ * state is visible to anyone looking at it.
+ *
+ * Staff and partner logins deliberately do NOT get this: those are the console
+ * and the payout screens, and the blast radius is not a guest's wishlist.
+ */
+async function otpEchoEnabled(): Promise<boolean> {
+  if (process.env.OTP_DEV_ECHO === "false") return false; // emergency brake
+  if (config.otp.devEcho) return true;
+  try {
+    return (await getSetting("ops.demoMode")) === true;
+  } catch {
+    // A settings outage must not silently start echoing codes.
+    return false;
+  }
 }
 
 /**
@@ -86,8 +127,15 @@ export async function authRoutes(app: FastifyInstance) {
         codeHash: hashCode(code),
         expiresAt: new Date(Date.now() + config.otp.ttlSeconds * 1000),
       });
-      if (config.otp.devEcho) {
-        app.log.info({ phone: body.phone, code }, "DEV OTP");
+      const echo = await otpEchoEnabled();
+      if (echo) {
+        /*
+         * Loud on purpose, and at `warn`. While this is on, anybody who knows a
+         * phone number can ask for its code and be handed it — that is an
+         * account takeover with one request, and it should be impossible to
+         * find it switched on by accident six months from now.
+         */
+        app.log.warn({ phone: body.phone, code }, "OTP ECHOED TO CLIENT (demo mode)");
       }
       await notify({
         templateKey: "otp",
@@ -98,7 +146,7 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.send({
         ok: true,
         ttlSeconds: config.otp.ttlSeconds,
-        ...(config.otp.devEcho ? { devCode: code } : {}),
+        ...(echo ? { devCode: code } : {}),
       });
     },
   });
