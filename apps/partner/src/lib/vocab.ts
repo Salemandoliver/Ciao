@@ -24,34 +24,97 @@ import type { Locale } from "./i18n";
 
 type Vocab = Record<string, string>;
 
+/**
+ * Where a guest can search, west to east and then south.
+ *
+ * The list was twelve towns and effectively a Tripoli product with Benghazi
+ * bolted on: a guest in Derna, Sabha or Ajdabiya could not name their own city.
+ * An empty result for a town nobody has listed yet is a fair answer — "nothing
+ * here on Ciao" — and it is a far better one than "this country has twelve
+ * towns in it".
+ *
+ * Ordered geographically rather than alphabetically, because that is how the
+ * coast is spoken about here: Zuwara to Tobruk is a line people can picture,
+ * and A-to-Z puts Ajdabiya next to Ajaylat at opposite ends of the country.
+ */
 export const CITIES: Record<Locale, Vocab> = {
   ar: {
-    tripoli: "طرابلس",
-    misrata: "مصراتة",
-    benghazi: "بنغازي",
-    zawiya: "الزاوية",
-    khoms: "الخمس",
-    sabratha: "صبراتة",
+    // Western coast.
     zuwara: "زوارة",
+    ajaylat: "العجيلات",
+    sabratha: "صبراتة",
+    surman: "صرمان",
+    zawiya: "الزاوية",
+    tripoli: "طرابلس",
+    khoms: "الخمس",
+    msallata: "مسلاتة",
     zliten: "زليتن",
+    misrata: "مصراتة",
     sirte: "سرت",
-    tobruk: "طبرق",
+    // Western mountain and the inland west.
+    gharyan: "غريان",
+    yefren: "يفرن",
+    zintan: "الزنتان",
+    nalut: "نالوت",
+    ghadames: "غدامس",
+    tarhuna: "ترهونة",
+    bani_walid: "بني وليد",
+    // The south.
+    hun: "هون",
+    waddan: "ودان",
+    sabha: "سبها",
+    brak: "براك",
+    murzuq: "مرزق",
+    ubari: "أوباري",
+    ghat: "غات",
+    kufra: "الكفرة",
+    // The east.
+    ajdabiya: "أجدابيا",
+    benghazi: "بنغازي",
+    tocra: "توكرة",
+    marj: "المرج",
     bayda: "البيضاء",
+    shahat: "شحات",
     susah: "سوسة",
+    derna: "درنة",
+    tobruk: "طبرق",
   },
   en: {
-    tripoli: "Tripoli",
-    misrata: "Misrata",
-    benghazi: "Benghazi",
-    zawiya: "Zawiya",
-    khoms: "Khoms",
-    sabratha: "Sabratha",
     zuwara: "Zuwara",
+    ajaylat: "Ajaylat",
+    sabratha: "Sabratha",
+    surman: "Surman",
+    zawiya: "Zawiya",
+    tripoli: "Tripoli",
+    khoms: "Khoms",
+    msallata: "Msallata",
     zliten: "Zliten",
+    misrata: "Misrata",
     sirte: "Sirte",
-    tobruk: "Tobruk",
+    gharyan: "Gharyan",
+    yefren: "Yefren",
+    zintan: "Zintan",
+    nalut: "Nalut",
+    ghadames: "Ghadames",
+    tarhuna: "Tarhuna",
+    bani_walid: "Bani Walid",
+    hun: "Hun",
+    waddan: "Waddan",
+    sabha: "Sabha",
+    brak: "Brak",
+    murzuq: "Murzuq",
+    ubari: "Ubari",
+    ghat: "Ghat",
+    kufra: "Kufra",
+    ajdabiya: "Ajdabiya",
+    benghazi: "Benghazi",
+    tocra: "Tocra",
+    marj: "Marj",
     bayda: "Bayda",
+    shahat: "Shahat",
     susah: "Susah",
+    derna: "Derna",
+    tobruk: "Tobruk",
   },
 };
 

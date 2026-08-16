@@ -40,6 +40,20 @@ export async function listingRoutes(app: FastifyInstance) {
         maxGuests: z.coerce.number().optional(),
         womensCapacity: z.coerce.number().optional(),
         maxNightly: z.coerce.number().optional(), // dirhams
+        /*
+         * Amenities the guest insists on, comma-separated keys — `pool`,
+         * `bride_suite`, `prayer_space`.
+         *
+         * `generator` already had a filter of its own, written out longhand,
+         * and every further one would have been another copy of the same
+         * `jsonb_array_elements` clause with a different string in it. This is
+         * that clause once, applied per key, so a new amenity is a chip in the
+         * UI and nothing here at all.
+         *
+         * AND rather than OR: someone who ticks a pool and a bride's suite
+         * wants a hall that has both, not either.
+         */
+        amenity: z.string().max(120).optional(),
         checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         /*
@@ -83,6 +97,20 @@ export async function listingRoutes(app: FastifyInstance) {
         sql`exists (select 1 from jsonb_array_elements(${schema.venues.amenities}) a
              where a ->> 'key' = 'generator' and (a ->> 'present')::boolean)`,
       );
+    /*
+     * Capped at six so a hand-written query string cannot turn one search into
+     * a dozen jsonb scans. The key is bound as a parameter, not interpolated.
+     */
+    for (const key of (q.amenity ?? "")
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean)
+      .slice(0, 6)) {
+      conditions.push(
+        sql`exists (select 1 from jsonb_array_elements(${schema.venues.amenities}) a
+             where a ->> 'key' = ${key} and (a ->> 'present')::boolean)`,
+      );
+    }
     /*
      * Geo filter, in two stages: the bounding box narrows in SQL (indexable,
      * cheap), and the exact point-in-polygon test runs in JS over what

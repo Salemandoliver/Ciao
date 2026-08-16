@@ -10,7 +10,7 @@ import { SiteHeader } from "@/components/site-header";
 import { DEFAULT_MAPS, type MapProvider, type MapsSettings } from "@/components/map-geo";
 import { API_URL } from "@/lib/api";
 import { serviceCategories } from "@/lib/services";
-import { VERTICALS, term } from "@/lib/vocab";
+import { VERTICALS, fmtNum, term } from "@/lib/vocab";
 import { asLocale, type Locale } from "@/lib/i18n";
 import type { PublicListing } from "@/lib/types";
 import type { RenderedBrandMessage } from "@ciao/shared";
@@ -31,6 +31,11 @@ const copy = {
     familyOnly: "👨‍👩‍👧 عائلات فقط",
     bedrooms: "🛏 +3 غرف",
     womenGuests: "👥 +400 ضيفة",
+    pool: "🏊 مسبح",
+    brideSuite: "👰 جناح العروس",
+    prayerSpace: "🕌 مصلّى",
+    parking: "🅿️ موقف سيارات",
+    upTo: (n: string) => `حتى ${n} د.ل/ليلة`,
   },
   en: {
     highPrivacy: "🔒 High privacy",
@@ -39,6 +44,11 @@ const copy = {
     familyOnly: "👨‍👩‍👧 Families only",
     bedrooms: "🛏 3+ bedrooms",
     womenGuests: "👥 400+ women guests",
+    pool: "🏊 Pool",
+    brideSuite: "👰 Bride's suite",
+    prayerSpace: "🕌 Prayer space",
+    parking: "🅿️ Parking",
+    upTo: (n: string) => `Up to ${n} LYD/night`,
   },
 } satisfies Record<Locale, unknown>;
 
@@ -97,6 +107,8 @@ export default async function SearchPage({
     "checkIn",
     "checkOut",
     "serviceCategory",
+    "maxNightly",
+    "amenity",
   ]) {
     if (sp[key]) qs.set(key, sp[key]!);
   }
@@ -130,6 +142,28 @@ export default async function SearchPage({
     }
     return `/search?${next}`;
   };
+
+  /*
+   * Amenities accumulate rather than replace: a guest ticking a pool and then
+   * a generator wants both, and each chip only knows how to add or remove
+   * itself. The list is rebuilt from the URL every render, so the back button
+   * unwinds them one at a time like every other filter here.
+   */
+  const chosenAmenities = (sp.amenity ?? "").split(",").filter(Boolean);
+  const amenityLink = (key: string) => {
+    const next = chosenAmenities.includes(key)
+      ? chosenAmenities.filter((a) => a !== key)
+      : [...chosenAmenities, key];
+    return filterLink({ amenity: next.length ? next.join(",") : null });
+  };
+  const hasAmenity = (key: string) => chosenAmenities.includes(key);
+
+  /*
+   * Nightly caps, in dirhams because that is what the API filters on. The three
+   * rungs are the shape of the real catalogue rather than round numbers for
+   * their own sake: a chalet weekend, a villa, and everything above.
+   */
+  const PRICE_RUNGS = [1_000_000, 2_000_000, 4_000_000];
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-16">
@@ -208,6 +242,20 @@ export default async function SearchPage({
             >
               {c.bedrooms}
             </Link>
+            <Link href={amenityLink("pool")} className={`chip ${hasAmenity("pool") ? "chip-active" : ""}`}>
+              {c.pool}
+            </Link>
+            {PRICE_RUNGS.map((dirhams) => (
+              <Link
+                key={dirhams}
+                href={filterLink({
+                  maxNightly: sp.maxNightly === String(dirhams) ? null : String(dirhams),
+                })}
+                className={`chip ${sp.maxNightly === String(dirhams) ? "chip-active" : ""}`}
+              >
+                {c.upTo(fmtNum(locale, dirhams / 1000))}
+              </Link>
+            ))}
           </>
         ) : type === "service" ? (
           <>
@@ -228,6 +276,15 @@ export default async function SearchPage({
               className={`chip ${sp.womensCapacity ? "chip-active" : ""}`}
             >
               {c.womenGuests}
+            </Link>
+            <Link href={amenityLink("bride_suite")} className={`chip ${hasAmenity("bride_suite") ? "chip-active" : ""}`}>
+              {c.brideSuite}
+            </Link>
+            <Link href={amenityLink("prayer_space")} className={`chip ${hasAmenity("prayer_space") ? "chip-active" : ""}`}>
+              {c.prayerSpace}
+            </Link>
+            <Link href={amenityLink("parking")} className={`chip ${hasAmenity("parking") ? "chip-active" : ""}`}>
+              {c.parking}
             </Link>
             <Link
               href={filterLink({ generator: sp.generator ? null : "true" })}
