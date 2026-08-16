@@ -10,6 +10,7 @@ import type { Locale } from "@/lib/i18n";
 const copy = {
   ar: {
     title: "الدخول برقم الهاتف",
+    firstTime: "أول مرة معنا؟ اكتب رقمك وننشئ حسابك على طول — ما فيش تسجيل منفصل.",
     phonePlaceholder: "091 2345678",
     sendCode: "أرسل رمز التحقق",
     sendFailed: "تعذر إرسال الرمز",
@@ -25,6 +26,8 @@ const copy = {
   },
   en: {
     title: "Sign in with your phone",
+    firstTime:
+      "First time here? Enter your number and we create your account there and then — there is no separate sign-up.",
     phonePlaceholder: "091 2345678",
     sendCode: "Send the code",
     sendFailed: "Could not send the code",
@@ -139,6 +142,19 @@ function LoginForm() {
   return (
     <div className="card p-6 space-y-4">
       <h1 className="font-bold text-xl text-sea">{c.title}</h1>
+      {/*
+        Said at the top, where somebody deciding whether they have an account
+        is standing.
+
+        There is no "create an account" anywhere in this product and there
+        should not be: the number IS the account (§13.8), and a first-time
+        guest who enters theirs is signed up by the same action that signs
+        everyone else in. That is a good design and an invisible one — the page
+        said "Sign in", which to a new guest reads as "for people who already
+        have one of these", and `noPasswords` explained the model three
+        paragraphs later at the bottom of the form.
+      */}
+      <p className="text-sm text-muted mt-1">{c.firstTime}</p>
       {stage === "phone" ? (
         <>
           {/* Numbers stay in the local 09… form in both languages — this is
