@@ -199,7 +199,18 @@ export function SiteFooter() {
             the "and one more thing" end of the band rather than navigation
             through the catalogue.
           */}
-          <div className="space-y-4">
+          {/*
+            Full width on a phone, one column on a wide screen.
+
+            The grid is two columns on mobile, so this block was sharing a
+            ~160px half with its neighbour — and a label plus three 32px circles
+            plus their gaps does not fit in 160px. It wrapped, or it pushed out
+            past its column, which is what "the alignment is wrong on mobile"
+            was. Spanning both columns gives the row the width it needs and puts
+            the social marks on their own line at the foot of the band, which is
+            where they belong on a phone anyway.
+          */}
+          <div className="col-span-2 lg:col-span-1 space-y-4">
             <Column title={c.hosts}>
               <Item href="/hosts" label={c.hostsCta} />
             </Column>
