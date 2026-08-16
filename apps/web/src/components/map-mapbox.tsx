@@ -72,7 +72,7 @@ const PALETTE = {
     roadGlowOpacity: 0,
     roadGlowBlur: 0,
     /* Multipliers on the style's own widths and sizes — see `scale`. */
-    roadWidth: 2.1,
+    roadWidth: 1.55,
     labelSize: 1.2,
   },
   dark: {
@@ -122,7 +122,7 @@ const PALETTE = {
      * takes the bright core as the width — so the night map needs more to look
      * like the same weight.
      */
-    roadWidth: 2.6,
+    roadWidth: 1.75,
     labelSize: 1.25,
   },
 };
@@ -266,7 +266,7 @@ export default function MapboxMap({
       // which style to ask for.
       applyBrandPalette(map, builtDark.current);
       localiseLabels(map, locale);
-      installTerrain(map, builtDark.current);
+      install3D(map, builtDark.current);
       installLayers(map);
       setReady((n) => n + 1);
     });
@@ -539,61 +539,42 @@ function source(map: mapboxgl.Map, id: string): mapboxgl.GeoJSONSource | null {
 }
 
 /* ---------------------------------------------------------------------- 3D
- * Relief, a sky, and buildings with height.
+ * Buildings with height, and nothing else.
  *
- * The coast is what this marketplace sells and a flat coloured outline is not
- * what it looks like. Terrain puts the Jebel back behind Tripoli and gives the
- * shoreline somewhere to meet, the sky gives the horizon an edge to end at, and
- * the extrusions give the city blocks their bulk once you are close enough to
- * a venue for that to mean anything.
- *
- * ## What this costs, because it is not free
- *
- * Terrain is a second tile pyramid — elevation tiles alongside the vector ones
- * — and §12.3 is a real budget on the connections this app is used over. Two
- * things keep it honest: the DEM is requested at 512px tiles, which is a
- * quarter the requests of 256, and the extrusions only exist above zoom 15,
- * which is closer than a search result set ever opens at. Someone who never
- * zooms into a single venue never downloads a building.
- *
- * If it proves too heavy on a real Libyan connection, `setTerrain(null)` and
- * dropping this call is the whole rollback.
+ * The extrusions give city blocks their bulk once somebody is close enough to a
+ * venue for that to mean anything, which is the only place 3D earns its keep on
+ * this coast. They cost nothing at a result set's zoom: `minzoom: 15` is closer
+ * than a search ever opens, so a guest who does not zoom into a single property
+ * never downloads a building.
  */
-const DEM_SRC = "mapbox-dem";
-
-function installTerrain(map: mapboxgl.Map, dark: boolean): void {
+function install3D(map: mapboxgl.Map, dark: boolean): void {
   try {
-    if (!map.getSource(DEM_SRC)) {
-      map.addSource(DEM_SRC, {
-        type: "raster-dem",
-        url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-        tileSize: 512,
-        maxzoom: 14,
-      });
-    }
     /*
-     * Exaggerated, and deliberately not by much. Libya's coastal plain is flat
-     * and the escarpment behind it is real but modest; at 1.5 the country looks
-     * like somewhere else, and a map that flatters the terrain is lying about
-     * how far a chalet is from a hill.
+     * ## Terrain and the sky layer were here, and they are gone
+     *
+     * Elevation and an atmosphere were added to make the coast look real, and
+     * they took every label on the map with them: no city names, no street
+     * names, at any zoom. `text-occlusion-opacity` did not bring them back,
+     * and the DEM, glyph and plugin endpoints all answer 200 with this token,
+     * so it was not a fetch failing quietly.
+     *
+     * Rather than keep guessing at a renderer interaction I cannot see — three
+     * rounds of that is three deploys of somebody else's time — the feature is
+     * withdrawn, because it was never earning its place here:
+     *
+     *   Sabratha to Tajoura is a coastal plain. It tops out around fifty
+     *   metres. There is no relief to draw, which is exactly why the 3D looked
+     *   like nothing was happening.
+     *
+     * So the map keeps the tilt and the rotation, which cost nothing and give
+     * the view some depth, and it keeps the buildings below, which are real 3D
+     * at the zoom where somebody is looking at one venue. It loses a terrain
+     * mesh that rendered a flat country flat and deleted the place names.
+     *
+     * If the escarpment inland ever matters — a Gharyan or a Nafusa listing —
+     * this comes back with the label behaviour understood first, on a map
+     * somebody can actually see while they debug it.
      */
-    map.setTerrain({ source: DEM_SRC, exaggeration: 1.15 });
-
-    if (!map.getLayer("ciao-sky")) {
-      map.addLayer({
-        id: "ciao-sky",
-        type: "sky",
-        paint: {
-          "sky-type": "atmosphere",
-          // Low sun, warm on the day map and cold at night — the horizon is the
-          // one part of a pitched map that says which time of day it is.
-          "sky-atmosphere-sun": [0, 3],
-          "sky-atmosphere-sun-intensity": dark ? 3 : 9,
-          "sky-atmosphere-color": dark ? "#0b1220" : "#cfe3ee",
-          "sky-atmosphere-halo-color": dark ? "#2a3344" : "#f5edd8",
-        },
-      });
-    }
 
     /*
      * Buildings, above zoom 15 only. Below that they are noise the size of a
