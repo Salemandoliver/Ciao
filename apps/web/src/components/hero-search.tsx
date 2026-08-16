@@ -13,7 +13,20 @@ import type { Locale } from "@/lib/i18n";
  * Which areas belong to which city — keys only. The words come from vocab, so
  * that a place is named the same here, on the card and on the listing page.
  */
-const CITY_KEYS = ["tripoli", "misrata", "benghazi", "sabratha", "zawiya", "zuwara", "khoms"];
+/*
+ * Every city the vocabulary knows, in the order it lists them — west to east,
+ * then south.
+ *
+ * This was a hand-written array of seven, which is why the dropdown offered
+ * Tripoli, Misrata, Benghazi and four western towns and nothing else: the
+ * vocabulary could grow all it liked and this list would not. Somebody in
+ * Derna or Sabha opened the search and could not name where they live.
+ *
+ * Deriving it means the two can never disagree again. A city added to `CITIES`
+ * is a city you can search, and a city with nothing listed in it answers
+ * honestly — "nothing here yet" beats "that town does not exist".
+ */
+const CITY_KEYS = Object.keys(CITIES.en);
 const AREA_KEYS: Record<string, string[]> = {
   tripoli: ["janzour", "tajoura", "ain_zara", "airport_road", "gargaresh", "regatta"],
   misrata: [],
@@ -39,6 +52,7 @@ const copy = {
     allServices: "كل الخدمات",
     search: "ابحث",
     city: "المدينة",
+    allCities: "كل ليبيا",
     area: "المنطقة",
     checkIn: "الوصول",
     checkOut: "المغادرة",
@@ -62,6 +76,7 @@ const copy = {
     allServices: "All services",
     search: "Search",
     city: "City",
+    allCities: "All of Libya",
     area: "Area",
     checkIn: "Check-in",
     checkOut: "Check-out",
@@ -89,7 +104,15 @@ export function HeroSearch({
     initial?.type === "hall" ? "hall" : initial?.type === "service" ? "service" : "coast",
   );
   const [category, setCategory] = useState(initial?.serviceCategory ?? "");
-  const [city, setCity] = useState(initial?.city ?? "tripoli");
+  /*
+   * Empty means everywhere, and that is the default.
+   *
+   * It used to open on Tripoli, which quietly made the capital the product and
+   * every other town an act of correction. A guest in Derna had to notice a
+   * dropdown, find their city in it, and only then see what Ciao had — and if
+   * they did not notice, the answer they got was Tripoli's.
+   */
+  const [city, setCity] = useState(initial?.city ?? "");
   const [area, setArea] = useState(initial?.area ?? "");
   const [checkIn, setCheckIn] = useState(initial?.checkIn ?? "");
   const [checkOut, setCheckOut] = useState(initial?.checkOut ?? "");
@@ -99,7 +122,9 @@ export function HeroSearch({
   const categories = serviceCategories(locale);
 
   function submit() {
-    const q = new URLSearchParams({ type, city });
+    const q = new URLSearchParams({ type });
+    // No city means no city filter, rather than a filter on the empty string.
+    if (city) q.set("city", city);
     if (area) q.set("area", area);
     if (type === "service" && category) q.set("serviceCategory", category);
     if (type === "coast" && checkIn && checkOut && checkOut > checkIn) {
@@ -111,7 +136,11 @@ export function HeroSearch({
     router.push(`/search?${q}`);
   }
 
-  const whereLabel = area ? term(AREAS, locale, area) : term(CITIES, locale, city);
+  const whereLabel = area
+    ? term(AREAS, locale, area)
+    : city
+      ? term(CITIES, locale, city)
+      : c.allCities;
   const whenLabel =
     checkIn && checkOut ? `${checkIn.slice(5)} → ${checkOut.slice(5)}` : c.anyDate;
   const whoLabel = guests
@@ -230,6 +259,7 @@ export function HeroSearch({
                   setArea("");
                 }}
               >
+                <option value="">{c.allCities}</option>
                 {CITY_KEYS.map((k) => (
                   <option key={k} value={k}>{term(CITIES, locale, k)}</option>
                 ))}
